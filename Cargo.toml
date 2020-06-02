@@ -1,0 +1,24 @@
+[package]
+name = "card-movement-simulator"
+version = "0.1.0"
+authors = ["Horizon Blockchain Games Inc.", "William Hua <william@attente.ca>", "Ari Lotter <me@arilotter.com>", ]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", rev = "2c5d29efdba208b3fbaea157eb400985cb9452b2", features = ["tester"] }
+serde = "^1.0.111"
+serde_cbor = "^0.11.1"
+indexmap = { version = "^1.4.0", features = ["serde-1"] }
+rand = "^0.7.3"
+
+[build-dependencies]
+inflections = "^1.1.1"
+
+[dev-dependencies]
+arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", rev = "2c5d29efdba208b3fbaea157eb400985cb9452b2", features = ["tester", "version"] }
+
+[features]
+default = []
+reveal-backtrace = []
