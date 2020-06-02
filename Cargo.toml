@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", tag = "0.12.3", features = ["tester"] }
+serde = "1.0.111"
