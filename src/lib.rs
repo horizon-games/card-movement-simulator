@@ -2005,31 +2005,6 @@ pub struct CardGame<S: State> {
 }
 
 impl<S: State> CardGame<S> {
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    /// Returns a boolean indicating whether the InstanceID is public.
-    ///
-    /// This function is only used in integration tests to make assertions about the internal state of the system.
-    /// Regular consumers of this library should not use this function.
-    pub fn is_card_public(&self, id: InstanceID) -> bool {
-        match self.cards[usize::from(id)] {
-            MaybeSecretCard::Public(_) => true,
-            MaybeSecretCard::Secret(_) => false,
-        }
-    }
-
-    #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    /// Gets the ID for a public opaque pointer.
-    ///
-    /// Returns [None] if the pointer is secret.
-    ///
-    /// This function is only used in integration tests to make assertions about the internal state of the system.
-    /// Regular consumers of this library should not use this function.
-    pub fn id_for_pointer(&self, pointer: OpaquePointer) -> Option<InstanceID> {
-        self.opaque_ptrs[usize::from(pointer)].id()
-    }
-
     /// Gets the public state of the given player.
     pub fn player(&self, player: Player) -> &PlayerState {
         &self.players[usize::from(player)]
@@ -2058,6 +2033,31 @@ impl<S: State> CardGame<S> {
                     false
                 }
             })
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    /// Returns a boolean indicating whether the InstanceID is public.
+    ///
+    /// This function is only used in integration tests to make assertions about the internal state of the system.
+    /// Regular consumers of this library should not use this function.
+    pub fn is_card_public(&self, id: InstanceID) -> bool {
+        match self.cards[usize::from(id)] {
+            MaybeSecretCard::Public(_) => true,
+            MaybeSecretCard::Secret(_) => false,
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    /// Gets the ID for a public opaque pointer.
+    ///
+    /// Returns [None] if the pointer is secret.
+    ///
+    /// This function is only used in integration tests to make assertions about the internal state of the system.
+    /// Regular consumers of this library should not use this function.
+    pub fn id_for_pointer(&self, pointer: OpaquePointer) -> Option<InstanceID> {
+        self.opaque_ptrs[usize::from(pointer)].id()
     }
 
     fn remove_id(&mut self, id: InstanceID) {
