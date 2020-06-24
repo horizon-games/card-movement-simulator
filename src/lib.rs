@@ -2139,6 +2139,12 @@ impl<S: State> arcadeum::store::State for CardGame<S> {
 pub struct Context<S: arcadeum::store::State>(arcadeum::store::Context<S>);
 
 impl<S: arcadeum::store::State> Context<S> {
+    /// Create a new context. This is a debug-only function.
+    #[cfg(debug_assertions)]
+    pub fn new(context: arcadeum::store::Context<S>) -> Self {
+        Self(context)
+    }
+
     /// Mutates a player's secret information.
     pub fn mutate_secret(
         &mut self,
