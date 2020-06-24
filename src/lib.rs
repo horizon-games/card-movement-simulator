@@ -2445,6 +2445,12 @@ impl<S: Secret> CardGameSecret<S> {
         let attachment_id = InstanceID::from_raw(usize::from(self.next_id) + 1);
         self.next_id = InstanceID::from_raw(usize::from(self.next_id) + 2);
 
+        // Allocate only one opaque pointer for the base card.
+        // We can always call [LiveGame::attachment] to try to obtain its attachment.
+
+        let ptr = self.next_ptr;
+        self.next_ptr = OpaquePointer::from_raw(usize::from(self.next_ptr) + 1);
+
         let attachment = base.attachment().map(|attachment| {
             self.cards.insert(
                 attachment_id,
@@ -2466,6 +2472,8 @@ impl<S: Secret> CardGameSecret<S> {
                 card_state: base.new_card_state(),
             },
         );
+
+        self.opaque_ptrs.insert(ptr, id);
 
         self.limbo.push(id);
 
