@@ -216,6 +216,47 @@ impl card_movement_simulator::State for State {
 
                     assert_eq!(card_id, drawn_id);
                 }
+                Action::InstanceFromIDSetup => {
+                    let card = live_game.new_card(0, BaseCard::WithAttachment);
+                    live_game.move_card(card, 0, Zone::Field).await;
+
+                    // Public Attachment
+                    // Public WithAttachment
+
+                    assert_eq!(live_game.game().cards_len(), 2);
+
+                    let secret = live_game
+                        .new_secret_cards(0, |secret, _, _| {
+                            secret.new_card(BaseCard::Basic);
+                        })
+                        .await[0];
+
+                    live_game.move_card(secret, 0, Zone::Deck).await;
+
+                    // Public Attachment
+                    // Public WithAttachment
+                    // No card
+                    // Secret 0 Basic
+
+                    assert_eq!(live_game.game().cards_len(), 4);
+
+                    let secret = live_game
+                        .new_secret_cards(1, |secret, _, _| {
+                            secret.new_card(BaseCard::Basic);
+                        })
+                        .await[0];
+
+                    live_game.move_card(secret, 1, Zone::Deck).await;
+
+                    // Public Attachment
+                    // Public WithAttachment
+                    // No card
+                    // Secret 0 Basic
+                    // No card
+                    // Secret 1 Basic
+
+                    assert_eq!(live_game.game().cards_len(), 6);
+                }
             }
 
             live_game
@@ -282,6 +323,7 @@ enum Action {
     },
     ReplacingAttachOnSecretCardDoesNotLeakInfo,
     OpaquePointerAssociationDoesntHoldThroughDraw,
+    InstanceFromIDSetup,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Default)]
@@ -330,6 +372,67 @@ fn opaque_pointer_association_does_not_hold_through_draw() {
         &Action::OpaquePointerAssociationDoesntHoldThroughDraw,
     )
     .unwrap();
+}
+
+#[test]
+fn public_instance_from_id() {
+    let mut tester = Tester::new(
+        CardGame::<State>::default(),
+        Default::default(),
+        Default::default(),
+    )
+    .unwrap();
+
+    tester.apply(Some(0), &Action::InstanceFromIDSetup).unwrap();
+
+    // This is an implementation detail.
+    // Constructing a public card in public limbo gives the attachment the ID after the parent card.
+
+    let id = card_movement_simulator::InstanceID::from_raw(1);
+
+    assert!(id.instance(tester.state(), None).is_some());
+}
+
+#[test]
+fn secret_instance_from_id() {
+    let mut tester = Tester::new(
+        CardGame::<State>::default(),
+        Default::default(),
+        Default::default(),
+    )
+    .unwrap();
+
+    tester.apply(Some(0), &Action::InstanceFromIDSetup).unwrap();
+
+    // This is an implementation detail.
+    // Constructing a public card in public limbo gives the parent card the ID after the attachment.
+
+    let id = card_movement_simulator::InstanceID::from_raw(2);
+
+    assert!(id
+        .instance(tester.state(), Some(&tester.secret(0)))
+        .is_some());
+}
+
+#[test]
+fn opponent_instance_from_id() {
+    let mut tester = Tester::new(
+        CardGame::<State>::default(),
+        Default::default(),
+        Default::default(),
+    )
+    .unwrap();
+
+    tester.apply(Some(0), &Action::InstanceFromIDSetup).unwrap();
+
+    // This is an implementation detail.
+    // Constructing a public card in public limbo gives the parent card the ID after the attachment.
+
+    let id = card_movement_simulator::InstanceID::from_raw(4);
+
+    assert!(id
+        .instance(tester.state(), Some(&tester.secret(0)))
+        .is_none());
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));
