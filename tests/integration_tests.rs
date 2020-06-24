@@ -240,7 +240,7 @@ enum BaseCard {
 }
 
 impl card_movement_simulator::BaseCard for BaseCard {
-    type View = CardView;
+    type CardState = CardState;
 
     fn attachment(&self) -> Option<Self> {
         match self {
@@ -250,13 +250,13 @@ impl card_movement_simulator::BaseCard for BaseCard {
         }
     }
 
-    fn new_view(&self) -> Self::View {
-        CardView
+    fn new_card_state(&self) -> Self::CardState {
+        CardState
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-struct CardView;
+struct CardState;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 enum Action {

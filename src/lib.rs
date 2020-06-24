@@ -77,19 +77,19 @@ pub trait Secret:
 // todo!(): remove these trait bounds
 pub trait BaseCard: Clone + Debug {
     /// The card state structure associated with this template
-    type View: CardView;
+    type CardState: CardState;
 
     /// The base card to be attached to new card instances
     fn attachment(&self) -> Option<Self>;
 
-    /// Creates a new card instance for the given base card
-    fn new_view(&self) -> Self::View;
+    /// Creates a new CardState from this BaseCard
+    fn new_card_state(&self) -> Self::CardState;
 }
 
 /// Game-specific card state structure
-pub trait CardView: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug {}
+pub trait CardState: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug {}
 
-impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug> CardView for T {}
+impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug> CardState for T {}
 
 /// Game-specific state transition
 pub trait Action: arcadeum::Action + Debug {}
@@ -143,7 +143,7 @@ impl<S: State> LiveGame<S> {
             self.game.cards.push(MaybeSecretCard::Public(CardInstance {
                 id,
                 attachment: None,
-                view: attachment.new_view(),
+                card_state: attachment.new_card_state(),
             }));
 
             id
@@ -154,7 +154,7 @@ impl<S: State> LiveGame<S> {
         self.game.cards.push(MaybeSecretCard::Public(CardInstance {
             id,
             attachment,
-            view: base.new_view(),
+            card_state: base.new_card_state(),
         }));
 
         self.game.player_mut(player).limbo.push(id);
@@ -2443,7 +2443,7 @@ impl<S: Secret> CardGameSecret<S> {
                 CardInstance {
                     id: attachment_id,
                     attachment: None,
-                    view: attachment.new_view(),
+                    card_state: attachment.new_card_state(),
                 },
             );
 
@@ -2455,7 +2455,7 @@ impl<S: Secret> CardGameSecret<S> {
             CardInstance {
                 id,
                 attachment,
-                view: base.new_view(),
+                card_state: base.new_card_state(),
             },
         );
 
@@ -2634,7 +2634,7 @@ pub struct CardInstance<T: BaseCard> {
 
     attachment: Option<InstanceID>,
 
-    view: T::View,
+    card_state: T::CardState,
 }
 
 impl<T: BaseCard> CardInstance<T> {
@@ -2652,16 +2652,16 @@ impl<T: BaseCard> CardInstance<T> {
 }
 
 impl<T: BaseCard> Deref for CardInstance<T> {
-    type Target = T::View;
+    type Target = T::CardState;
 
     fn deref(&self) -> &Self::Target {
-        &self.view
+        &self.card_state
     }
 }
 
 impl<T: BaseCard> DerefMut for CardInstance<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.view
+        &mut self.card_state
     }
 }
 
