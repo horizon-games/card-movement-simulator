@@ -2060,6 +2060,11 @@ impl<S: State> CardGame<S> {
         self.opaque_ptrs[usize::from(pointer)].id()
     }
 
+    #[doc(hidden)]
+    pub fn cards_len(&self) -> usize {
+        self.cards.len()
+    }
+
     fn remove_id(&mut self, id: InstanceID) {
         for player in &mut self.players {
             player.hand.retain(|hand_id| *hand_id != Some(id));
