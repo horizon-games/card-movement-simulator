@@ -1999,8 +1999,9 @@ pub struct CardGame<S: State> {
 
     players: [PlayerState; 2],
 
+    /// Any additional public information that a game implementing [State] needs to track.
     #[serde(bound = "S: State")]
-    state: S,
+    pub state: S,
 }
 
 impl<S: State> CardGame<S> {
@@ -2386,8 +2387,9 @@ pub struct CardGameSecret<S: Secret> {
 
     next_ptr: OpaquePointer,
 
+    /// Any additional secret information that a game implementing [State] needs to track.
     #[serde(bound = "S: Secret")]
-    extra_state: S,
+    pub state: S,
 }
 
 impl<S: Secret> CardGameSecret<S> {
@@ -2564,7 +2566,7 @@ impl<S: Secret + Default> Default for CardGameSecret<S> {
             card_selection: Default::default(),
             next_id: Default::default(),
             next_ptr: Default::default(),
-            extra_state: Default::default(),
+            state: Default::default(),
         }
     }
 }
