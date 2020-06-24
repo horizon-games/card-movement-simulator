@@ -30,8 +30,6 @@ impl card_movement_simulator::State for State {
         action: Self::Action,
     ) -> Pin<Box<dyn Future<Output = LiveGame<Self>>>> {
         Box::pin(async move {
-            assert_eq!(live_game.reveal_ok().await, Ok(()));
-
             match action {
                 Action::Move {
                     card_ptr_bucket,
