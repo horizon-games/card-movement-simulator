@@ -2423,6 +2423,21 @@ pub struct CardGameSecret<S: Secret> {
 }
 
 impl<S: Secret> CardGameSecret<S> {
+    pub fn new(state: S) -> Self {
+        Self {
+            cards: Default::default(),
+            opaque_ptrs: Default::default(),
+            deck: Default::default(),
+            hand: Default::default(),
+            limbo: Default::default(),
+            dusted: Default::default(),
+            card_selection: Default::default(),
+            next_id: Default::default(),
+            next_ptr: Default::default(),
+            state,
+        }
+    }
+
     /// Gets all of the cards the player secretly knows.
     pub fn cards(&self) -> &indexmap::IndexMap<InstanceID, CardInstance<S::BaseCard>> {
         &self.cards
