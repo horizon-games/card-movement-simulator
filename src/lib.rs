@@ -201,6 +201,31 @@ impl<S: State> LiveGame<S> {
         self.new_public_pointer(self.game.player(player).graveyard[index])
     }
 
+    /// Gets a pointer to a player's card selection card.
+    pub fn card_selection_card(&mut self, player: Player, index: usize) -> OpaquePointer {
+        let card = OpaquePointer::from_raw(self.game.opaque_ptrs.len());
+
+        self.context.mutate_secret(player, |secret, _, _| {
+            secret
+                .opaque_ptrs
+                .insert(card, secret.card_selection[index]);
+        });
+
+        self.game.opaque_ptrs.push(MaybeSecretID::Secret(player));
+
+        card
+    }
+
+    /// Gets a pointer to a player's casting card.
+    pub fn casting_card(&mut self, player: Player, index: usize) -> OpaquePointer {
+        self.new_public_pointer(self.game.player(player).casting[index])
+    }
+
+    /// Gets a pointer to a player's publicly dusted card.
+    pub fn dusted_card(&mut self, player: Player, index: usize) -> OpaquePointer {
+        self.new_public_pointer(self.game.player(player).dusted[index])
+    }
+
     /// Gets a pointer to a card's attachment, if any.
     ///
     /// This reveals the knowledge of whether or not the card has an attachment.
