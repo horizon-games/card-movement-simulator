@@ -2423,6 +2423,7 @@ pub struct CardGameSecret<S: Secret> {
 }
 
 impl<S: Secret> CardGameSecret<S> {
+    /// Constructs a new secret with secret card collections.
     pub fn new(state: S) -> Self {
         Self {
             cards: Default::default(),
