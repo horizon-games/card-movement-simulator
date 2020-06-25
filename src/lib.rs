@@ -2074,6 +2074,16 @@ impl<S: State> CardGame<S> {
         self.cards.len()
     }
 
+    #[doc(hidden)]
+    pub fn new(state: S) -> Self {
+        Self {
+            cards: Default::default(),
+            opaque_ptrs: Default::default(),
+            players: Default::default(),
+            state,
+        }
+    }
+
     fn remove_id(&mut self, id: InstanceID) {
         for player in &mut self.players {
             player.hand.retain(|hand_id| *hand_id != Some(id));
