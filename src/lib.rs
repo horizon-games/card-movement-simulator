@@ -113,11 +113,6 @@ impl<S: State> LiveGame<S> {
         }
     }
 
-    /// Gets the public component of the game state.
-    pub fn game(&self) -> &CardGame<S> {
-        &self.game
-    }
-
     /// Invalidates all pointers.
     pub fn invalidate_pointers(&mut self) {
         for player in 0..2 {
@@ -1986,6 +1981,20 @@ impl<S: State> LiveGame<S> {
             "================================================================================"
         );
         println!();
+    }
+}
+
+impl<S: State> Deref for LiveGame<S> {
+    type Target = CardGame<S>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.game
+    }
+}
+
+impl<S: State> DerefMut for LiveGame<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.game
     }
 }
 

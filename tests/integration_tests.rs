@@ -150,7 +150,7 @@ impl card_movement_simulator::State for State {
                             .reveal_from_card(parent_ptr, CardInstance::id)
                             .await;
 
-                        let parent_card_is_public = live_game.game().is_card_public(parent_id);
+                        let parent_card_is_public = live_game.is_card_public(parent_id);
 
                         assert!(
                             live_game
@@ -181,10 +181,10 @@ impl card_movement_simulator::State for State {
 
                 Action::OpaquePointerAssociationDoesntHoldThroughDraw => {
                     let card_ptr = live_game.new_card(0, BaseCard::Basic);
-                    assert_eq!(live_game.game().player(0).deck(), 0);
+                    assert_eq!(live_game.player(0).deck(), 0);
                     live_game.move_card(card_ptr, 0, Zone::Deck).await;
 
-                    assert_eq!(live_game.game().player(0).deck(), 1);
+                    assert_eq!(live_game.player(0).deck(), 1);
                     // In a real scenario, the deck could have any number of cards.
                     // For our test, having 1 card is enough to prove that secrecy would hold for more,
                     // but an intuitive observer (us) can understand that there's only 1 card we could possibly draw.
@@ -200,7 +200,7 @@ impl card_movement_simulator::State for State {
                         card_ptr, drawn_card,
                         "These must be different opaque references."
                     );
-                    assert!(match (live_game.game().id_for_pointer(card_ptr), live_game.game().id_for_pointer(drawn_card)) {
+                    assert!(match (live_game.id_for_pointer(card_ptr), live_game.id_for_pointer(drawn_card)) {
                         (Some(id_1), Some(id_2)) if id_1 == id_2 => false,
                         (Some(id_1), Some(id_2)) if id_1 != id_2 => panic!("There was only one card in deck but we drew a different one..."),
                     _ => true
@@ -223,7 +223,7 @@ impl card_movement_simulator::State for State {
                     // Public Attachment
                     // Public WithAttachment
 
-                    assert_eq!(live_game.game().cards_len(), 2);
+                    assert_eq!(live_game.cards_len(), 2);
 
                     let secret = live_game
                         .new_secret_cards(0, |secret, _, _| {
@@ -238,7 +238,7 @@ impl card_movement_simulator::State for State {
                     // No card
                     // Secret 0 Basic
 
-                    assert_eq!(live_game.game().cards_len(), 4);
+                    assert_eq!(live_game.cards_len(), 4);
 
                     let secret = live_game
                         .new_secret_cards(1, |secret, _, _| {
@@ -255,7 +255,7 @@ impl card_movement_simulator::State for State {
                     // No card
                     // Secret 1 Basic
 
-                    assert_eq!(live_game.game().cards_len(), 6);
+                    assert_eq!(live_game.cards_len(), 6);
                 }
             }
 
