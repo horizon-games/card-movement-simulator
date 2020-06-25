@@ -2575,6 +2575,18 @@ impl<S: Secret> CardGameSecret<S> {
         // todo!();
     }
 
+    /// Modifies the card instance with the given ID and logs the new card.
+    pub fn modify_card(
+        &mut self,
+        id: InstanceID,
+        _log: impl FnMut(&dyn Event),
+        f: impl Fn(&mut CardInstance<S::BaseCard>),
+    ) {
+        f(&mut self.cards[&id]);
+
+        // todo!(): log self.cards[id]
+    }
+
     fn id_location(&self, id: InstanceID) -> Option<PublicLocation> {
         if self.deck.contains(&id) {
             Some(PublicLocation::Deck)
