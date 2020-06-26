@@ -291,12 +291,7 @@ impl<S: State> LiveGame<S> {
                         None
                     }
                 } else {
-                    let id = self
-                        .context
-                        .reveal_unique(player, move |secret| secret.opaque_ptrs[&card], |_| true)
-                        .await;
-
-                    self.publish_pointer_id(card, player, id);
+                    let id = self.reveal_id(card).await;
 
                     match &self.game.cards[usize::from(id)] {
                         MaybeSecretCard::Secret(player) => {
@@ -906,18 +901,7 @@ impl<S: State> LiveGame<S> {
                     if Bucket::Secret(card_ptr_player) == card_bucket {
                         None
                     } else {
-                        let id = self
-                            .context
-                            .reveal_unique(
-                                card_ptr_player,
-                                move |secret| secret.opaque_ptrs[&card],
-                                |_| true,
-                            )
-                            .await;
-
-                        self.publish_pointer_id(card, card_ptr_player, id);
-
-                        Some(id)
+                        Some(self.reveal_id(card).await)
                     }
                 }
                 MaybeSecretID::Public(card_id) => Some(card_id),
@@ -1143,9 +1127,14 @@ impl<S: State> LiveGame<S> {
     async fn reveal_id(&mut self, card: OpaquePointer) -> InstanceID {
         match self.game.opaque_ptrs[usize::from(card)] {
             MaybeSecretID::Secret(player) => {
-                self.context
+                let id = self
+                    .context
                     .reveal_unique(player, move |secret| secret.opaque_ptrs[&card], |_| true)
-                    .await
+                    .await;
+
+                self.publish_pointer_id(card, player, id);
+
+                id
             }
             MaybeSecretID::Public(id) => id,
         }
