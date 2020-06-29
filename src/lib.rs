@@ -416,19 +416,9 @@ impl<S: State> LiveGame<S> {
                     .game
                     .cards
                     .iter()
-                    .filter_map(|msc| {
-                        msc.instance_ref().map(|instance| {
-                            (
-                                instance.id,
-                                if self.game.does_own(0, instance.id) {
-                                    0
-                                } else if self.game.does_own(1, instance.id) {
-                                    1
-                                } else {
-                                    unreachable!("It's public but neither player owns it");
-                                },
-                            )
-                        })
+                    .filter_map(|card| {
+                        card.instance_ref()
+                            .map(|instance| (instance.id, self.game.owner(instance.id)))
                     })
                     .collect();
 
@@ -438,9 +428,8 @@ impl<S: State> LiveGame<S> {
                         move |secret| {
                             let id = secret.opaque_ptrs[&card];
                             let bucket = buckets[usize::from(id)];
-                            let is_in_my_secret = secret.does_own(id);
 
-                            let owner = if is_in_my_secret {
+                            let owner = if secret.contains(id) {
                                 // If our secret contains this card, we're obviously its owner
                                 player
                             } else {
@@ -461,27 +450,10 @@ impl<S: State> LiveGame<S> {
                     )
                     .await
             }
-            MaybeSecretID::Public(id) => {
-                if self.game.does_own(0, id) {
-                    (Bucket::Public, 0)
-                } else if self.game.does_own(1, id) {
-                    (Bucket::Public, 1)
-                } else if self
-                    .context
-                    .reveal_unique(0, move |secret| secret.does_own(id), |_| true)
-                    .await
-                {
-                    (Bucket::Secret(0), 0)
-                } else if self
-                    .context
-                    .reveal_unique(1, move |secret| secret.does_own(id), |_| true)
-                    .await
-                {
-                    (Bucket::Secret(1), 1)
-                } else {
-                    unreachable!("Nobody has this ID {:?}", id);
-                }
-            }
+            MaybeSecretID::Public(id) => match self.game.cards[usize::from(id)] {
+                MaybeSecretCard::Secret(player) => (Bucket::Secret(player), player),
+                MaybeSecretCard::Public(..) => (Bucket::Public, self.game.owner(id)),
+            },
         };
 
         let id = match self.game.opaque_ptrs[usize::from(card)] {
@@ -837,19 +809,10 @@ impl<S: State> LiveGame<S> {
                         .expect_ref("Parent card should have been public")
                         .attachment
                     {
-                        let attachment_owner = if self.game.does_own(0, attachment_id) {
-                            0
-                        } else if self.game.does_own(1, attachment_id) {
-                            1
-                        } else {
-                            unreachable!(
-                                "No player publicly owns ID {:?}, but its bucket is public",
-                                id
-                            );
-                        };
+                        let attachment_owner = self.game.owner(attachment_id);
                         let attachment = self.new_public_pointer(attachment_id);
                         self.move_card(attachment, attachment_owner, Zone::Dusted { public: true })
-                            .await
+                            .await;
                     }
 
                     Some(id)
@@ -1064,8 +1027,29 @@ impl<S: State> LiveGame<S> {
     }
 
     /// Reveals the owner of the given card.
-    pub async fn reveal_owner(&mut self, _card: OpaquePointer) -> Player {
-        todo!();
+    pub async fn reveal_owner(&mut self, card: OpaquePointer) -> Player {
+        match self.game.opaque_ptrs[usize::from(card)] {
+            MaybeSecretID::Secret(card_ptr_player) => {
+                let owners: Vec<_> = self
+                    .game
+                    .cards
+                    .iter()
+                    .map(|card| match card {
+                        MaybeSecretCard::Secret(player) => *player,
+                        MaybeSecretCard::Public(instance) => self.game.owner(instance.id),
+                    })
+                    .collect();
+
+                self.context
+                    .reveal_unique(
+                        card_ptr_player,
+                        move |secret| owners[usize::from(secret.opaque_ptrs[&card])],
+                        |_| true,
+                    )
+                    .await
+            }
+            MaybeSecretID::Public(id) => self.game.owner(id),
+        }
     }
 
     /// Reveals the card's location in public state.
@@ -1106,9 +1090,7 @@ impl<S: State> LiveGame<S> {
             }
             Some(card_id) => match card_bucket {
                 Bucket::Public => {
-                    let owner = (0u8..2)
-                        .find(|p| self.game.does_own(*p, card_id))
-                        .expect("The card is in a public bucket, but nobody claims ownership.");
+                    let owner = self.game.owner(card_id);
 
                     let location = self.game.player(owner).id_location(card_id)
                     .or_else(|| self.game.cards.iter().flat_map(MaybeSecretCard::instance_ref).find_map(|instance| if instance.attachment == Some(card_id) {
@@ -1645,14 +1627,14 @@ impl<S: State> LiveGame<S> {
             .game
             .cards
             .iter()
-            .flat_map(|msc| msc.instance_ref().map(|instance| instance.id))
+            .flat_map(|card| card.instance_ref().map(|instance| instance.id))
             .chain(
                 secrets
                     .iter()
                     .flat_map(|secret| secret.cards.keys().copied()),
             );
 
-        for id in real_instance_ids {
+        for id in real_instance_ids.clone() {
             match &self.game.cards[usize::from(id)] {
                 MaybeSecretCard::Secret(player) => {
                     // The card must be in that player's secret cards
@@ -1763,10 +1745,10 @@ impl<S: State> LiveGame<S> {
                     .game
                     .cards
                     .iter()
-                    .filter(|msc| {
-                        if let MaybeSecretCard::Public(parent_instance) = msc {
-                            parent_instance.attachment == Some(id)
-                                && self.game.does_own(player_id, parent_instance.id)
+                    .filter(|card| {
+                        if let MaybeSecretCard::Public(instance) = card {
+                            instance.attachment == Some(id)
+                                && self.game.owns(player_id, instance.id)
                         } else {
                             false
                         }
@@ -1809,6 +1791,25 @@ impl<S: State> LiveGame<S> {
                     usize::from(id),
                     count
                 ));
+            }
+        }
+
+        // If an instance is public, it should be in a public zone.
+        // If an instance is secret, it should be in a secret zone.
+
+        for id in real_instance_ids {
+            match self.game.cards[usize::from(id)] {
+                MaybeSecretCard::Secret(player) => {
+                    if !secrets[usize::from(player)].owns(id) {
+                        return Err(format!(
+                            "{:?} is in player {}'s secret bucket, but not in their secret zone",
+                            id, player
+                        ));
+                    }
+                }
+                MaybeSecretCard::Public(..) => {
+                    self.game.owner(id);
+                }
             }
         }
 
@@ -1859,9 +1860,7 @@ impl<S: State> LiveGame<S> {
             .iter()
             .flat_map(|card| card.instance_ref().map(|instance| instance.id))
         {
-            if !game.game.does_own(0, id) && !game.game.does_own(1, id) {
-                return Err(format!("Nobody claims to own public InstanceID {:?}", id));
-            }
+            game.game.owner(id);
         }
 
         Ok(())
@@ -2044,12 +2043,17 @@ impl<S: State> CardGame<S> {
     }
 
     /// Gets the owner of the given card.
-    pub fn owner(&self, _id: InstanceID) -> Player {
-        todo!();
+    pub fn owner(&self, id: InstanceID) -> Player {
+        match &self.cards[usize::from(id)] {
+            MaybeSecretCard::Secret(player) => *player,
+            MaybeSecretCard::Public(..) => (0u8..2)
+                .find(|player| self.owns(*player, id))
+                .expect(&format!("No player owns {:?}", id)),
+        }
     }
 
-    /// Checks if the instance with the given instance ID belongs to a collection of the given player.
-    pub fn does_own(&self, player: Player, id: InstanceID) -> bool {
+    /// Checks if an instance ID belongs to one of a player's public zones.
+    fn owns(&self, player: Player, id: InstanceID) -> bool {
         let player_state = self.player(player);
 
         player_state.hand.contains(&Some(id))
@@ -2058,10 +2062,9 @@ impl<S: State> CardGame<S> {
             || player_state.limbo.contains(&id)
             || player_state.casting.contains(&id)
             || player_state.dusted.contains(&id)
-            || self.cards.iter().any(|msc| {
-                if let MaybeSecretCard::Public(parent_instance) = msc {
-                    parent_instance.attachment == Some(id)
-                        && self.does_own(player, parent_instance.id)
+            || self.cards.iter().any(|card| {
+                if let MaybeSecretCard::Public(instance) = card {
+                    instance.attachment == Some(id) && self.owns(player, instance.id)
                 } else {
                     false
                 }
@@ -2544,8 +2547,8 @@ impl<S: Secret> CardGameSecret<S> {
         id
     }
 
-    /// Checks if the instance with the given instance ID exists in this secret.
-    pub fn does_own(&self, id: InstanceID) -> bool {
+    /// Checks if an instance is contained in this secret bucket.
+    pub fn contains(&self, id: InstanceID) -> bool {
         self.cards.contains_key(&id)
     }
 
@@ -2610,6 +2613,21 @@ impl<S: Secret> CardGameSecret<S> {
         f(&mut self.cards[&id]);
 
         // todo!(): log self.cards[id]
+    }
+
+    fn owns(&self, id: InstanceID) -> bool {
+        self.deck.iter().any(|deck_id| *deck_id == id)
+            || self.hand.iter().any(|hand_id| *hand_id == Some(id))
+            || self.limbo.iter().any(|limbo_id| *limbo_id == id)
+            || self.dusted.iter().any(|dusted_id| *dusted_id == id)
+            || self
+                .card_selection
+                .iter()
+                .any(|card_selection_id| *card_selection_id == id)
+            || self
+                .cards
+                .values()
+                .any(|instance| instance.attachment == Some(id))
     }
 
     fn id_location(&self, id: InstanceID) -> Option<PublicLocation> {
