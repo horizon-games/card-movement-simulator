@@ -1063,6 +1063,11 @@ impl<S: State> LiveGame<S> {
         })
     }
 
+    /// Reveals the owner of the given card.
+    pub async fn reveal_owner(&mut self, _card: OpaquePointer) -> Player {
+        todo!();
+    }
+
     /// Reveals the card's location in public state.
     async fn reveal_id_location(
         &mut self,
@@ -2036,6 +2041,11 @@ impl<S: State> CardGame<S> {
     /// Gets the mutable public state of the given player.
     pub fn player_mut(&mut self, player: Player) -> &mut PlayerState {
         &mut self.players[usize::from(player)]
+    }
+
+    /// Gets the owner of the given card.
+    pub fn owner(&self, _id: InstanceID) -> Player {
+        todo!();
     }
 
     /// Checks if the instance with the given instance ID belongs to a collection of the given player.
