@@ -1866,8 +1866,9 @@ impl<S: State> LiveGame<S> {
         Ok(())
     }
 
+    #[doc(hidden)]
     /// Creates a public opaque pointer to a concrete instance ID.
-    fn new_public_pointer(&mut self, id: InstanceID) -> OpaquePointer {
+    pub fn new_public_pointer(&mut self, id: InstanceID) -> OpaquePointer {
         let ptr = OpaquePointer::from_raw(self.game.opaque_ptrs.len());
 
         self.game.opaque_ptrs.push(MaybeSecretID::Public(id));
