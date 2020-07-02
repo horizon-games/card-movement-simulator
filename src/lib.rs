@@ -74,8 +74,7 @@ pub trait Secret:
 }
 
 /// Game-specific card template
-// todo!(): remove these trait bounds
-pub trait BaseCard: Clone + Debug {
+pub trait BaseCard: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug {
     /// The card state structure associated with this template
     type CardState: CardState;
 
@@ -137,6 +136,7 @@ impl<S: State> LiveGame<S> {
 
             self.game.cards.push(MaybeSecretCard::Public(CardInstance {
                 id,
+                base: attachment.clone(),
                 attachment: None,
                 card_state: attachment.new_card_state(),
             }));
@@ -148,6 +148,7 @@ impl<S: State> LiveGame<S> {
 
         self.game.cards.push(MaybeSecretCard::Public(CardInstance {
             id,
+            base: base.clone(),
             attachment,
             card_state: base.new_card_state(),
         }));
@@ -2524,6 +2525,7 @@ impl<S: Secret> CardGameSecret<S> {
                 attachment_id,
                 CardInstance {
                     id: attachment_id,
+                    base: attachment.clone(),
                     attachment: None,
                     card_state: attachment.new_card_state(),
                 },
@@ -2536,6 +2538,7 @@ impl<S: Secret> CardGameSecret<S> {
             id,
             CardInstance {
                 id,
+                base: base.clone(),
                 attachment,
                 card_state: base.new_card_state(),
             },
@@ -2742,6 +2745,9 @@ pub enum Zone {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct CardInstance<T: BaseCard> {
     id: InstanceID,
+
+    #[serde(bound = "T: BaseCard")]
+    base: T,
 
     attachment: Option<InstanceID>,
 
