@@ -366,6 +366,11 @@ impl<S: State> LiveGame<S> {
         }
     }
 
+    /// Copies a card.
+    pub async fn copy_card(&mut self, _card: OpaquePointer) -> OpaquePointer {
+        todo!();
+    }
+
     /// Draws a card from a player's deck to their hand.
     pub async fn draw_card(&mut self, player: Player) -> Option<OpaquePointer> {
         match self.game.player(player).deck {
