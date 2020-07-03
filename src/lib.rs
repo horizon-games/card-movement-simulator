@@ -86,9 +86,9 @@ pub trait BaseCard: serde::Serialize + serde::de::DeserializeOwned + Clone + Deb
 }
 
 /// Game-specific card state structure
-pub trait CardState: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug {}
+pub trait CardState: serde::Serialize + serde::de::DeserializeOwned + Clone + Eq + Debug {}
 
-impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug> CardState for T {}
+impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone + Eq + Debug> CardState for T {}
 
 /// Game-specific state transition
 pub trait Action: arcadeum::Action + Debug {}
