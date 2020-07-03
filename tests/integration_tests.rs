@@ -297,6 +297,12 @@ impl card_movement_simulator::BaseCard for BaseCard {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 struct CardState;
 
+impl card_movement_simulator::CardState for CardState {
+    fn is_different(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 enum Action {
     Move {
