@@ -2053,6 +2053,20 @@ pub struct CardGame<S: State> {
 }
 
 impl<S: State> CardGame<S> {
+    /// Gets an iterator over both players' cards.
+    pub fn both_players_cards<'a, F, T, X: 'a>(
+        &'a self,
+        pick: F,
+    ) -> impl Iterator<Item = (Player, X)>
+    where
+        F: Fn(&'a PlayerState) -> T,
+        T: Iterator<Item = X>,
+    {
+        pick(&self.players[0])
+            .map(|t| (0u8, t))
+            .chain(pick(&self.players[1]).map(|t| (1u8, t)))
+    }
+
     /// Gets the public state of the given player.
     pub fn player(&self, player: Player) -> &PlayerState {
         &self.players[usize::from(player)]
