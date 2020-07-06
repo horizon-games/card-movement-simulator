@@ -369,6 +369,16 @@ impl<S: State> LiveGame<S> {
         }
     }
 
+    /// Gets a pointer to a card's parent if it is an attachment.
+    ///
+    /// This reveals the knowledge that the card is an attachment.
+    pub async fn reveal_attachment_parent(
+        &mut self,
+        _card: OpaquePointer,
+    ) -> Option<OpaquePointer> {
+        todo!();
+    }
+
     /// Gets cards satisfying a predicate.
     pub async fn filter_cards(
         &mut self,
