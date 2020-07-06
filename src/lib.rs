@@ -232,7 +232,7 @@ impl<S: State> LiveGame<S> {
     /// Gets a pointer to a card's attachment, if any.
     ///
     /// This reveals the knowledge of whether or not the card has an attachment.
-    pub async fn attachment(&mut self, card: OpaquePointer) -> Option<OpaquePointer> {
+    pub async fn reveal_attachment(&mut self, card: OpaquePointer) -> Option<OpaquePointer> {
         // in what bucket is the card?
 
         // we only have to reveal the instance id if the card is in a different bucket than the pointer
