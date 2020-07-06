@@ -92,7 +92,7 @@ impl card_movement_simulator::State for State {
                     let parent_owner = 0;
                     let parent_ptr = live_game.new_card(parent_owner, BaseCard::WithAttachment);
                     let attachment_ptr = live_game
-                        .attachment(parent_ptr)
+                        .reveal_attachment(parent_ptr)
                         .await
                         .expect("BaseCard::WithAttachment must have attachment.");
                     live_game.move_pointer(parent_ptr, &parent_ptr_bucket).await;
@@ -125,7 +125,7 @@ impl card_movement_simulator::State for State {
                         .await;
                     live_game.move_pointer(parent_ptr, &parent_ptr_bucket).await;
 
-                    let original_attachment = live_game.attachment(parent_ptr).await;
+                    let original_attachment = live_game.reveal_attachment(parent_ptr).await;
 
                     let card_ptr = live_game.new_card(card_owner, BaseCard::Attachment);
                     live_game.move_card(card_ptr, card_owner, card_zone).await;
