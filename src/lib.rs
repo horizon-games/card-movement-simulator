@@ -55,7 +55,11 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
     }
 
     /// Verifies if an action by a given player is valid for the state.
-    fn verify(&self, player: Option<Player>, action: &Self::Action) -> Result<(), String>;
+    fn verify(
+        game: &CardGame<Self>,
+        player: Option<Player>,
+        action: &Self::Action,
+    ) -> Result<(), String>;
 
     /// Applies an action by a given player to the state.
     fn apply(
@@ -2211,7 +2215,7 @@ impl<S: State> arcadeum::store::State for CardGame<S> {
     }
 
     fn verify(&self, player: Option<Player>, action: &Self::Action) -> Result<(), String> {
-        self.state.verify(player, action)
+        S::verify(self, player, action)
     }
 
     fn apply(
