@@ -20,7 +20,11 @@ impl card_movement_simulator::State for State {
         "Test".as_bytes()
     }
 
-    fn verify(&self, _player: Option<Player>, _action: &Self::Action) -> Result<(), String> {
+    fn verify(
+        _game: &CardGame<Self>,
+        _player: Option<Player>,
+        _action: &Self::Action,
+    ) -> Result<(), String> {
         Ok(())
     }
 
