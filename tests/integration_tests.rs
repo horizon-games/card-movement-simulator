@@ -108,7 +108,8 @@ impl card_movement_simulator::State for State {
                         .await;
                     assert!(
                         live_game
-                            .reveal_if_zone(attachment_ptr, move |player, zone| player == to_player
+                            .reveal_from_card(attachment_ptr, move |_, player, zone| player
+                                == to_player
                                 && zone == to_zone)
                             .await
                     );
@@ -143,27 +144,35 @@ impl card_movement_simulator::State for State {
 
                     assert_eq!(
                         live_game
-                            .reveal_from_card(parent_ptr, CardInstance::attachment)
+                            .reveal_from_card(parent_ptr, |card, _, _| CardInstance::attachment(
+                                card
+                            ))
                             .await,
-                        Some(live_game.reveal_from_card(card_ptr, CardInstance::id).await)
+                        Some(
+                            live_game
+                                .reveal_from_card(card_ptr, |card, _, _| CardInstance::id(card))
+                                .await
+                        )
                     );
 
                     if let Some(original_attachment) = original_attachment {
                         // original attachment should have been dusted
                         let parent_id = live_game
-                            .reveal_from_card(parent_ptr, CardInstance::id)
+                            .reveal_from_card(parent_ptr, |card, _, _| CardInstance::id(card))
                             .await;
 
                         let parent_card_is_public = live_game.is_card_public(parent_id);
 
                         assert!(
                             live_game
-                                .reveal_if_zone(original_attachment, move |player, zone| player
-                                    == parent_owner
-                                    && zone
-                                        == Zone::Dusted {
-                                            public: parent_card_is_public
-                                        })
+                                .reveal_from_card(
+                                    original_attachment,
+                                    move |_, player, zone| player == parent_owner
+                                        && zone
+                                            == Zone::Dusted {
+                                                public: parent_card_is_public
+                                            }
+                                )
                                 .await,
                         );
                     }
@@ -212,10 +221,12 @@ impl card_movement_simulator::State for State {
 
                     // But, the cards must have been associated in secret.
 
-                    let card_id = live_game.reveal_from_card(card_ptr, CardInstance::id).await;
+                    let card_id = live_game
+                        .reveal_from_card(card_ptr, |card, _, _| CardInstance::id(card))
+                        .await;
 
                     let drawn_id = live_game
-                        .reveal_from_card(drawn_card, CardInstance::id)
+                        .reveal_from_card(drawn_card, |card, _, _| CardInstance::id(card))
                         .await;
 
                     assert_eq!(card_id, drawn_id);
