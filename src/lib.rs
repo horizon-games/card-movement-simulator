@@ -410,6 +410,8 @@ impl<S: State> LiveGame<S> {
         _f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
             &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            Player,
+            Zone,
         ) -> bool,
     ) -> impl Iterator<Item = OpaquePointer> {
         vec![].into_iter() // todo!()
