@@ -2477,6 +2477,11 @@ impl<S: Secret> CardGameSecret<S> {
         // todo!(): log self.cards[id]
     }
 
+    #[doc(hidden)]
+    pub fn new_pointer(&mut self, _id: InstanceID) -> OpaquePointer {
+        todo!();
+    }
+
     fn owns(&self, id: InstanceID) -> bool {
         self.deck.iter().any(|deck_id| *deck_id == id)
             || self.hand.iter().any(|hand_id| *hand_id == Some(id))
