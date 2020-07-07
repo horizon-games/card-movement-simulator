@@ -373,6 +373,16 @@ impl<S: State> LiveGame<S> {
         }
     }
 
+    /// Gets pointers to the attachments of cards.
+    ///
+    /// This reveals knowledge of which cards have attachments.
+    pub async fn reveal_attachments(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+    ) -> impl Iterator<Item = Option<OpaquePointer>> {
+        Vec::new().into_iter() // todo!()
+    }
+
     /// Gets a pointer to a card's parent if it is an attachment.
     ///
     /// This reveals the knowledge that the card is an attachment.
@@ -381,6 +391,16 @@ impl<S: State> LiveGame<S> {
         _card: OpaquePointer,
     ) -> Option<OpaquePointer> {
         todo!();
+    }
+
+    /// Gets pointers to cards' parents for attachments.
+    ///
+    /// This reveals knowledge of which cards are attachments.
+    pub async fn reveal_attachment_parents(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+    ) -> impl Iterator<Item = Option<OpaquePointer>> {
+        Vec::new().into_iter() // todo!()
     }
 
     /// Gets cards satisfying a predicate.
@@ -400,6 +420,14 @@ impl<S: State> LiveGame<S> {
         todo!();
     }
 
+    /// Copies cards.
+    pub async fn copy_cards(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+    ) -> impl Iterator<Item = OpaquePointer> {
+        Vec::new().into_iter() // todo!()
+    }
+
     /// Draws a card from a player's deck to their hand.
     pub async fn draw_card(&mut self, player: Player) -> Option<OpaquePointer> {
         match self.game.player(player).deck {
@@ -416,6 +444,15 @@ impl<S: State> LiveGame<S> {
                 Some(card)
             }
         }
+    }
+
+    /// Draws cards from a player's deck to their hand.
+    pub async fn draw_cards(
+        &mut self,
+        _player: Player,
+        _count: usize,
+    ) -> impl Iterator<Item = OpaquePointer> {
+        Vec::new().into_iter() // todo!()
     }
 
     /// Moves a card to another zone.
@@ -807,6 +844,16 @@ impl<S: State> LiveGame<S> {
         }
     }
 
+    /// Moves cards to another zone.
+    pub async fn move_cards(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+        _to_player: Player,
+        _to_zone: Zone,
+    ) {
+        todo!();
+    }
+
     /// Attaches a card to a parent card, dusting the parent's old attachment if necessary.
     ///
     /// This process is very similar to move_card, but it must also figure out the destination parent's ID
@@ -1084,6 +1131,14 @@ impl<S: State> LiveGame<S> {
             }
             MaybeSecretID::Public(id) => self.game.owner(id),
         }
+    }
+
+    /// Reveals the owner of each given card.
+    pub async fn reveal_owners(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+    ) -> impl Iterator<Item = Player> {
+        Vec::new().into_iter() // todo!()
     }
 
     /// Reveals the card's location in public state.
@@ -1453,6 +1508,17 @@ impl<S: State> LiveGame<S> {
         }
     }
 
+    /// Reveals data about cards.
+    pub async fn reveal_from_cards<
+        T: arcadeum::store::Secret + serde::Serialize + serde::de::DeserializeOwned + Debug,
+    >(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+        _f: impl Fn(&CardInstance<<<S as State>::Secret as Secret>::BaseCard>) -> T + Clone + 'static,
+    ) -> impl Iterator<Item = T> {
+        Vec::new().into_iter() // todo!()
+    }
+
     /// Modifies a card.
     ///
     /// If the card is public, it's modified publicly.
@@ -1531,6 +1597,18 @@ impl<S: State> LiveGame<S> {
                 }
             },
         }
+    }
+
+    /// Modifies cards.
+    ///
+    /// Public cards are modified publicly.
+    /// Secret cards are modified secretly.
+    pub async fn modify_cards(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+        _f: impl Fn(&mut CardInstance<<<S as State>::Secret as Secret>::BaseCard>),
+    ) {
+        todo!();
     }
 
     /// Creates new secret cards in a player's limbo.
