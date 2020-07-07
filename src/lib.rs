@@ -403,6 +403,34 @@ impl<S: State> LiveGame<S> {
         Vec::new().into_iter() // todo!()
     }
 
+    /// Reveals whether or not all of the given cards satisfy a given predicate.
+    pub async fn all_cards(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+        _f: impl Fn(
+            &CardInstance<<S::Secret as Secret>::BaseCard>,
+            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            Player,
+            Zone,
+        ) -> bool,
+    ) -> bool {
+        todo!();
+    }
+
+    /// Reveals whether or not any of the given cards satisfy a given predicate.
+    pub async fn any_card(
+        &mut self,
+        _cards: impl Iterator<Item = &OpaquePointer>,
+        _f: impl Fn(
+            &CardInstance<<S::Secret as Secret>::BaseCard>,
+            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            Player,
+            Zone,
+        ) -> bool,
+    ) -> bool {
+        todo!();
+    }
+
     /// Gets cards satisfying a predicate.
     pub async fn filter_cards(
         &mut self,
