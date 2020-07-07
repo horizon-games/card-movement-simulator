@@ -434,7 +434,7 @@ impl<S: State> LiveGame<S> {
     /// Gets cards satisfying a predicate.
     pub async fn filter_cards(
         &mut self,
-        _cards: impl Iterator<Item = OpaquePointer>,
+        _cards: impl Iterator<Item = &OpaquePointer>,
         _f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
             &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
