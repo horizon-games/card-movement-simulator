@@ -415,6 +415,18 @@ impl<S: State> LiveGame<S> {
         vec![].into_iter() // todo!()
     }
 
+    /// Gets hand cards satisfying a predicate.
+    pub async fn filter_hand_cards(
+        &mut self,
+        _player: Player,
+        _f: impl Fn(
+            &CardInstance<<S::Secret as Secret>::BaseCard>,
+            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+        ) -> bool,
+    ) -> impl Iterator<Item = OpaquePointer> {
+        vec![].into_iter() // todo!()
+    }
+
     /// Copies a card.
     pub async fn copy_card(&mut self, _card: OpaquePointer) -> OpaquePointer {
         todo!();
