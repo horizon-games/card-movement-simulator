@@ -1404,6 +1404,19 @@ impl<S: State> LiveGame<S> {
         cards
     }
 
+    #[doc(hidden)]
+    pub async fn new_secret_pointers(
+        &mut self,
+        _player: Player,
+        _mutate: impl Fn(
+            &mut CardGameSecret<<S as State>::Secret>,
+            &mut dyn rand::RngCore,
+            &mut dyn FnMut(&dyn Event),
+        ),
+    ) -> Vec<OpaquePointer> {
+        todo!();
+    }
+
     /// Requests a player's secret information.
     ///
     /// The random number generator is re-seeded after this call to prevent players from influencing the randomness of the state via trial and error.
