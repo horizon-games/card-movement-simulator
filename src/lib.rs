@@ -409,9 +409,9 @@ impl<S: State> LiveGame<S> {
         _cards: impl Iterator<Item = &OpaquePointer>,
         _f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
-            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
             Player,
             Zone,
+            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
         ) -> bool,
     ) -> bool {
         todo!();
@@ -423,9 +423,9 @@ impl<S: State> LiveGame<S> {
         _cards: impl Iterator<Item = &OpaquePointer>,
         _f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
-            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
             Player,
             Zone,
+            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
         ) -> bool,
     ) -> bool {
         todo!();
@@ -437,9 +437,9 @@ impl<S: State> LiveGame<S> {
         _cards: impl Iterator<Item = &OpaquePointer>,
         _f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
-            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
             Player,
             Zone,
+            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
         ) -> bool,
     ) -> impl Iterator<Item = OpaquePointer> {
         vec![].into_iter() // todo!()
@@ -1264,7 +1264,7 @@ impl<S: State> LiveGame<S> {
     >(
         &mut self,
         _card: OpaquePointer,
-        _f: impl Fn(&CardInstance<<<S as State>::Secret as Secret>::BaseCard>, Player, Zone) -> T
+        _f: impl Fn(&CardInstance<<<S as State>::Secret as Secret>::BaseCard>, Player, Zone, &Option<CardInstance<<S::Secret as Secret>::BaseCard>>) -> T
             + Clone
             + 'static,
     ) -> T {
@@ -1277,7 +1277,7 @@ impl<S: State> LiveGame<S> {
     >(
         &mut self,
         _cards: impl Iterator<Item = &OpaquePointer>,
-        _f: impl Fn(&CardInstance<<<S as State>::Secret as Secret>::BaseCard>, Player, Zone) -> T
+        _f: impl Fn(&CardInstance<<<S as State>::Secret as Secret>::BaseCard>, Player, Zone, &Option<CardInstance<<S::Secret as Secret>::BaseCard>>) -> T
             + Clone
             + 'static,
     ) -> impl Iterator<Item = T> {
