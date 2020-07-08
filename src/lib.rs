@@ -2647,6 +2647,143 @@ pub enum Zone {
     },
 }
 
+impl Zone {
+    /// `true` if the zone is [Deck].
+    pub fn is_deck(&self) -> bool {
+        if let Self::Deck = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is [Hand].
+    pub fn is_hand(&self) -> bool {
+        if let Self::Hand { .. } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is secret [Hand].
+    pub fn is_secret_hand(&self) -> bool {
+        if let Self::Hand { public: false } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is public [Hand].
+    pub fn is_public_hand(&self) -> bool {
+        if let Self::Hand { public: true } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is [Field].
+    pub fn is_field(&self) -> bool {
+        if let Self::Field = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is [Graveyard].
+    pub fn is_graveyard(&self) -> bool {
+        if let Self::Graveyard = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is [Limbo].
+    pub fn is_limbo(&self) -> bool {
+        if let Self::Limbo { .. } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is secret [Limbo].
+    pub fn is_secret_limbo(&self) -> bool {
+        if let Self::Limbo { public: false } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is public [Limbo].
+    pub fn is_public_limbo(&self) -> bool {
+        if let Self::Limbo { public: true } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is [CardSelection].
+    pub fn is_card_selection(&self) -> bool {
+        if let Self::CardSelection = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is [Casting].
+    pub fn is_casting(&self) -> bool {
+        if let Self::Casting = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is [Dusted].
+    pub fn is_dusted(&self) -> bool {
+        if let Self::Dusted { .. } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is secret [Dusted].
+    pub fn is_secret_dusted(&self) -> bool {
+        if let Self::Dusted { public: false } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is public [Dusted].
+    pub fn is_public_dusted(&self) -> bool {
+        if let Self::Dusted { public: true } = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// `true` if the zone is [Attachment].
+    pub fn is_attachment(&self) -> bool {
+        if let Self::Attachment { .. } = self {
+            true
+        } else {
+            false
+        }
+    }
+}
+
 /// A concrete card.
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct CardInstance<T: BaseCard> {
