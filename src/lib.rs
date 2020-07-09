@@ -406,12 +406,12 @@ impl<S: State> LiveGame<S> {
     /// Reveals whether or not all of the given cards satisfy a given predicate.
     pub async fn all_cards(
         &mut self,
-        cards: impl Iterator<Item = &OpaquePointer>,
+        cards: impl Iterator<Item = &OpaquePointer> + Clone,
         f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
             Player,
             Zone,
-            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
         ) -> bool,
     ) -> bool {
         !self
@@ -424,12 +424,12 @@ impl<S: State> LiveGame<S> {
     /// Reveals whether or not any of the given cards satisfy a given predicate.
     pub async fn any_card(
         &mut self,
-        _cards: impl Iterator<Item = &OpaquePointer>,
-        _f: impl Fn(
+        cards: impl Iterator<Item = &OpaquePointer> + Clone,
+        f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
             Player,
             Zone,
-            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
         ) -> bool,
     ) -> bool {
         todo!();
@@ -443,7 +443,7 @@ impl<S: State> LiveGame<S> {
             &CardInstance<<S::Secret as Secret>::BaseCard>,
             Player,
             Zone,
-            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
         ) -> bool,
     ) -> impl Iterator<Item = OpaquePointer> {
         vec![].into_iter() // todo!()
@@ -455,7 +455,7 @@ impl<S: State> LiveGame<S> {
         _player: Player,
         _f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
-            &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
         ) -> bool,
     ) -> impl Iterator<Item = OpaquePointer> {
         vec![].into_iter() // todo!()
@@ -1272,7 +1272,7 @@ impl<S: State> LiveGame<S> {
                 &CardInstance<<<S as State>::Secret as Secret>::BaseCard>,
                 Player,
                 Zone,
-                &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+                Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
             ) -> T
             + Clone
             + 'static,
@@ -1290,7 +1290,7 @@ impl<S: State> LiveGame<S> {
                 &CardInstance<<<S as State>::Secret as Secret>::BaseCard>,
                 Player,
                 Zone,
-                &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+                Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
             ) -> T
             + Clone
             + 'static,
