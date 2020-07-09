@@ -408,14 +408,16 @@ impl<S: State> LiveGame<S> {
         &mut self,
         cards: impl Iterator<Item = &OpaquePointer> + Clone,
         f: impl Fn(
-            &CardInstance<<S::Secret as Secret>::BaseCard>,
-            Player,
-            Zone,
-            Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
-        ) -> bool,
+                &CardInstance<<S::Secret as Secret>::BaseCard>,
+                Player,
+                Zone,
+                Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
+            ) -> bool
+            + Clone
+            + 'static,
     ) -> bool {
         !self
-            .any_card(cards, |card, owner, zone, attachment| {
+            .any_card(cards, move |card, owner, zone, attachment| {
                 !f(card, owner, zone, attachment)
             })
             .await
@@ -426,13 +428,233 @@ impl<S: State> LiveGame<S> {
         &mut self,
         cards: impl Iterator<Item = &OpaquePointer> + Clone,
         f: impl Fn(
-            &CardInstance<<S::Secret as Secret>::BaseCard>,
-            Player,
-            Zone,
-            Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
-        ) -> bool,
+                &CardInstance<<S::Secret as Secret>::BaseCard>,
+                Player,
+                Zone,
+                Option<&CardInstance<<S::Secret as Secret>::BaseCard>>,
+            ) -> bool
+            + Clone
+            + 'static,
     ) -> bool {
-        todo!();
+        // 1. check public pointers to public cards for a match, return true if found
+        // 2. check both secrets for a match among public pointers and secret-local pointers, return true if found
+        //    (for fairness, player 1 should always be checked even if player 0 has a match since this reveals information)
+        // 3. reveal cross-secret pointers
+        // 4. check cross-secret pointers to public cards for a match, return true if found
+        // 5. check both secrets for a match among cross-secret pointers
+        //    (for fairness, player 1 should always be checked even if player 0 has a match since this reveals information)
+
+        // 1. check public pointers to public cards for a match, return true if found
+
+        if cards.clone().any(|card| {
+            if let MaybeSecretID::Public(id) = self.game.opaque_ptrs[usize::from(*card)] {
+                if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(id)] {
+                    let (owner, zone) = self.game.zone(id);
+
+                    let zone = zone.expect("Public card not in public zone");
+
+                    let attachment = card.attachment.map(|id| {
+                        self.game.cards[usize::from(id)]
+                            .expect_ref("Public card has secret attachment")
+                    });
+
+                    if f(card, owner, zone, attachment) {
+                        return true;
+                    }
+                }
+            }
+
+            false
+        }) {
+            return true;
+        }
+
+        // 2. check both secrets for a match among public pointers and secret-local pointers, return true if found
+        //    (for fairness, player 1 should always be checked even if player 0 has a match since this reveals information)
+
+        let mut has_match = [false; 2];
+
+        for player in 0u8..2 {
+            let cards: Vec<_> = cards.clone().copied().collect();
+            let f = f.clone();
+            let opaque_ptrs = self.game.opaque_ptrs.clone();
+            let instances = self.game.cards.clone();
+            let zones: Vec<_> = (0..self.game.cards.len())
+                .map(|i| self.game.zone(InstanceID::from_raw(i)))
+                .collect();
+
+            has_match[usize::from(player)] = self.context.reveal_unique(player, move |secret| {
+                cards.iter().any(|card| {
+                    match opaque_ptrs[usize::from(*card)] {
+                        MaybeSecretID::Public(id) => {
+                            match &instances[usize::from(id)] {
+                                MaybeSecretCard::Public(..) => {
+                                    // already checked this case above
+                                    false
+                                }
+                                MaybeSecretCard::Secret(owner) if *owner == player => {
+                                    let card = &secret.cards[&id];
+
+                                    let zone = secret.zone(id)
+                                        .expect("Player's secret card is not in one of their secret zones");
+
+                                    let attachment = card.attachment.map(|id| &secret.cards[&id]);
+
+                                    f(card, *owner, zone, attachment)
+                                }
+                                MaybeSecretCard::Secret(..) => {
+                                    // may check this case below
+                                    false
+                                }
+                            }
+                        }
+                        MaybeSecretID::Secret(card_ptr_player) if card_ptr_player == player => {
+                            let id = secret.opaque_ptrs[card];
+
+                            match &instances[usize::from(id)] {
+                                MaybeSecretCard::Public(card) => {
+                                    let (owner, zone) = zones[usize::from(id)];
+
+                                    let zone = zone.expect("Public card not in public zone");
+
+                                    let attachment = card.attachment.map(|id| {
+                                        instances[usize::from(id)]
+                                            .expect_ref("Public card has secret attachment")
+                                    });
+
+                                    f(card, owner, zone, attachment)
+                                }
+                                MaybeSecretCard::Secret(owner) if *owner == player => {
+                                    let card = &secret.cards[&id];
+
+                                    let zone = secret.zone(id)
+                                        .expect("Player's secret card is not in one of their secret zones");
+
+                                    let attachment = card.attachment.map(|id| &secret.cards[&id]);
+
+                                    f(card, *owner, zone, attachment)
+                                }
+                                MaybeSecretCard::Secret(..) => {
+                                    // may check this case below
+                                    false
+                                }
+                            }
+                        }
+                        MaybeSecretID::Secret(..) => false,
+                    }
+                })
+            }, |_| true).await;
+        }
+
+        if has_match.iter().any(|has_match| *has_match) {
+            return true;
+        }
+
+        // 3. reveal cross-secret pointers
+
+        let mut revealed = indexmap::IndexSet::new();
+
+        for player in 0u8..2 {
+            // pointers in player's secret
+            let cards: Vec<_> = cards
+                .clone()
+                .copied()
+                .filter(|card| self.game.opaque_ptrs[usize::from(*card)].player() == Some(player))
+                .collect();
+
+            // ids not in player's secret
+            let opaque_ptrs: indexmap::IndexMap<_, _> = self
+                .context
+                .reveal_unique(
+                    player,
+                    move |secret| {
+                        cards
+                            .iter()
+                            .filter_map(|card| {
+                                let id = secret.opaque_ptrs[card];
+
+                                if !secret.contains(id) {
+                                    Some((*card, id))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
+                    },
+                    |_| true,
+                )
+                .await;
+
+            // publish them
+            for (card, id) in opaque_ptrs.iter() {
+                self.publish_pointer_id(*card, player, *id);
+
+                revealed.insert(*id);
+            }
+        }
+
+        // 4. check cross-secret pointers to public cards for a match, return true if found
+
+        if revealed.iter().any(|id| {
+            if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(*id)] {
+                let (owner, zone) = self.game.zone(*id);
+
+                let zone = zone.expect("Public card not in public zone");
+
+                let attachment = card.attachment.map(|id| {
+                    self.game.cards[usize::from(id)].expect_ref("Public card has secret attachment")
+                });
+
+                if f(card, owner, zone, attachment) {
+                    return true;
+                }
+            }
+
+            false
+        }) {
+            return true;
+        }
+
+        // 5. check both secrets for a match among cross-secret pointers
+        //    (for fairness, player 1 should always be checked even if player 0 has a match since this reveals information)
+
+        let mut has_match = [false; 2];
+
+        for player in 0u8..2 {
+            let f = f.clone();
+            let revealed = revealed.clone();
+
+            has_match[usize::from(player)] = self
+                .context
+                .reveal_unique(
+                    player,
+                    move |secret| {
+                        revealed.iter().any(|id| {
+                            if let Some(card) = secret.cards.get(id) {
+                                let zone = secret.zone(*id).expect(
+                                    "Player's secret card is not in one of their secret zones",
+                                );
+
+                                let attachment = card.attachment.map(|id| &secret.cards[&id]);
+
+                                if f(card, player, zone, attachment) {
+                                    return true;
+                                }
+                            }
+
+                            false
+                        })
+                    },
+                    |_| true,
+                )
+                .await;
+        }
+
+        if has_match.iter().any(|has_match| *has_match) {
+            return true;
+        }
+
+        false
     }
 
     /// Gets cards satisfying a predicate.
@@ -1971,6 +2193,11 @@ impl<S: State> CardGame<S> {
         }
     }
 
+    /// Gets the owner and zone of the given card.
+    pub fn zone(&self, _id: InstanceID) -> (Player, Option<Zone>) {
+        todo!();
+    }
+
     /// Checks if an instance ID belongs to one of a player's public zones.
     fn owns(&self, player: Player, id: InstanceID) -> bool {
         let player_state = self.player(player);
@@ -2532,6 +2759,11 @@ impl<S: Secret> CardGameSecret<S> {
         f(&mut self.cards[&id]);
 
         // todo!(): log self.cards[id]
+    }
+
+    /// Gets the zone of the given card.
+    pub fn zone(&self, _id: InstanceID) -> Option<Zone> {
+        todo!();
     }
 
     #[doc(hidden)]
