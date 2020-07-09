@@ -1264,7 +1264,12 @@ impl<S: State> LiveGame<S> {
     >(
         &mut self,
         _card: OpaquePointer,
-        _f: impl Fn(&CardInstance<<<S as State>::Secret as Secret>::BaseCard>, Player, Zone, &Option<CardInstance<<S::Secret as Secret>::BaseCard>>) -> T
+        _f: impl Fn(
+                &CardInstance<<<S as State>::Secret as Secret>::BaseCard>,
+                Player,
+                Zone,
+                &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            ) -> T
             + Clone
             + 'static,
     ) -> T {
@@ -1277,7 +1282,12 @@ impl<S: State> LiveGame<S> {
     >(
         &mut self,
         _cards: impl Iterator<Item = &OpaquePointer>,
-        _f: impl Fn(&CardInstance<<<S as State>::Secret as Secret>::BaseCard>, Player, Zone, &Option<CardInstance<<S::Secret as Secret>::BaseCard>>) -> T
+        _f: impl Fn(
+                &CardInstance<<<S as State>::Secret as Secret>::BaseCard>,
+                Player,
+                Zone,
+                &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
+            ) -> T
             + Clone
             + 'static,
     ) -> impl Iterator<Item = T> {
