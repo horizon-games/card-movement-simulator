@@ -406,15 +406,19 @@ impl<S: State> LiveGame<S> {
     /// Reveals whether or not all of the given cards satisfy a given predicate.
     pub async fn all_cards(
         &mut self,
-        _cards: impl Iterator<Item = &OpaquePointer>,
-        _f: impl Fn(
+        cards: impl Iterator<Item = &OpaquePointer>,
+        f: impl Fn(
             &CardInstance<<S::Secret as Secret>::BaseCard>,
             Player,
             Zone,
             &Option<CardInstance<<S::Secret as Secret>::BaseCard>>,
         ) -> bool,
     ) -> bool {
-        todo!();
+        !self
+            .any_card(cards, |card, owner, zone, attachment| {
+                !f(card, owner, zone, attachment)
+            })
+            .await
     }
 
     /// Reveals whether or not any of the given cards satisfy a given predicate.
