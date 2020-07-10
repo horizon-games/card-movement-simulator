@@ -78,8 +78,7 @@ pub trait Secret:
 }
 
 /// Game-specific card template
-// todo!(): remove these trait bounds
-pub trait BaseCard: Clone + Debug {
+pub trait BaseCard: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug {
     /// The card state structure associated with this template
     type CardState: CardState;
 
@@ -141,22 +140,26 @@ impl<S: State> LiveGame<S> {
     ) -> OpaquePointer {
         let attachment = base.attachment().map(|attachment| {
             let id = InstanceID::from_raw(self.game.cards.len());
+            let card_state = attachment.new_card_state();
 
             self.game.cards.push(MaybeSecretCard::Public(CardInstance {
                 id,
+                base: attachment,
                 attachment: None,
-                card_state: attachment.new_card_state(),
+                card_state,
             }));
 
             id
         });
 
         let id = InstanceID::from_raw(self.game.cards.len());
+        let card_state = base.new_card_state();
 
         self.game.cards.push(MaybeSecretCard::Public(CardInstance {
             id,
+            base,
             attachment,
-            card_state: base.new_card_state(),
+            card_state,
         }));
 
         self.game.player_mut(player).limbo.push(id);
@@ -681,6 +684,16 @@ impl<S: State> LiveGame<S> {
         ) -> bool,
     ) -> impl Iterator<Item = OpaquePointer> {
         vec![].into_iter() // todo!()
+    }
+
+    /// Resets a card.
+    pub async fn reset_card(&mut self, _card: OpaquePointer) {
+        todo!();
+    }
+
+    /// Resets cards.
+    pub async fn reset_cards(&mut self, _cards: impl Iterator<Item = &OpaquePointer>) {
+        todo!();
     }
 
     /// Copies a card.
@@ -2665,24 +2678,30 @@ impl<S: Secret> CardGameSecret<S> {
         self.next_ptr = OpaquePointer::from_raw(usize::from(self.next_ptr) + 1);
 
         let attachment = base.attachment().map(|attachment| {
+            let card_state = attachment.new_card_state();
+
             self.cards.insert(
                 attachment_id,
                 CardInstance {
                     id: attachment_id,
+                    base: attachment,
                     attachment: None,
-                    card_state: attachment.new_card_state(),
+                    card_state,
                 },
             );
 
             attachment_id
         });
 
+        let card_state = base.new_card_state();
+
         self.cards.insert(
             id,
             CardInstance {
                 id,
+                base,
                 attachment,
-                card_state: base.new_card_state(),
+                card_state,
             },
         );
 
@@ -3035,6 +3054,9 @@ impl Zone {
 pub struct CardInstance<T: BaseCard> {
     id: InstanceID,
 
+    #[serde(bound = "T: BaseCard")]
+    base: T,
+
     attachment: Option<InstanceID>,
 
     card_state: T::CardState,
@@ -3044,6 +3066,11 @@ impl<T: BaseCard> CardInstance<T> {
     /// Gets the card's ID.
     pub fn id(this: &Self) -> InstanceID {
         this.id
+    }
+
+    /// Gets the card's base card.
+    pub fn base(this: &Self) -> &T {
+        &this.base
     }
 
     /// Gets the card's attachment, if any.
