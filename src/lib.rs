@@ -2813,8 +2813,14 @@ impl<S: Secret> CardGameSecret<S> {
     }
 
     #[doc(hidden)]
-    pub fn new_pointer(&mut self, _id: InstanceID) -> OpaquePointer {
-        todo!();
+    pub fn new_pointer(&mut self, id: InstanceID) -> OpaquePointer {
+        let ptr = self.next_ptr;
+
+        self.opaque_ptrs.insert(ptr, id);
+
+        self.next_ptr = OpaquePointer::from_raw(usize::from(self.next_ptr) + 1);
+
+        ptr
     }
 
     fn owns(&self, id: InstanceID) -> bool {
