@@ -2808,8 +2808,20 @@ impl<S: Secret> CardGameSecret<S> {
     }
 
     /// Gets the zone of the given card.
-    pub fn zone(&self, _id: InstanceID) -> Option<Zone> {
-        todo!();
+    pub fn zone(&self, id: InstanceID) -> Option<Zone> {
+        if self.deck.contains(&id) {
+            Some(Zone::Deck)
+        } else if self.hand.contains(&Some(id)) {
+            Some(Zone::Hand { public: false })
+        } else if self.limbo.contains(&id) {
+            Some(Zone::Limbo { public: false })
+        } else if self.dusted.contains(&id) {
+            Some(Zone::Dusted { public: false })
+        } else if self.card_selection.contains(&id) {
+            Some(Zone::CardSelection)
+        } else {
+            None
+        }
     }
 
     #[doc(hidden)]
