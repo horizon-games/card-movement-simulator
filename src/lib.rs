@@ -381,9 +381,36 @@ impl<S: State> LiveGame<S> {
     /// This reveals knowledge of which cards have attachments.
     pub async fn reveal_attachments(
         &mut self,
-        _cards: impl Iterator<Item = &OpaquePointer>,
-    ) -> impl Iterator<Item = Option<OpaquePointer>> {
-        Vec::new().into_iter() // todo!()
+        cards: impl Iterator<Item = &OpaquePointer> + Clone,
+    ) -> Vec<Option<OpaquePointer>> {
+        // 1. get attachments for public pointers to public cards
+        // 2. reveal attachments for public pointers to secret cards and secret pointers to secret-local cards
+        // 3. reveal secret pointers to non-secret-local cards
+        // 4. reveal attachments for secret pointers to non-secret-local cards
+
+        let mut attachments: Vec<_> = cards.clone().map(|_| None).collect();
+
+        // 1. get attachments for public pointers to public cards
+
+        attachments
+            .iter_mut()
+            .zip(cards)
+            .for_each(|(attachment, card)| {
+                if let MaybeSecretID::Public(id) = &self.game.opaque_ptrs[usize::from(*card)] {
+                    if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(*id)] {
+                        *attachment = card
+                            .attachment
+                            .map(|attachment| self.new_public_pointer(attachment));
+                    }
+                }
+            });
+
+        // 2. reveal attachments for public pointers to secret cards and secret pointers to secret-local cards
+        // 3. reveal secret pointers to non-secret-local cards
+
+        // 4. reveal attachments for secret pointers to non-secret-local cards
+
+        attachments
     }
 
     /// Gets a pointer to a card's parent if it is an attachment.
