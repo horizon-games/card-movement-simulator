@@ -38,6 +38,12 @@ impl From<OpaquePointer> for usize {
     }
 }
 
+impl From<&OpaquePointer> for usize {
+    fn from(ptr: &OpaquePointer) -> Self {
+        ptr.0
+    }
+}
+
 impl Debug for OpaquePointer {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "pointer #{}", self.0)

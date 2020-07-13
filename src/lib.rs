@@ -396,8 +396,8 @@ impl<S: State> LiveGame<S> {
             .iter_mut()
             .zip(cards)
             .for_each(|(attachment, card)| {
-                if let MaybeSecretID::Public(id) = &self.game.opaque_ptrs[usize::from(*card)] {
-                    if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(*id)] {
+                if let MaybeSecretID::Public(id) = &self.game.opaque_ptrs[usize::from(card)] {
+                    if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(id)] {
                         *attachment = card
                             .attachment
                             .map(|attachment| self.new_public_pointer(attachment));
@@ -477,7 +477,7 @@ impl<S: State> LiveGame<S> {
         // 1. check public pointers to public cards for a match, return true if found
 
         if cards.clone().any(|card| {
-            if let MaybeSecretID::Public(id) = self.game.opaque_ptrs[usize::from(*card)] {
+            if let MaybeSecretID::Public(id) = self.game.opaque_ptrs[usize::from(card)] {
                 if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(id)] {
                     let (owner, zone) = self.game.zone(id);
 
@@ -515,7 +515,7 @@ impl<S: State> LiveGame<S> {
 
             has_match[usize::from(player)] = self.context.reveal_unique(player, move |secret| {
                 cards.iter().any(|card| {
-                    match opaque_ptrs[usize::from(*card)] {
+                    match opaque_ptrs[usize::from(card)] {
                         MaybeSecretID::Public(id) => {
                             match &instances[usize::from(id)] {
                                 MaybeSecretCard::Public(..) => {
@@ -589,7 +589,7 @@ impl<S: State> LiveGame<S> {
             let cards: Vec<_> = cards
                 .clone()
                 .copied()
-                .filter(|card| self.game.opaque_ptrs[usize::from(*card)].player() == Some(player))
+                .filter(|card| self.game.opaque_ptrs[usize::from(card)].player() == Some(player))
                 .collect();
 
             // ids not in player's secret
@@ -626,7 +626,7 @@ impl<S: State> LiveGame<S> {
         // 4. check cross-secret pointers to public cards for a match, return true if found
 
         if revealed.iter().any(|id| {
-            if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(*id)] {
+            if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(id)] {
                 let (owner, zone) = self.game.zone(*id);
 
                 let zone = zone.expect("Public card not in public zone");

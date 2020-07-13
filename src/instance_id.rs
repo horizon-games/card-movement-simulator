@@ -29,6 +29,12 @@ impl From<InstanceID> for usize {
     }
 }
 
+impl From<&InstanceID> for usize {
+    fn from(id: &InstanceID) -> Self {
+        id.0
+    }
+}
+
 impl Debug for InstanceID {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "card #{}", self.0)
