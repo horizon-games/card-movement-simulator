@@ -381,34 +381,272 @@ impl<S: State> LiveGame<S> {
     /// This reveals knowledge of which cards have attachments.
     pub async fn reveal_attachments(
         &mut self,
-        cards: impl Iterator<Item = &OpaquePointer> + Clone,
+        cards: Vec<&OpaquePointer>,
     ) -> Vec<Option<OpaquePointer>> {
+        // for each card:
+        //
+        // - public pointer to public card => public pointer to public attachment
+        //                                    (reveals nothing)
+        //
+        // - public pointer to secret X card => secret X pointer to secret X attachment
+        //                                      (reveals existence of attachment)
+        //
+        // - secret X pointer to public card => secret X pointer to public attachment
+        //                                      (reveals existence of attachment)
+        //
+        // - secret X pointer to secret X card => secret X pointer to secret X attachment
+        //                                        (reveals existence of attachment)
+        //
+        // - secret X pointer to secret Y card => secret Y pointer to secret Y attachment
+        //                                        (reveals existence of attachment and secret X pointer)
+        //
         // 1. get attachments for public pointers to public cards
-        // 2. reveal attachments for public pointers to secret cards and secret pointers to secret-local cards
-        // 3. reveal secret pointers to non-secret-local cards
-        // 4. reveal attachments for secret pointers to non-secret-local cards
+        // 2. a. reveal attachments for public pointers to secret cards
+        //    b. reveal attachments for secret pointers to public cards
+        //    c. reveal attachments for secret pointers to secret-local cards
+        //    d. reveal secret pointers to cross-secret cards
+        // 3. reveal attachments for secret pointers to cross-secret cards
 
-        let mut attachments: Vec<_> = cards.clone().map(|_| None).collect();
+        let mut attachments: Vec<_> = cards.iter().map(|_| None).collect();
 
         // 1. get attachments for public pointers to public cards
 
         attachments
             .iter_mut()
-            .zip(cards)
+            .zip(cards.iter())
             .for_each(|(attachment, card)| {
-                if let MaybeSecretID::Public(id) = &self.game.opaque_ptrs[usize::from(card)] {
+                if let MaybeSecretID::Public(id) = &self.game.opaque_ptrs[usize::from(*card)] {
                     if let MaybeSecretCard::Public(card) = &self.game.cards[usize::from(id)] {
-                        *attachment = card
-                            .attachment
-                            .map(|attachment| self.new_public_pointer(attachment));
+                        *attachment = card.attachment.map(|id| self.new_public_pointer(id));
                     }
                 }
             });
 
-        // 2. reveal attachments for public pointers to secret cards and secret pointers to secret-local cards
-        // 3. reveal secret pointers to non-secret-local cards
+        // 2. a. reveal attachments for public pointers to secret cards
+        //    b. reveal attachments for secret pointers to public cards
+        //    c. reveal attachments for secret pointers to secret-local cards
+        //    d. reveal secret pointers to cross-secret cards
 
-        // 4. reveal attachments for secret pointers to non-secret-local cards
+        let mut revealed: Vec<_> = cards.iter().map(|_| None).collect();
+
+        for player in 0u8..2 {
+            let start_ptr = OpaquePointer::from_raw(self.game.opaque_ptrs.len());
+
+            let (end_ptr, ptrs, ids) = self
+                .context
+                .reveal_unique(
+                    player,
+                    {
+                        let cards: Vec<_> = cards.iter().copied().copied().collect();
+                        let opaque_ptrs = self.game.opaque_ptrs.clone();
+                        let instances = self.game.cards.clone();
+
+                        move |secret| {
+                            let mut next_ptr = start_ptr;
+                            let mut ptrs: Vec<_> = cards.iter().map(|_| None).collect();
+                            let mut ids: Vec<_> = cards.iter().map(|_| None).collect();
+
+                            cards.iter().enumerate().for_each(|(i, card)| {
+                                match opaque_ptrs[usize::from(*card)] {
+                                    MaybeSecretID::Public(id) => match instances[usize::from(id)] {
+                                        MaybeSecretCard::Secret(owner) if owner == player => {
+                                            if secret.cards[&id].attachment.is_some() {
+                                                ptrs[i] = Some(next_ptr);
+
+                                                next_ptr = OpaquePointer::from_raw(
+                                                    usize::from(next_ptr) + 1,
+                                                );
+                                            }
+                                        }
+                                        _ => (),
+                                    },
+                                    MaybeSecretID::Secret(card_ptr_player)
+                                        if card_ptr_player == player =>
+                                    {
+                                        let id = secret.opaque_ptrs[card];
+
+                                        match &instances[usize::from(id)] {
+                                            MaybeSecretCard::Public(instance) => {
+                                                if instance.attachment.is_some() {
+                                                    ptrs[i] = Some(next_ptr);
+
+                                                    next_ptr = OpaquePointer::from_raw(
+                                                        usize::from(next_ptr) + 1,
+                                                    );
+                                                }
+                                            }
+                                            MaybeSecretCard::Secret(owner) if *owner == player => {
+                                                if secret.cards[&id].attachment.is_some() {
+                                                    ptrs[i] = Some(next_ptr);
+
+                                                    next_ptr = OpaquePointer::from_raw(
+                                                        usize::from(next_ptr) + 1,
+                                                    );
+                                                }
+                                            }
+                                            MaybeSecretCard::Secret(..) => {
+                                                ids[i] = Some(id);
+                                            }
+                                        }
+                                    }
+                                    _ => (),
+                                }
+                            });
+
+                            (next_ptr, ptrs, ids)
+                        }
+                    },
+                    |_| true,
+                )
+                .await;
+
+            let Self { game, context } = self;
+
+            context.mutate_secret(player, |secret, _, _| {
+                let mut next_ptr = start_ptr;
+
+                cards
+                    .iter()
+                    .for_each(|card| match game.opaque_ptrs[usize::from(*card)] {
+                        MaybeSecretID::Public(id) => match game.cards[usize::from(id)] {
+                            MaybeSecretCard::Secret(owner) if owner == player => {
+                                if let Some(attachment) = secret.cards[&id].attachment {
+                                    secret.opaque_ptrs.insert(next_ptr, attachment);
+
+                                    next_ptr = OpaquePointer::from_raw(usize::from(next_ptr) + 1);
+                                }
+                            }
+                            _ => (),
+                        },
+                        MaybeSecretID::Secret(card_ptr_player) if card_ptr_player == player => {
+                            let id = secret.opaque_ptrs[*card];
+
+                            match &game.cards[usize::from(id)] {
+                                MaybeSecretCard::Public(instance) => {
+                                    if let Some(attachment) = instance.attachment {
+                                        secret.opaque_ptrs.insert(next_ptr, attachment);
+
+                                        next_ptr =
+                                            OpaquePointer::from_raw(usize::from(next_ptr) + 1);
+                                    }
+                                }
+                                MaybeSecretCard::Secret(owner) if *owner == player => {
+                                    if let Some(attachment) = secret.cards[&id].attachment {
+                                        secret.opaque_ptrs.insert(next_ptr, attachment);
+
+                                        next_ptr =
+                                            OpaquePointer::from_raw(usize::from(next_ptr) + 1);
+                                    }
+                                }
+                                MaybeSecretCard::Secret(..) => {
+                                    secret.opaque_ptrs.remove(*card);
+                                }
+                            }
+                        }
+                        _ => (),
+                    });
+            });
+
+            ids.iter().enumerate().for_each(|(i, id)| {
+                if let Some(id) = id {
+                    self.game.opaque_ptrs[i] = MaybeSecretID::Public(*id);
+
+                    revealed[i] = Some(*id);
+                }
+            });
+
+            self.game.opaque_ptrs.extend(
+                std::iter::repeat(MaybeSecretID::Secret(player))
+                    .take(usize::from(end_ptr) - usize::from(start_ptr)),
+            );
+
+            attachments
+                .iter_mut()
+                .zip(ptrs.iter())
+                .for_each(|(attachment, ptr)| {
+                    if let Some(ptr) = ptr {
+                        *attachment = Some(*ptr);
+                    }
+                });
+        }
+
+        // 3. reveal attachments for secret pointers to cross-secret cards
+
+        for player in 0u8..2 {
+            let start_ptr = OpaquePointer::from_raw(self.game.opaque_ptrs.len());
+
+            let (end_ptr, ptrs) = self
+                .context
+                .reveal_unique(
+                    player,
+                    {
+                        let cards: Vec<_> = cards.iter().copied().copied().collect();
+                        let instances = self.game.cards.clone();
+                        let revealed = revealed.clone();
+
+                        move |secret| {
+                            let mut next_ptr = start_ptr;
+                            let mut ptrs: Vec<_> = cards.iter().map(|_| None).collect();
+
+                            revealed.iter().enumerate().for_each(|(i, id)| {
+                                if let Some(id) = id {
+                                    match instances[usize::from(id)] {
+                                        MaybeSecretCard::Secret(owner) if owner == player => {
+                                            if secret.cards[id].attachment.is_some() {
+                                                ptrs[i] = Some(next_ptr);
+
+                                                next_ptr = OpaquePointer::from_raw(
+                                                    usize::from(next_ptr) + 1,
+                                                );
+                                            }
+                                        }
+                                        _ => (),
+                                    }
+                                }
+                            });
+
+                            (next_ptr, ptrs)
+                        }
+                    },
+                    |_| true,
+                )
+                .await;
+
+            let Self { game, context } = self;
+
+            context.mutate_secret(player, |secret, _, _| {
+                let mut next_ptr = start_ptr;
+
+                revealed.iter().for_each(|id| {
+                    if let Some(id) = id {
+                        match game.cards[usize::from(id)] {
+                            MaybeSecretCard::Secret(owner) if owner == player => {
+                                if let Some(attachment) = secret.cards[id].attachment {
+                                    secret.opaque_ptrs.insert(next_ptr, attachment);
+
+                                    next_ptr = OpaquePointer::from_raw(usize::from(next_ptr) + 1);
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+                });
+            });
+
+            self.game.opaque_ptrs.extend(
+                std::iter::repeat(MaybeSecretID::Secret(player))
+                    .take(usize::from(end_ptr) - usize::from(start_ptr)),
+            );
+
+            attachments
+                .iter_mut()
+                .zip(ptrs.iter())
+                .for_each(|(attachment, ptr)| {
+                    if let Some(ptr) = ptr {
+                        *attachment = Some(*ptr);
+                    }
+                });
+        }
 
         attachments
     }
