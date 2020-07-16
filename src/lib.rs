@@ -67,6 +67,14 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
         player: Option<Player>,
         action: Self::Action,
     ) -> Pin<Box<dyn Future<Output = LiveGame<Self>>>>;
+
+    /// Compares field positions of card instances
+    fn field_ordering(
+        _a: &CardInstance<<Self::Secret as Secret>::BaseCard>,
+        _b: &CardInstance<<Self::Secret as Secret>::BaseCard>,
+    ) -> std::cmp::Ordering {
+        std::cmp::Ordering::Equal
+    }
 }
 
 /// Game-specific secret state structure
