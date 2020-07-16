@@ -1010,7 +1010,12 @@ impl<S: State> LiveGame<S> {
     }
 
     /// Moves a card to another zone.
-    pub async fn move_card(&mut self, card: OpaquePointer, to_player: Player, to_zone: Zone) {
+    pub async fn move_card(
+        &mut self,
+        card: OpaquePointer,
+        to_player: Player,
+        to_zone: Zone,
+    ) -> (Player, Option<Zone>) {
         let to_bucket = match to_zone {
             Zone::Deck => Bucket::Secret(to_player),
             Zone::Hand { public: false } => Bucket::Secret(to_player),
@@ -1025,7 +1030,7 @@ impl<S: State> LiveGame<S> {
             Zone::Dusted { public: true } => Bucket::Public,
             Zone::Attachment { parent } => {
                 self.attach_card(card, parent).await;
-                return;
+                return todo!();
             }
         };
 
@@ -1197,7 +1202,7 @@ impl<S: State> LiveGame<S> {
                     Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
                 }
 
-                return;
+                return todo!();
             }
         }
 
@@ -1396,6 +1401,8 @@ impl<S: State> LiveGame<S> {
             }
             None => (),
         }
+
+        todo!();
     }
 
     /// Moves cards to another zone.
