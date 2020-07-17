@@ -165,14 +165,13 @@ impl card_movement_simulator::State for State {
 
                         assert!(
                             live_game
-                                .reveal_from_card(
-                                    original_attachment,
-                                    move |_, player, zone, _| player == parent_owner
+                                .reveal_from_card(original_attachment, move |_, player, zone, _| {
+                                    player == parent_owner
                                         && zone
                                             == Zone::Dusted {
-                                                public: parent_card_is_public
+                                                public: parent_card_is_public,
                                             }
-                                )
+                                })
                                 .await,
                         );
                     }

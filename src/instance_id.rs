@@ -1,37 +1,18 @@
-use std::fmt::{Debug, Error, Formatter};
+use {
+    crate::{CardInstance, GameState, PlayerSecret, State},
+    std::fmt::{Debug, Error, Formatter},
+};
 
-/// A card instance ID
-#[derive(serde::Serialize, serde::Deserialize, Clone, Copy, Hash, Eq, PartialEq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct InstanceID(usize);
 
 impl InstanceID {
-    /// Gets the instance with this ID for a given [super::CardGame] and optional [super::CardGameSecret]
-    pub fn instance<'a, S: super::State>(
+    pub fn instance<S: State>(
         &self,
-        state: &'a super::CardGame<S>,
-        secret: Option<&'a super::CardGameSecret<S::Secret>>,
-    ) -> Option<&'a super::CardInstance<<S::Secret as super::Secret>::BaseCard>> {
-        state.cards[self.0]
-            .instance_ref()
-            .or_else(|| secret.and_then(|secret| secret.cards.get(self)))
-    }
-
-    #[doc(hidden)]
-    /// Constructs a card instance ID from a raw index
-    pub fn from_raw(id: usize) -> Self {
-        Self(id)
-    }
-}
-
-impl From<InstanceID> for usize {
-    fn from(id: InstanceID) -> Self {
-        id.0
-    }
-}
-
-impl From<&InstanceID> for usize {
-    fn from(id: &InstanceID) -> Self {
-        id.0
+        state: &GameState<S>,
+        secret: Option<&PlayerSecret<S>>,
+    ) -> Option<&CardInstance<S>> {
+        todo!();
     }
 }
 
