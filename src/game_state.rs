@@ -34,6 +34,12 @@ impl<S: State> DerefMut for GameState<S> {
     }
 }
 
+impl<S: State + Default> Default for GameState<S> {
+    fn default() -> GameState<S> {
+        GameState::new(Default::default())
+    }
+}
+
 impl<S: State> GameState<S> {
     pub fn new(state: S) -> Self {
         Self {
