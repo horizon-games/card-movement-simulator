@@ -16,7 +16,7 @@ pub struct PlayerSecret<S: State> {
     pub(crate) instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
     pub(crate) pointers: Vec<InstanceID>,
 
-    secret: S::Secret,
+    pub secret: S::Secret,
 }
 
 impl<S: State> Deref for PlayerSecret<S> {
