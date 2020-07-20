@@ -346,6 +346,18 @@ impl<S: State> CardGame<S> {
     ) -> Vec<Card> {
         todo!();
     }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub async fn reveal_ok(&self) -> bool {
+        todo!();
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub async fn print(&self) {
+        todo!();
+    }
 }
 
 pub struct CardInfo<'a, S: State> {
