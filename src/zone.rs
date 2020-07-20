@@ -135,7 +135,25 @@ impl Zone {
     }
 
     pub fn eq(&self, other: Zone) -> Result<bool, String> {
-        todo!();
+        match self {
+            Self::Deck => Ok(other.is_deck()),
+            Self::Hand { public: true } => Ok(other.is_public_hand()),
+            Self::Hand { public: false } => Ok(other.is_secret_hand()),
+            Self::Field => Ok(other.is_field()),
+            Self::Graveyard => Ok(other.is_graveyard()),
+            Self::Dust { public: true } => Ok(other.is_public_dust()),
+            Self::Dust { public: false } => Ok(other.is_secret_dust()),
+            Self::Attachment { parent } => match other {
+                Self::Attachment {
+                    parent: other_parent,
+                } => other_parent.eq(parent),
+                _ => Ok(false),
+            },
+            Self::Limbo { public: true } => Ok(other.is_public_limbo()),
+            Self::Limbo { public: false } => Ok(other.is_secret_limbo()),
+            Self::Casting => Ok(other.is_casting()),
+            Self::CardSelection => Ok(other.is_card_selection()),
+        }
     }
 
     pub fn ne(&self, other: Zone) -> Result<bool, String> {
