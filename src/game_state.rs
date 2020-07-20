@@ -11,7 +11,7 @@ use {
     },
 };
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct GameState<S: State> {
     pub(crate) instances: Vec<InstanceOrPlayer<S>>,
 
@@ -31,12 +31,6 @@ impl<S: State> Deref for GameState<S> {
 impl<S: State> DerefMut for GameState<S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.state
-    }
-}
-
-impl<S: State + Default> Default for GameState<S> {
-    fn default() -> GameState<S> {
-        GameState::new(Default::default())
     }
 }
 
