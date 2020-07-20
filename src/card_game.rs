@@ -415,13 +415,32 @@ impl<S: State> CardGame<S> {
     #[cfg(debug_assertions)]
     #[doc(hidden)]
     pub async fn is_public(&mut self, card: impl Into<Card>) -> bool {
-        todo!();
+        let card = card.into();
+
+        match card {
+            Card::ID(id) => self.instances[id.0].instance_ref().is_some(),
+            Card::Pointer(OpaquePointer { player, index }) => {
+                let is_public: Vec<_> = self
+                    .instances
+                    .iter()
+                    .map(|instance| instance.instance_ref().is_some())
+                    .collect();
+
+                self.context
+                    .reveal_unique(
+                        player,
+                        move |secret| is_public[secret.pointers[index].0],
+                        |_| true,
+                    )
+                    .await
+            }
+        }
     }
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
     pub async fn is_secret(&mut self, card: impl Into<Card>) -> bool {
-        todo!();
+        !self.is_public(card).await
     }
 
     #[cfg(debug_assertions)]
