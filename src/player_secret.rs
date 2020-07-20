@@ -1,5 +1,7 @@
 use {
-    crate::{Card, CardInstance, InstanceID, OpaquePointer, Player, State, Zone},
+    crate::{
+        Card, CardInfoMut, CardInstance, Event, InstanceID, OpaquePointer, Player, State, Zone,
+    },
     std::ops::{Deref, DerefMut},
 };
 
@@ -66,21 +68,6 @@ impl<S: State> PlayerSecret<S> {
             Card::Pointer(OpaquePointer { player, index }) => {
                 if player == self.player {
                     self.instances.get(&self.pointers[index])
-                } else {
-                    None
-                }
-            }
-        }
-    }
-
-    pub fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {
-        let card = card.into();
-
-        match card {
-            Card::ID(id) => self.instances.get_mut(&id),
-            Card::Pointer(OpaquePointer { player, index }) => {
-                if player == self.player {
-                    self.instances.get_mut(&self.pointers[index])
                 } else {
                     None
                 }
@@ -202,6 +189,16 @@ impl<S: State> PlayerSecret<S> {
                 }
             }
         }
+    }
+
+    pub fn modify_card(
+        &mut self,
+        card: impl Into<Card>,
+        random: &mut dyn rand::RngCore,
+        log: &mut dyn FnMut(&dyn Event),
+        f: impl FnOnce(CardInfoMut<S>),
+    ) {
+        todo!();
     }
 
     pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
