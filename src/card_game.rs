@@ -264,7 +264,55 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn reveal_if_cards_eq(&mut self, a: impl Into<Card>, b: impl Into<Card>) -> bool {
-        todo!();
+        let a = a.into();
+        let b = b.into();
+
+        if let Ok(result) = a.eq(b) {
+            return result;
+        }
+
+        if let Card::Pointer(OpaquePointer {
+            player: a_player,
+            index: a_index,
+        }) = a
+        {
+            if let Card::Pointer(OpaquePointer {
+                player: b_player,
+                index: b_index,
+            }) = b
+            {
+                if a_player == b_player {
+                    return self
+                        .context
+                        .reveal_unique(
+                            a_player,
+                            move |secret| secret.pointers[a_index] == secret.pointers[b_index],
+                            |_| true,
+                        )
+                        .await;
+                }
+            }
+        }
+
+        let a = match a {
+            Card::ID(id) => id,
+            Card::Pointer(OpaquePointer { player, index }) => {
+                self.context
+                    .reveal_unique(player, move |secret| secret.pointers[index], |_| true)
+                    .await
+            }
+        };
+
+        let b = match b {
+            Card::ID(id) => id,
+            Card::Pointer(OpaquePointer { player, index }) => {
+                self.context
+                    .reveal_unique(player, move |secret| secret.pointers[index], |_| true)
+                    .await
+            }
+        };
+
+        a == b
     }
 
     pub async fn reveal_if_cards_ne(&mut self, a: impl Into<Card>, b: impl Into<Card>) -> bool {
