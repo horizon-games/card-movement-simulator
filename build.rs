@@ -18,8 +18,8 @@ fn main() -> std::io::Result<()> {
         "Zone::Limbo { public: false }",
         "Zone::CardSelection",
         "Zone::Casting",
-        "Zone::Dusted { public: true }",
-        "Zone::Dusted { public: false }",
+        "Zone::Dust { public: true }",
+        "Zone::Dust { public: false }",
     ];
 
     // Generate tests for moving from/to all ones excluding attachments.
@@ -45,7 +45,7 @@ fn main() -> std::io::Result<()> {
                             #[test]
                             fn test_{stripped_name}() {{
                               Tester::new(
-                                  CardGame::<State>::default(),
+                                  GameState::<State>::default(),
                                   Default::default(),
                                   Default::default(),
                               )
@@ -97,7 +97,7 @@ fn main() -> std::io::Result<()> {
                         #[test]
                         fn test_{stripped_name}() {{
                           Tester::new(
-                              CardGame::<State>::default(),
+                              GameState::<State>::default(),
                               Default::default(),
                               Default::default(),
                           )
@@ -152,7 +152,7 @@ fn main() -> std::io::Result<()> {
                         #[test]
                         fn test_{stripped_name}() {{
                           Tester::new(
-                              CardGame::<State>::default(),
+                              GameState::<State>::default(),
                               Default::default(),
                               Default::default(),
                           )
