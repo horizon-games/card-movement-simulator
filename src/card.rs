@@ -9,6 +9,16 @@ pub enum Card {
     Pointer(OpaquePointer),
 }
 
+impl Card {
+    pub fn eq(&self, other: impl Into<Self>) -> Result<bool, String> {
+        todo!();
+    }
+
+    pub fn ne(&self, other: impl Into<Self>) -> Result<bool, String> {
+        Ok(!self.eq(other)?)
+    }
+}
+
 impl From<&Card> for Card {
     fn from(id: &Card) -> Self {
         *id

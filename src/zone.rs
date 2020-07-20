@@ -133,4 +133,12 @@ impl Zone {
             false
         }
     }
+
+    pub fn eq(&self, other: Zone) -> Result<bool, String> {
+        todo!();
+    }
+
+    pub fn ne(&self, other: Zone) -> Result<bool, String> {
+        Ok(!self.eq(other)?)
+    }
 }
