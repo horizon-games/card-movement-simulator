@@ -40,9 +40,9 @@ pub trait State: Clone + 'static {
     ) -> Result<(), String>;
 
     /// Applies an action by a given player to the state.
-    fn apply(
-        game: &mut CardGame<Self>,
+    fn apply<'a>(
+        game: &'a mut CardGame<Self>,
         player: Option<Player>,
         action: Self::Action,
-    ) -> Pin<Box<dyn Future<Output = ()>>>;
+    ) -> Pin<Box<dyn Future<Output = ()> + 'a>>;
 }
