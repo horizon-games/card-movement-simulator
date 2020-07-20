@@ -402,13 +402,13 @@ impl<S: State> CardGame<S> {
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
-    pub async fn reveal_ok(&mut self) -> bool {
+    pub async fn print(&mut self) {
         todo!();
     }
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
-    pub async fn print(&mut self) {
+    pub async fn reveal_ok(&mut self) -> bool {
         todo!();
     }
 
