@@ -349,13 +349,19 @@ impl<S: State> CardGame<S> {
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
-    pub async fn reveal_ok(&self) -> bool {
+    pub async fn reveal_ok(&mut self) -> bool {
         todo!();
     }
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
-    pub async fn print(&self) {
+    pub async fn print(&mut self) {
+        todo!();
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub async fn move_pointer(&mut self, card: impl Into<Card>, player: Player) {
         todo!();
     }
 }
