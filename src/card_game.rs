@@ -319,12 +319,12 @@ impl<S: State> CardGame<S> {
         todo!();
     }
 
-    pub async fn draw_card(&mut self, player: Player) -> Card {
+    pub async fn draw_card(&mut self, player: Player) -> Option<Card> {
         let cards = self.draw_cards(player, 1).await;
 
-        assert_eq!(cards.len(), 1);
+        assert!(cards.len() <= 1);
 
-        cards[0]
+        cards.into_iter().next()
     }
 
     pub async fn draw_cards(&mut self, player: Player, count: usize) -> Vec<Card> {
