@@ -13,8 +13,8 @@ pub struct PlayerSecret<S: State> {
     limbo: Vec<InstanceID>,
     card_selection: Vec<InstanceID>,
 
-    instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
-    pointers: Vec<InstanceID>,
+    pub(crate) instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
+    pub(crate) pointers: Vec<InstanceID>,
 
     secret: S::Secret,
 }
@@ -59,7 +59,9 @@ impl<S: State> PlayerSecret<S> {
     }
 
     pub fn instance(&self, card: impl Into<Card>) -> Option<&CardInstance<S>> {
-        match card.into() {
+        let card = card.into();
+
+        match card {
             Card::ID(id) => self.instances.get(&id),
             Card::Pointer(OpaquePointer { player, index }) => {
                 if player == self.player {
@@ -72,7 +74,9 @@ impl<S: State> PlayerSecret<S> {
     }
 
     pub fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {
-        match card.into() {
+        let card = card.into();
+
+        match card {
             Card::ID(id) => self.instances.get_mut(&id),
             Card::Pointer(OpaquePointer { player, index }) => {
                 if player == self.player {
@@ -85,11 +89,119 @@ impl<S: State> PlayerSecret<S> {
     }
 
     pub fn zone(&self, card: impl Into<Card>) -> Option<Zone> {
-        todo!();
+        self.location(card).map(|(zone, ..)| zone)
     }
 
     pub fn location(&self, card: impl Into<Card>) -> Option<(Zone, usize)> {
-        todo!();
+        let card = card.into();
+
+        match card {
+            Card::ID(id) => self
+                .deck
+                .iter()
+                .position(|deck_id| *deck_id == id)
+                .map(|i| (Zone::Deck, i))
+                .or_else(|| {
+                    self.hand
+                        .iter()
+                        .position(|hand_id| *hand_id == Some(id))
+                        .map(|i| (Zone::Hand { public: false }, i))
+                })
+                .or_else(|| {
+                    self.dust
+                        .iter()
+                        .position(|dust_id| *dust_id == id)
+                        .map(|i| (Zone::Dust { public: false }, i))
+                })
+                .or_else(|| {
+                    self.limbo
+                        .iter()
+                        .position(|limbo_id| *limbo_id == id)
+                        .map(|i| (Zone::Limbo { public: false }, i))
+                })
+                .or_else(|| {
+                    self.card_selection
+                        .iter()
+                        .position(|card_selection_id| *card_selection_id == id)
+                        .map(|i| (Zone::CardSelection, i))
+                })
+                .or_else(|| {
+                    let mut parents = self.instances.values().filter_map(|instance| {
+                        if instance.attachment == Some(id) {
+                            Some(instance.id())
+                        } else {
+                            None
+                        }
+                    });
+
+                    parents.next().map(|parent| {
+                        assert!(parents.next().is_none());
+
+                        (
+                            Zone::Attachment {
+                                parent: parent.into(),
+                            },
+                            0,
+                        )
+                    })
+                }),
+            Card::Pointer(OpaquePointer { player, index }) => {
+                if player == self.player {
+                    let id = self.pointers[index];
+
+                    self.deck
+                        .iter()
+                        .position(|deck_id| *deck_id == id)
+                        .map(|i| (Zone::Deck, i))
+                        .or_else(|| {
+                            self.hand
+                                .iter()
+                                .position(|hand_id| *hand_id == Some(id))
+                                .map(|i| (Zone::Hand { public: false }, i))
+                        })
+                        .or_else(|| {
+                            self.dust
+                                .iter()
+                                .position(|dust_id| *dust_id == id)
+                                .map(|i| (Zone::Dust { public: false }, i))
+                        })
+                        .or_else(|| {
+                            self.limbo
+                                .iter()
+                                .position(|limbo_id| *limbo_id == id)
+                                .map(|i| (Zone::Limbo { public: false }, i))
+                        })
+                        .or_else(|| {
+                            self.card_selection
+                                .iter()
+                                .position(|card_selection_id| *card_selection_id == id)
+                                .map(|i| (Zone::CardSelection, i))
+                        })
+                        .or_else(|| {
+                            let mut parents = self.instances.values().filter_map(|instance| {
+                                if instance.attachment == Some(id) {
+                                    Some(instance.id())
+                                } else {
+                                    None
+                                }
+                            });
+
+                            parents.next().map(|parent| {
+                                assert!(parents.next().is_none());
+
+                                (
+                                    Zone::Attachment {
+                                        parent: parent.into(),
+                                    },
+                                    0,
+                                )
+                            })
+                        })
+                } else {
+                    None
+                }
+            }
+        }
     }
 
     pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
@@ -98,6 +210,22 @@ impl<S: State> PlayerSecret<S> {
 
     pub fn new_pointer(&mut self, id: InstanceID) {
         todo!();
+    }
+
+    pub(crate) fn append_deck_to_pointers(&mut self) {
+        self.pointers.extend(&self.deck);
+    }
+
+    pub(crate) fn append_dust_to_pointers(&mut self) {
+        self.pointers.extend(&self.dust);
+    }
+
+    pub(crate) fn append_limbo_to_pointers(&mut self) {
+        self.pointers.extend(&self.limbo);
+    }
+
+    pub(crate) fn append_card_selection_to_pointers(&mut self) {
+        self.pointers.extend(&self.card_selection);
     }
 }
 

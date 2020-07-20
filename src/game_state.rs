@@ -1,9 +1,10 @@
 use {
     crate::{
-        Address, Card, CardGame, CardInstance, Context, InstanceID, Player, PlayerSecret,
-        PlayerCards, State, Zone,
+        Address, Card, CardGame, CardInstance, Context, InstanceID, OpaquePointer, Player,
+        PlayerCards, PlayerSecret, State, Zone,
     },
     std::{
+        convert::TryInto,
         future::Future,
         ops::{Deref, DerefMut},
         pin::Pin,
@@ -12,7 +13,7 @@ use {
 
 #[derive(Clone)]
 pub struct GameState<S: State> {
-    instances: Vec<InstanceOrPlayer<S>>,
+    pub(crate) instances: Vec<InstanceOrPlayer<S>>,
 
     player_cards: [PlayerCards; 2],
 
@@ -58,16 +59,76 @@ impl<S: State> GameState<S> {
         &mut self.player_cards[usize::from(player)]
     }
 
+    pub fn exists(&self, card: impl Into<Card>) -> bool {
+        let card = card.into();
+
+        match card {
+            Card::ID(id) => id.0 < self.instances.len(),
+            Card::Pointer(OpaquePointer { player, index }) => {
+                usize::from(player) < self.player_cards.len()
+                    && index < self.player_cards(player).pointers
+            }
+        }
+    }
+
     pub fn owner(&self, id: InstanceID) -> Player {
-        todo!();
+        self.zone(id).0
     }
 
     pub fn zone(&self, id: InstanceID) -> (Player, Option<Zone>) {
-        todo!();
+        let (owner, location) = self.location(id);
+
+        (owner, location.map(|(zone, ..)| zone))
     }
 
     pub fn location(&self, id: InstanceID) -> (Player, Option<(Zone, usize)>) {
-        todo!();
+        match &self.instances[id.0] {
+            InstanceOrPlayer::Instance(..) => {
+                let mut locations = (0u8..self
+                    .player_cards
+                    .len()
+                    .try_into()
+                    .expect("more than 255 players"))
+                    .filter_map(|player| {
+                        self.player_cards(player)
+                            .location(id)
+                            .map(|location| (player, Some(location)))
+                    });
+
+                if let Some(location) = locations.next() {
+                    assert!(locations.next().is_none());
+
+                    location
+                } else {
+                    let mut parents = self.instances.iter().filter_map(|instance| {
+                        instance.instance_ref().and_then(|instance| {
+                            if instance.attachment == Some(id) {
+                                Some(instance.id())
+                            } else {
+                                None
+                            }
+                        })
+                    });
+
+                    let parent = parents
+                        .next()
+                        .expect(&format!("{:?} has no owner or public parent", id));
+
+                    assert!(parents.next().is_none());
+
+                    (
+                        self.owner(parent),
+                        Some((
+                            Zone::Attachment {
+                                parent: parent.into(),
+                            },
+                            0,
+                        )),
+                    )
+                }
+            }
+            InstanceOrPlayer::Player(owner) => (*owner, None),
+        }
     }
 }
 
@@ -125,7 +186,49 @@ impl<S: State> arcadeum::store::State for GameState<S> {
 }
 
 #[derive(Clone)]
-enum InstanceOrPlayer<S: State> {
+pub(crate) enum InstanceOrPlayer<S: State> {
     Instance(CardInstance<S>),
     Player(Player),
+}
+
+impl<S: State> InstanceOrPlayer<S> {
+    pub fn instance(self) -> Option<CardInstance<S>> {
+        match self {
+            Self::Instance(instance) => Some(instance),
+            _ => None,
+        }
+    }
+
+    pub fn instance_ref(&self) -> Option<&CardInstance<S>> {
+        match self {
+            Self::Instance(instance) => Some(instance),
+            _ => None,
+        }
+    }
+
+    pub fn instance_mut(&mut self) -> Option<&mut CardInstance<S>> {
+        match self {
+            Self::Instance(instance) => Some(instance),
+            _ => None,
+        }
+    }
+
+    pub fn player(&self) -> Option<Player> {
+        match self {
+            Self::Player(player) => Some(*player),
+            _ => None,
+        }
+    }
+}
+
+impl<S: State> From<CardInstance<S>> for InstanceOrPlayer<S> {
+    fn from(instance: CardInstance<S>) -> Self {
+        Self::Instance(instance)
+    }
+}
+
+impl<S: State> From<Player> for InstanceOrPlayer<S> {
+    fn from(player: Player) -> Self {
+        Self::Player(player)
+    }
 }
