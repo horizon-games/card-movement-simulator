@@ -8,8 +8,8 @@ mod card_state;
 mod game_state;
 mod instance_id;
 mod opaque_pointer;
-mod player_secret;
 mod player_cards;
+mod player_secret;
 mod state;
 mod zone;
 
@@ -23,16 +23,20 @@ pub use {
     game_state::GameState,
     instance_id::InstanceID,
     opaque_pointer::OpaquePointer,
-    player_secret::PlayerSecret,
     player_cards::PlayerCards,
+    player_secret::PlayerSecret,
     state::State,
     zone::Zone,
 };
+
+pub(crate) use game_state::InstanceOrPlayer;
 
 pub trait Action: arcadeum::Action + Debug {}
 
 impl<T: arcadeum::Action + Debug> Action for T {}
 
 pub trait Secret: serde::Serialize + serde::de::DeserializeOwned + Clone {}
+
+impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone> Secret for T {}
 
 pub type Context<S> = arcadeum::store::Context<GameState<S>>;

@@ -5,13 +5,13 @@ use {
 
 #[derive(Clone)]
 pub struct CardInstance<S: State> {
-    id: InstanceID,
+    pub(crate) id: InstanceID,
 
-    base: S::BaseCard,
+    pub(crate) base: S::BaseCard,
 
-    attachment: Option<InstanceID>,
+    pub(crate) attachment: Option<InstanceID>,
 
-    state: <S::BaseCard as BaseCard>::CardState,
+    pub(crate) state: <S::BaseCard as BaseCard>::CardState,
 }
 
 impl<S: State> Deref for CardInstance<S> {
