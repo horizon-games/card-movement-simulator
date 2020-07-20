@@ -361,6 +361,18 @@ impl<S: State> CardGame<S> {
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
+    pub async fn is_public(&mut self, card: impl Into<Card>) -> bool {
+        todo!();
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub async fn is_secret(&mut self, card: impl Into<Card>) -> bool {
+        todo!();
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
     pub async fn move_pointer(&mut self, card: impl Into<Card>, player: Player) {
         todo!();
     }
