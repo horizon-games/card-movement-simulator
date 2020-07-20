@@ -311,7 +311,12 @@ impl<S: State> CardGame<S> {
         todo!();
     }
 
-    pub async fn move_card(&mut self, card: impl Into<Card>, to_player: Player, to_zone: Zone) {
+    pub async fn move_card(
+        &mut self,
+        card: impl Into<Card>,
+        to_player: Player,
+        to_zone: Zone,
+    ) -> (Player, Option<Zone>) {
         todo!();
     }
 
