@@ -249,6 +249,10 @@ impl<S: State> PlayerSecret<S> {
         self.pointers.extend(&self.deck);
     }
 
+    pub(crate) fn append_secret_hand_to_pointers(&mut self) {
+        self.pointers.extend(self.hand.iter().flatten());
+    }
+
     pub(crate) fn append_card_selection_to_pointers(&mut self) {
         self.pointers.extend(&self.card_selection);
     }
