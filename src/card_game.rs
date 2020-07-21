@@ -1,9 +1,12 @@
 use {
     crate::{
-        error, BaseCard, Card, CardInstance, Context, Event, GameState, InstanceID,
-        InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
+        error, player_secret::Mode, BaseCard, Card, CardInstance, Context, Event, GameState,
+        InstanceID, InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
     },
-    std::ops::{Deref, DerefMut},
+    std::{
+        iter::repeat,
+        ops::{Deref, DerefMut},
+    },
 };
 
 pub struct CardGame<S: State> {
@@ -394,7 +397,53 @@ impl<S: State> CardGame<S> {
         player: Player,
         f: impl Fn(SecretInfo<S>),
     ) -> Vec<Card> {
-        todo!();
+        let start = self.instances.len();
+
+        self.context.mutate_secret(player, |secret, random, log| {
+            secret.mode = Some(Mode::NewCards);
+            secret.next_id = Some(InstanceID(start));
+
+            f(SecretInfo {
+                secret,
+                random,
+                log,
+            })
+        });
+
+        let (pointers, end) = self
+            .context
+            .reveal_unique(
+                player,
+                |secret| {
+                    (
+                        secret.pointers.len(),
+                        secret
+                            .next_id
+                            .expect("missing end ID for new secret cards")
+                            .0,
+                    )
+                },
+                |_| true,
+            )
+            .await;
+
+        self.context.mutate_secret(player, |secret, _, _| {
+            secret.mode = None;
+            secret.next_id = None;
+        });
+
+        self.instances
+            .extend(repeat(InstanceOrPlayer::Player(player)).take(end - start));
+
+        let player_cards = self.player_cards_mut(player);
+
+        let cards = (player_cards.pointers..pointers)
+            .map(|index| OpaquePointer { player, index }.into())
+            .collect();
+
+        player_cards.pointers = pointers;
+
+        cards
     }
 
     pub async fn new_secret_pointers(
