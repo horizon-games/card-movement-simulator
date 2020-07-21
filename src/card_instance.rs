@@ -33,6 +33,10 @@ impl<S: State> CardInstance<S> {
         self.id
     }
 
+    pub fn base(&self) -> &S::BaseCard {
+        &self.base
+    }
+
     pub fn attachment(&self) -> Option<InstanceID> {
         self.attachment
     }
