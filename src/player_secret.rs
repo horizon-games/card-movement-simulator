@@ -1,7 +1,7 @@
 use {
     crate::{
-        error, BaseCard, Card, CardInfoMut, CardInstance, Event, InstanceID, OpaquePointer, Player,
-        State, Zone,
+        error, BaseCard, Card, CardInfo, CardInfoMut, CardInstance, Event, InstanceID,
+        OpaquePointer, Player, State, Zone,
     },
     std::ops::{Deref, DerefMut},
 };
@@ -124,6 +124,35 @@ impl<S: State> PlayerSecret<S> {
         })
     }
 
+    pub fn reveal_from_card<T>(
+        &self,
+        card: impl Into<Card>,
+        f: impl Fn(CardInfo<S>) -> T,
+    ) -> Option<T> {
+        let card = card.into();
+
+        self.instance(card).map(|instance| {
+            let zone = self.zone(card).expect(&format!(
+                "player {} secret {:?} has no zone",
+                self.player, card
+            ));
+
+            let attachment = instance.attachment.map(|attachment| {
+                self.instance(attachment).expect(&format!(
+                    "player {} secret {:?} attachment {:?} not secret",
+                    self.player, card, attachment
+                ))
+            });
+
+            f(CardInfo {
+                instance,
+                owner: self.player,
+                zone,
+                attachment,
+            })
+        })
+    }
+
     pub fn modify_card(
         &mut self,
         card: impl Into<Card>,
@@ -133,38 +162,33 @@ impl<S: State> PlayerSecret<S> {
     ) -> Result<(), error::ModifyCardError> {
         let card = card.into();
 
-        let id = self
-            .id(card)
-            .ok_or(error::ModifyCardError::MissingPointer { card })?;
-
         let instance = self
-            .instances
-            .get(&id)
-            .ok_or(error::ModifyCardError::MissingInstance { card, id })?;
+            .instance(card)
+            .ok_or(error::ModifyCardError::MissingInstance { card })?;
+
+        let owner = self.player;
 
         let zone = self.zone(card).expect(&format!(
             "player {} secret {:?} has no zone",
-            self.player, id
+            self.player, card
         ));
 
         let attachment = instance.attachment().map(|attachment| {
-            self.instances
-                .get(&attachment)
+            self.instance(attachment)
                 .expect(&format!(
                     "player {} secret {:?} attachment {:?} not secret",
-                    self.player, id, attachment
+                    self.player, card, attachment
                 ))
                 .clone()
         });
 
         let instance = self
-            .instances
-            .get_mut(&id)
-            .expect(&format!("{:?} vanished", id));
+            .instance_mut(card)
+            .expect(&format!("{:?} vanished", card));
 
         f(CardInfoMut {
             instance,
-            owner: self.player,
+            owner,
             zone,
             attachment: attachment.as_ref(),
             random,
@@ -250,6 +274,11 @@ impl<S: State> PlayerSecret<S> {
                 }
             }
         }
+    }
+
+    fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {
+        self.id(card)
+            .and_then(move |id| self.instances.get_mut(&id))
     }
 }
 
