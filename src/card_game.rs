@@ -603,6 +603,14 @@ impl<S: State> CardGame<S> {
             .filter_map(|(card, f)| if f { Some(card) } else { None })
     }
 
+    pub async fn reset_card(&mut self, card: impl Into<Card>) {
+        todo!();
+    }
+
+    pub async fn reset_cards(&mut self, cards: Vec<Card>) {
+        todo!();
+    }
+
     pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) {
         todo!();
     }
