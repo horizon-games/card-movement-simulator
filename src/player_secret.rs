@@ -61,18 +61,7 @@ impl<S: State> PlayerSecret<S> {
     }
 
     pub fn instance(&self, card: impl Into<Card>) -> Option<&CardInstance<S>> {
-        let card = card.into();
-
-        match card {
-            Card::ID(id) => self.instances.get(&id),
-            Card::Pointer(OpaquePointer { player, index }) => {
-                if player == self.player {
-                    self.instances.get(&self.pointers[index])
-                } else {
-                    None
-                }
-            }
-        }
+        self.id(card).and_then(|id| self.instances.get(&id))
     }
 
     pub fn zone(&self, card: impl Into<Card>) -> Option<Zone> {
@@ -80,11 +69,8 @@ impl<S: State> PlayerSecret<S> {
     }
 
     pub fn location(&self, card: impl Into<Card>) -> Option<(Zone, usize)> {
-        let card = card.into();
-
-        match card {
-            Card::ID(id) => self
-                .deck
+        self.id(card).and_then(|id| {
+            self.deck
                 .iter()
                 .position(|deck_id| *deck_id == id)
                 .map(|i| (Zone::Deck, i))
@@ -131,64 +117,8 @@ impl<S: State> PlayerSecret<S> {
                             0,
                         )
                     })
-                }),
-            Card::Pointer(OpaquePointer { player, index }) => {
-                if player == self.player {
-                    let id = self.pointers[index];
-
-                    self.deck
-                        .iter()
-                        .position(|deck_id| *deck_id == id)
-                        .map(|i| (Zone::Deck, i))
-                        .or_else(|| {
-                            self.hand
-                                .iter()
-                                .position(|hand_id| *hand_id == Some(id))
-                                .map(|i| (Zone::Hand { public: false }, i))
-                        })
-                        .or_else(|| {
-                            self.dust
-                                .iter()
-                                .position(|dust_id| *dust_id == id)
-                                .map(|i| (Zone::Dust { public: false }, i))
-                        })
-                        .or_else(|| {
-                            self.limbo
-                                .iter()
-                                .position(|limbo_id| *limbo_id == id)
-                                .map(|i| (Zone::Limbo { public: false }, i))
-                        })
-                        .or_else(|| {
-                            self.card_selection
-                                .iter()
-                                .position(|card_selection_id| *card_selection_id == id)
-                                .map(|i| (Zone::CardSelection, i))
-                        })
-                        .or_else(|| {
-                            let mut parents = self.instances.values().filter_map(|instance| {
-                                if instance.attachment == Some(id) {
-                                    Some(instance.id())
-                                } else {
-                                    None
-                                }
-                            });
-
-                            parents.next().map(|parent| {
-                                assert!(parents.next().is_none());
-
-                                (
-                                    Zone::Attachment {
-                                        parent: parent.into(),
-                                    },
-                                    0,
-                                )
-                            })
-                        })
-                } else {
-                    None
-                }
-            }
-        }
+                })
+        })
     }
 
     pub fn modify_card(
@@ -223,6 +153,21 @@ impl<S: State> PlayerSecret<S> {
 
     pub(crate) fn append_card_selection_to_pointers(&mut self) {
         self.pointers.extend(&self.card_selection);
+    }
+
+    fn id(&self, card: impl Into<Card>) -> Option<InstanceID> {
+        let card = card.into();
+
+        match card {
+            Card::ID(id) => Some(id),
+            Card::Pointer(OpaquePointer { player, index }) => {
+                if player == self.player {
+                    Some(self.pointers[index])
+                } else {
+                    None
+                }
+            }
+        }
     }
 }
 
