@@ -8,6 +8,11 @@ use {
 
 #[derive(Clone)]
 pub struct PlayerSecret<S: State> {
+    pub secret: S::Secret,
+
+    pub(crate) instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
+    pub(crate) pointers: Vec<InstanceID>,
+
     player: Player,
 
     deck: Vec<InstanceID>,
@@ -15,11 +20,6 @@ pub struct PlayerSecret<S: State> {
     dust: Vec<InstanceID>,
     limbo: Vec<InstanceID>,
     card_selection: Vec<InstanceID>,
-
-    pub(crate) instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
-    pub(crate) pointers: Vec<InstanceID>,
-
-    pub secret: S::Secret,
 }
 
 impl<S: State> Deref for PlayerSecret<S> {
@@ -222,6 +222,11 @@ where
 {
     fn default() -> Self {
         Self {
+            secret: Default::default(),
+
+            instances: Default::default(),
+            pointers: Default::default(),
+
             player: Default::default(),
 
             deck: Default::default(),
@@ -229,11 +234,6 @@ where
             dust: Default::default(),
             limbo: Default::default(),
             card_selection: Default::default(),
-
-            instances: Default::default(),
-            pointers: Default::default(),
-
-            secret: Default::default(),
         }
     }
 }
