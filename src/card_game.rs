@@ -190,7 +190,35 @@ impl<S: State> CardGame<S> {
     }
 
     pub fn hand_cards(&mut self, player: Player) -> Vec<Card> {
-        todo!();
+        self.context.mutate_secret(player, |secret, _, _| {
+            secret.append_secret_hand_to_pointers();
+        });
+
+        let player_cards = self.player_cards_mut(player);
+
+        let secret_hand = player_cards.hand().iter().filter(|id| id.is_none()).count();
+
+        player_cards.pointers += secret_hand;
+
+        let mut secret_hand = (player_cards.pointers - secret_hand..player_cards.pointers)
+            .map(|index| OpaquePointer { player, index });
+
+        let hand = player_cards
+            .hand()
+            .iter()
+            .map(|id| {
+                id.map(Card::from).unwrap_or_else(|| {
+                    secret_hand
+                        .next()
+                        .expect("not enough secret hand cards")
+                        .into()
+                })
+            })
+            .collect();
+
+        assert!(secret_hand.next().is_none());
+
+        hand
     }
 
     pub fn field_cards(&self, player: Player) -> &Vec<InstanceID> {
