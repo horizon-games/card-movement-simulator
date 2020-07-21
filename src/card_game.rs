@@ -3,6 +3,7 @@ use {
         error, player_secret, BaseCard, Card, CardInstance, Context, Event, GameState, InstanceID,
         InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
     },
+    rand::seq::IteratorRandom,
     std::{
         iter::repeat,
         ops::{Deref, DerefMut},
@@ -393,7 +394,15 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn draw_cards(&mut self, player: Player, count: usize) -> Vec<Card> {
-        todo!();
+        let cards = self
+            .deck_cards(player)
+            .into_iter()
+            .choose_multiple(&mut self.context.random().await, count);
+
+        self.move_cards(cards.clone(), player, Zone::Hand { public: false })
+            .await;
+
+        cards
     }
 
     pub async fn new_secret_cards(
