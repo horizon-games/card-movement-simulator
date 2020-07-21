@@ -13,6 +13,8 @@ mod player_secret;
 mod state;
 mod zone;
 
+pub mod error;
+
 pub use {
     arcadeum::{crypto::Address, store::Event, Nonce, Player, ID},
     base_card::BaseCard,
