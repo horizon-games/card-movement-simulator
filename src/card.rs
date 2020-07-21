@@ -41,6 +41,13 @@ impl Card {
     pub fn ne(&self, other: impl Into<Self>) -> Result<bool, error::CardEqualityError> {
         Ok(!self.eq(other)?)
     }
+
+    pub fn id(&self) -> Option<InstanceID> {
+        match self {
+            Self::ID(id) => Some(*id),
+            Self::Pointer(..) => None,
+        }
+    }
 }
 
 impl From<&Card> for Card {
