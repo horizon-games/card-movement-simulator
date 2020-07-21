@@ -28,5 +28,5 @@ pub enum ZoneEqualityError {
 }
 
 #[doc(hidden)]
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Eq, PartialEq, Debug)]
 pub enum RevealOkError {}
