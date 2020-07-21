@@ -1,5 +1,5 @@
 use {
-    crate::{InstanceID, OpaquePointer},
+    crate::{error, InstanceID, OpaquePointer},
     std::fmt::{Debug, Error, Formatter},
 };
 
@@ -10,16 +10,20 @@ pub enum Card {
 }
 
 impl Card {
-    pub fn eq(&self, other: impl Into<Self>) -> Result<bool, String> {
+    pub fn eq(&self, other: impl Into<Self>) -> Result<bool, error::CardEqualityError> {
         let other = other.into();
 
         match self {
             Self::ID(id) => match other {
                 Self::ID(other_id) => Ok(other_id == *id),
-                Self::Pointer(..) => Err(format!("cannot compare {:?} and {:?}", self, other)),
+                Self::Pointer(..) => {
+                    Err(error::CardEqualityError::IncomparableCards { a: *self, b: other })
+                }
             },
             Self::Pointer(OpaquePointer { player, index }) => match other {
-                Self::ID(..) => Err(format!("cannot compare {:?} and {:?}", self, other)),
+                Self::ID(..) => {
+                    Err(error::CardEqualityError::IncomparableCards { a: *self, b: other })
+                }
                 Self::Pointer(OpaquePointer {
                     player: other_player,
                     index: other_index,
@@ -27,14 +31,14 @@ impl Card {
                     if other_player == *player && other_index == *index {
                         Ok(true)
                     } else {
-                        Err(format!("cannot compare {:?} and {:?}", self, other))
+                        Err(error::CardEqualityError::IncomparableCards { a: *self, b: other })
                     }
                 }
             },
         }
     }
 
-    pub fn ne(&self, other: impl Into<Self>) -> Result<bool, String> {
+    pub fn ne(&self, other: impl Into<Self>) -> Result<bool, error::CardEqualityError> {
         Ok(!self.eq(other)?)
     }
 }

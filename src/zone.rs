@@ -1,4 +1,4 @@
-use crate::Card;
+use crate::{error, Card};
 
 #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug)]
 pub enum Zone {
@@ -134,7 +134,7 @@ impl Zone {
         }
     }
 
-    pub fn eq(&self, other: Zone) -> Result<bool, String> {
+    pub fn eq(&self, other: Zone) -> Result<bool, error::ZoneEqualityError> {
         match self {
             Self::Deck => Ok(other.is_deck()),
             Self::Hand { public: true } => Ok(other.is_public_hand()),
@@ -143,12 +143,16 @@ impl Zone {
             Self::Graveyard => Ok(other.is_graveyard()),
             Self::Dust { public: true } => Ok(other.is_public_dust()),
             Self::Dust { public: false } => Ok(other.is_secret_dust()),
-            Self::Attachment { parent } => match other {
-                Self::Attachment {
-                    parent: other_parent,
-                } => other_parent.eq(parent),
-                _ => Ok(false),
-            },
+            Self::Attachment { parent } => {
+                match other {
+                    Self::Attachment {
+                        parent: other_parent,
+                    } => other_parent.eq(parent).or(Err(
+                        error::ZoneEqualityError::IncomparableZones { a: *self, b: other },
+                    )),
+                    _ => Ok(false),
+                }
+            }
             Self::Limbo { public: true } => Ok(other.is_public_limbo()),
             Self::Limbo { public: false } => Ok(other.is_secret_limbo()),
             Self::Casting => Ok(other.is_casting()),
@@ -156,7 +160,7 @@ impl Zone {
         }
     }
 
-    pub fn ne(&self, other: Zone) -> Result<bool, String> {
+    pub fn ne(&self, other: Zone) -> Result<bool, error::ZoneEqualityError> {
         Ok(!self.eq(other)?)
     }
 }
