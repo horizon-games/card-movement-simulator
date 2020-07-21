@@ -442,10 +442,13 @@ impl<S: State> CardGame<S> {
         cards: Vec<Card>,
         f: impl Fn(CardInfo<S>) -> bool,
     ) -> impl Iterator<Item = Card> {
+        let f = self.reveal_from_cards(cards.clone(), f).await;
+
+        assert_eq!(f.len(), cards.len());
+
         cards
-            .clone()
             .into_iter()
-            .zip(self.reveal_from_cards(cards, f).await)
+            .zip(f)
             .filter_map(|(card, f)| if f { Some(card) } else { None })
     }
 
@@ -527,6 +530,9 @@ impl<S: State> CardGame<S> {
             )
             .await;
 
+        assert!(pointers >= self.player_cards(player).pointers);
+        assert!(end >= start);
+
         self.context.mutate_secret(player, |secret, _, _| {
             secret.mode = None;
         });
@@ -564,6 +570,8 @@ impl<S: State> CardGame<S> {
             .context
             .reveal_unique(player, |secret| secret.pointers.len(), |_| true)
             .await;
+
+        assert!(pointers >= self.player_cards(player).pointers);
 
         self.context.mutate_secret(player, |secret, _, _| {
             secret.mode = None;
