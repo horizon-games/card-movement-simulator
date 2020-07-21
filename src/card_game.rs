@@ -1,7 +1,7 @@
 use {
     crate::{
-        BaseCard, Card, CardInstance, Context, Event, GameState, InstanceID, InstanceOrPlayer,
-        OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
+        error, BaseCard, Card, CardInstance, Context, Event, GameState, InstanceID,
+        InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
     },
     std::ops::{Deref, DerefMut},
 };
@@ -364,11 +364,16 @@ impl<S: State> CardGame<S> {
         card: impl Into<Card>,
         to_player: Player,
         to_zone: Zone,
-    ) -> (Player, Option<Zone>) {
+    ) -> Result<(Player, Option<Zone>), error::MoveCardError> {
         todo!();
     }
 
-    pub async fn move_cards(&mut self, cards: Vec<Card>, to_player: Player, to_zone: Zone) {
+    pub async fn move_cards(
+        &mut self,
+        cards: Vec<Card>,
+        to_player: Player,
+        to_zone: Zone,
+    ) -> Vec<Result<(Player, Option<Zone>), error::MoveCardError>> {
         todo!();
     }
 
@@ -408,7 +413,7 @@ impl<S: State> CardGame<S> {
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
-    pub async fn reveal_ok(&mut self) -> bool {
+    pub async fn reveal_ok(&mut self) -> Result<(), error::RevealOkError> {
         todo!();
     }
 
