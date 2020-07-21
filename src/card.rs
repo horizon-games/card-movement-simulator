@@ -10,6 +10,20 @@ pub enum Card {
 }
 
 impl Card {
+    pub fn id(&self) -> Option<InstanceID> {
+        match self {
+            Self::ID(id) => Some(*id),
+            Self::Pointer(..) => None,
+        }
+    }
+
+    pub fn pointer(&self) -> Option<OpaquePointer> {
+        match self {
+            Self::ID(..) => None,
+            Self::Pointer(ptr) => Some(*ptr),
+        }
+    }
+
     pub fn eq(&self, other: impl Into<Self>) -> Result<bool, error::CardEqualityError> {
         let other = other.into();
 
@@ -40,13 +54,6 @@ impl Card {
 
     pub fn ne(&self, other: impl Into<Self>) -> Result<bool, error::CardEqualityError> {
         Ok(!self.eq(other)?)
-    }
-
-    pub fn id(&self) -> Option<InstanceID> {
-        match self {
-            Self::ID(id) => Some(*id),
-            Self::Pointer(..) => None,
-        }
     }
 }
 
