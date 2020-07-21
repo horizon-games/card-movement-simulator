@@ -207,22 +207,14 @@ impl<S: State> CardGame<S> {
 
     /// This reveals the number of cards in a player's secret dust.
     pub async fn secret_dust_cards(&mut self, player: Player) -> Vec<Card> {
-        let dust = self
-            .context
-            .reveal_unique(player, |secret| secret.dust().len(), |_| true)
-            .await;
-
-        self.context.mutate_secret(player, |secret, _, _| {
-            secret.append_dust_to_pointers();
-        });
-
-        let player_cards = self.player_cards_mut(player);
-
-        player_cards.pointers += dust;
-
-        (player_cards.pointers - dust..player_cards.pointers)
-            .map(|index| OpaquePointer { player, index }.into())
-            .collect()
+        self.new_secret_pointers(player, |mut secret| {
+            secret
+                .dust()
+                .clone()
+                .into_iter()
+                .for_each(|id| secret.new_pointer(id));
+        })
+        .await
     }
 
     pub fn public_limbo_cards(&self, player: Player) -> &Vec<InstanceID> {
@@ -231,22 +223,14 @@ impl<S: State> CardGame<S> {
 
     /// This reveals the number of cards in a player's secret limbo.
     pub async fn secret_limbo_cards(&mut self, player: Player) -> Vec<Card> {
-        let limbo = self
-            .context
-            .reveal_unique(player, |secret| secret.limbo().len(), |_| true)
-            .await;
-
-        self.context.mutate_secret(player, |secret, _, _| {
-            secret.append_limbo_to_pointers();
-        });
-
-        let player_cards = self.player_cards_mut(player);
-
-        player_cards.pointers += limbo;
-
-        (player_cards.pointers - limbo..player_cards.pointers)
-            .map(|index| OpaquePointer { player, index }.into())
-            .collect()
+        self.new_secret_pointers(player, |mut secret| {
+            secret
+                .limbo()
+                .clone()
+                .into_iter()
+                .for_each(|id| secret.new_pointer(id));
+        })
+        .await
     }
 
     pub fn casting_cards(&self, player: Player) -> &Vec<InstanceID> {

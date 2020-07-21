@@ -249,14 +249,6 @@ impl<S: State> PlayerSecret<S> {
         self.pointers.extend(&self.deck);
     }
 
-    pub(crate) fn append_dust_to_pointers(&mut self) {
-        self.pointers.extend(&self.dust);
-    }
-
-    pub(crate) fn append_limbo_to_pointers(&mut self) {
-        self.pointers.extend(&self.limbo);
-    }
-
     pub(crate) fn append_card_selection_to_pointers(&mut self) {
         self.pointers.extend(&self.card_selection);
     }
