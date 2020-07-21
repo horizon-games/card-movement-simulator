@@ -1,6 +1,7 @@
 use {
     crate::{
-        Card, CardInfoMut, CardInstance, Event, InstanceID, OpaquePointer, Player, State, Zone,
+        error, Card, CardInfoMut, CardInstance, Event, InstanceID, OpaquePointer, Player, State,
+        Zone,
     },
     std::ops::{Deref, DerefMut},
 };
@@ -127,8 +128,42 @@ impl<S: State> PlayerSecret<S> {
         random: &mut dyn rand::RngCore,
         log: &mut dyn FnMut(&dyn Event),
         f: impl FnOnce(CardInfoMut<S>),
-    ) {
-        todo!();
+    ) -> Result<(), error::ModifyCardError> {
+        let card = card.into();
+
+        let id = self
+            .id(card)
+            .ok_or(error::ModifyCardError::MissingPointer { card })?;
+
+        let instance = self
+            .instances
+            .get(&id)
+            .ok_or(error::ModifyCardError::MissingInstance { card, id })?;
+
+        let zone = self.zone(card).expect(&format!(
+            "{:?} in player {} secret has no zone",
+            card, self.player
+        ));
+
+        let attachment = instance
+            .attachment()
+            .and_then(|attachment| self.instances.get(&attachment).cloned());
+
+        let instance = self
+            .instances
+            .get_mut(&id)
+            .expect(&format!("{:?} vanished", id));
+
+        f(CardInfoMut {
+            instance,
+            owner: self.player,
+            zone,
+            attachment: attachment.as_ref(),
+            random,
+            log,
+        });
+
+        Ok(())
     }
 
     pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
