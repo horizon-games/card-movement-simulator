@@ -14,7 +14,6 @@ pub struct PlayerSecret<S: State> {
     pub(crate) pointers: Vec<InstanceID>,
 
     pub(crate) mode: Option<Mode>,
-    pub(crate) next_id: Option<InstanceID>,
 
     player: Player,
 
@@ -170,49 +169,50 @@ impl<S: State> PlayerSecret<S> {
     }
 
     pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
-        assert_eq!(self.mode, Some(Mode::NewCards));
+        if let Some(Mode::NewCards(mut id)) = self.mode {
+            let attachment = base.attachment().map(|attachment| {
+                let state = attachment.new_card_state();
+                let instance = CardInstance {
+                    id,
+                    base: attachment,
+                    attachment: None,
+                    state,
+                };
 
-        let next_id = self.next_id.expect("missing next ID for new secret cards");
+                self.instances.insert(id, instance);
 
-        let attachment = base.attachment().map(|attachment| {
-            let id = next_id;
-            let state = attachment.new_card_state();
+                id
+            });
+
+            id.0 += 1;
+
+            let card = id;
+            let state = base.new_card_state();
             let instance = CardInstance {
                 id,
-                base: attachment,
-                attachment: None,
+                base,
+                attachment,
                 state,
             };
 
             self.instances.insert(id, instance);
 
-            id
-        });
+            id.0 += 1;
 
-        let next_id = InstanceID(next_id.0 + 1);
+            self.pointers.push(card);
 
-        let id = next_id;
-        let state = base.new_card_state();
-        let instance = CardInstance {
-            id,
-            base,
-            attachment,
-            state,
-        };
-
-        self.instances.insert(id, instance);
-
-        self.next_id = Some(InstanceID(next_id.0 + 1));
-
-        self.pointers.push(id);
-
-        id
+            card
+        } else {
+            panic!("called PlayerSecret::new_card outside of CardGame::new_secret_cards");
+        }
     }
 
     pub fn new_pointer(&mut self, id: InstanceID) {
-        assert_eq!(self.mode, Some(Mode::NewPointers));
-
-        self.pointers.push(id);
+        if let Some(Mode::NewPointers) = self.mode {
+            self.pointers.push(id);
+        } else {
+            panic!("called PlayerSecret::new_pointer outside of CardGame::new_secret_pointers");
+        }
     }
 
     pub(crate) fn append_deck_to_pointers(&mut self) {
@@ -269,7 +269,6 @@ where
             pointers: Default::default(),
 
             mode: Default::default(),
-            next_id: Default::default(),
 
             player: Default::default(),
 
@@ -282,8 +281,8 @@ where
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) enum Mode {
-    NewCards,
+    NewCards(InstanceID),
     NewPointers,
 }

@@ -1,7 +1,7 @@
 use {
     crate::{
-        error, player_secret::Mode, BaseCard, Card, CardInstance, Context, Event, GameState,
-        InstanceID, InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
+        error, player_secret, BaseCard, Card, CardInstance, Context, Event, GameState, InstanceID,
+        InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
     },
     std::{
         iter::repeat,
@@ -400,8 +400,7 @@ impl<S: State> CardGame<S> {
         let start = self.instances.len();
 
         self.context.mutate_secret(player, |secret, random, log| {
-            secret.mode = Some(Mode::NewCards);
-            secret.next_id = Some(InstanceID(start));
+            secret.mode = Some(player_secret::Mode::NewCards(InstanceID(start)));
 
             f(SecretInfo {
                 secret,
@@ -415,13 +414,11 @@ impl<S: State> CardGame<S> {
             .reveal_unique(
                 player,
                 |secret| {
-                    (
-                        secret.pointers.len(),
-                        secret
-                            .next_id
-                            .expect("missing end ID for new secret cards")
-                            .0,
-                    )
+                    if let Some(player_secret::Mode::NewCards(id)) = secret.mode {
+                        (secret.pointers.len(), id.0)
+                    } else {
+                        unreachable!("{:?} is not Mode::NewCards(..)", secret.mode);
+                    }
                 },
                 |_| true,
             )
@@ -429,7 +426,6 @@ impl<S: State> CardGame<S> {
 
         self.context.mutate_secret(player, |secret, _, _| {
             secret.mode = None;
-            secret.next_id = None;
         });
 
         self.instances
@@ -452,7 +448,7 @@ impl<S: State> CardGame<S> {
         f: impl Fn(SecretInfo<S>),
     ) -> Vec<Card> {
         self.context.mutate_secret(player, |secret, random, log| {
-            secret.mode = Some(Mode::NewPointers);
+            secret.mode = Some(player_secret::Mode::NewPointers);
 
             f(SecretInfo {
                 secret,
