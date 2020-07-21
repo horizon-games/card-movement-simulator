@@ -1,7 +1,7 @@
 use {
     crate::{
-        error, Card, CardInfoMut, CardInstance, Event, InstanceID, OpaquePointer, Player, State,
-        Zone,
+        error, BaseCard, Card, CardInfoMut, CardInstance, Event, InstanceID, OpaquePointer, Player,
+        State, Zone,
     },
     std::ops::{Deref, DerefMut},
 };
@@ -12,6 +12,9 @@ pub struct PlayerSecret<S: State> {
 
     pub(crate) instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
     pub(crate) pointers: Vec<InstanceID>,
+
+    pub(crate) mode: Option<Mode>,
+    pub(crate) next_id: Option<InstanceID>,
 
     player: Player,
 
@@ -167,11 +170,49 @@ impl<S: State> PlayerSecret<S> {
     }
 
     pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
-        todo!();
+        assert_eq!(self.mode, Some(Mode::NewCards));
+
+        let next_id = self.next_id.expect("missing next ID for new secret cards");
+
+        let attachment = base.attachment().map(|attachment| {
+            let id = next_id;
+            let state = attachment.new_card_state();
+            let instance = CardInstance {
+                id,
+                base: attachment,
+                attachment: None,
+                state,
+            };
+
+            self.instances.insert(id, instance);
+
+            id
+        });
+
+        let next_id = InstanceID(next_id.0 + 1);
+
+        let id = next_id;
+        let state = base.new_card_state();
+        let instance = CardInstance {
+            id,
+            base,
+            attachment,
+            state,
+        };
+
+        self.instances.insert(id, instance);
+
+        self.next_id = Some(InstanceID(next_id.0 + 1));
+
+        self.pointers.push(id);
+
+        id
     }
 
     pub fn new_pointer(&mut self, id: InstanceID) {
-        todo!();
+        assert_eq!(self.mode, Some(Mode::NewPointers));
+
+        self.pointers.push(id);
     }
 
     pub(crate) fn append_deck_to_pointers(&mut self) {
@@ -227,6 +268,9 @@ where
             instances: Default::default(),
             pointers: Default::default(),
 
+            mode: Default::default(),
+            next_id: Default::default(),
+
             player: Default::default(),
 
             deck: Default::default(),
@@ -236,4 +280,10 @@ where
             card_selection: Default::default(),
         }
     }
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub(crate) enum Mode {
+    NewCards,
+    NewPointers,
 }
