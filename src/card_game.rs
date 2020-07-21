@@ -364,8 +364,8 @@ impl<S: State> CardGame<S> {
 
                             move |secret| {
                                 secret
-                                    .reveal_from_card(secret.pointers[index], |info| {
-                                        Either::A(f(info))
+                                    .reveal_from_card(secret.pointers[index], |instance| {
+                                        Either::A(f(instance))
                                     })
                                     .unwrap_or_else(|| Either::B(secret.pointers[index]))
                             }
@@ -430,7 +430,158 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn reveal_parent(&mut self, card: impl Into<Card>) -> Option<Card> {
-        todo!();
+        let card = card.into();
+
+        match card {
+            Card::ID(id) => match self.instances[id.0] {
+                InstanceOrPlayer::Instance(..) => {
+                    let mut parents = self.instances.iter().filter_map(|instance| {
+                        instance.instance_ref().and_then(|instance| {
+                            if instance.attachment == Some(id) {
+                                Some(instance.id())
+                            } else {
+                                None
+                            }
+                        })
+                    });
+
+                    parents.next().map(|parent| {
+                        assert!(parents.next().is_none());
+
+                        parent.into()
+                    })
+                }
+                InstanceOrPlayer::Player(owner) => {
+                    let parents = self
+                        .new_secret_pointers(owner, |mut secret| {
+                            let parents: Vec<_> = secret
+                                .instances
+                                .values()
+                                .filter_map(|instance| {
+                                    if instance.attachment == Some(id) {
+                                        Some(instance.id())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+
+                            assert!(parents.len() <= 1);
+
+                            parents
+                                .into_iter()
+                                .for_each(|parent| secret.new_pointer(parent));
+                        })
+                        .await;
+
+                    assert!(parents.len() <= 1);
+
+                    parents.into_iter().next()
+                }
+            },
+            Card::Pointer(OpaquePointer { player, index }) => {
+                let id = self
+                    .context
+                    .reveal_unique(
+                        player,
+                        move |secret| {
+                            let id = secret.pointers[index];
+
+                            let parents = secret
+                                .instances
+                                .values()
+                                .filter(|instance| instance.attachment == Some(id))
+                                .count();
+
+                            match parents {
+                                0 => Some(id),
+                                1 => None,
+                                parents => unreachable!("{:?} has {} parents", id, parents),
+                            }
+                        },
+                        |_| true,
+                    )
+                    .await;
+
+                match id {
+                    None => {
+                        let parents = self
+                            .new_secret_pointers(player, |mut secret| {
+                                let id = secret.pointers[index];
+
+                                let parents: Vec<_> = secret
+                                    .instances
+                                    .values()
+                                    .filter_map(|instance| {
+                                        if instance.attachment == Some(id) {
+                                            Some(instance.id())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect();
+
+                                assert!(parents.len() <= 1);
+
+                                parents
+                                    .into_iter()
+                                    .for_each(|parent| secret.new_pointer(parent));
+                            })
+                            .await;
+
+                        assert!(parents.len() <= 1);
+
+                        parents.into_iter().next()
+                    }
+                    Some(id) => match self.instances[id.0] {
+                        InstanceOrPlayer::Instance(..) => {
+                            let mut parents = self.instances.iter().filter_map(|instance| {
+                                instance.instance_ref().and_then(|instance| {
+                                    if instance.attachment == Some(id) {
+                                        Some(instance.id())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            });
+
+                            parents.next().map(|parent| {
+                                assert!(parents.next().is_none());
+
+                                parent.into()
+                            })
+                        }
+                        InstanceOrPlayer::Player(owner) => {
+                            let parents = self
+                                .new_secret_pointers(owner, |mut secret| {
+                                    let parents: Vec<_> = secret
+                                        .instances
+                                        .values()
+                                        .filter_map(|instance| {
+                                            if instance.attachment == Some(id) {
+                                                Some(instance.id())
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect();
+
+                                    assert!(parents.len() <= 1);
+
+                                    parents
+                                        .into_iter()
+                                        .for_each(|parent| secret.new_pointer(parent));
+                                })
+                                .await;
+
+                            assert!(parents.len() <= 1);
+
+                            parents.into_iter().next()
+                        }
+                    },
+                }
+            }
+        }
     }
 
     pub async fn reveal_parents(&mut self, cards: Vec<Card>) -> Vec<Option<Card>> {
