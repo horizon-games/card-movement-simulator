@@ -350,8 +350,12 @@ impl<S: State> CardGame<S> {
         &mut self,
         cards: Vec<Card>,
         f: impl Fn(CardInfo<S>) -> bool,
-    ) -> Vec<Card> {
-        todo!();
+    ) -> impl Iterator<Item = Card> {
+        cards
+            .clone()
+            .into_iter()
+            .zip(self.reveal_from_cards(cards, f).await)
+            .filter_map(|(card, f)| if f { Some(card) } else { None })
     }
 
     pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) {
