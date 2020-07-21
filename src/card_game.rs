@@ -451,7 +451,34 @@ impl<S: State> CardGame<S> {
         player: Player,
         f: impl Fn(SecretInfo<S>),
     ) -> Vec<Card> {
-        todo!();
+        self.context.mutate_secret(player, |secret, random, log| {
+            secret.mode = Some(Mode::NewPointers);
+
+            f(SecretInfo {
+                secret,
+                random,
+                log,
+            })
+        });
+
+        let pointers = self
+            .context
+            .reveal_unique(player, |secret| secret.pointers.len(), |_| true)
+            .await;
+
+        self.context.mutate_secret(player, |secret, _, _| {
+            secret.mode = None;
+        });
+
+        let player_cards = self.player_cards_mut(player);
+
+        let cards = (player_cards.pointers..pointers)
+            .map(|index| OpaquePointer { player, index }.into())
+            .collect();
+
+        player_cards.pointers = pointers;
+
+        cards
     }
 
     #[cfg(debug_assertions)]
