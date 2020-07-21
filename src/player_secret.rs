@@ -143,13 +143,19 @@ impl<S: State> PlayerSecret<S> {
             .ok_or(error::ModifyCardError::MissingInstance { card, id })?;
 
         let zone = self.zone(card).expect(&format!(
-            "{:?} in player {} secret has no zone",
-            card, self.player
+            "player {} secret {:?} has no zone",
+            self.player, id
         ));
 
-        let attachment = instance
-            .attachment()
-            .and_then(|attachment| self.instances.get(&attachment).cloned());
+        let attachment = instance.attachment().map(|attachment| {
+            self.instances
+                .get(&attachment)
+                .expect(&format!(
+                    "player {} secret {:?} attachment {:?} not secret",
+                    self.player, id, attachment
+                ))
+                .clone()
+        });
 
         let instance = self
             .instances
