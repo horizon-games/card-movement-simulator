@@ -328,7 +328,113 @@ impl<S: State> CardGame<S> {
         card: impl Into<Card>,
         f: impl Fn(CardInfo<S>) -> T + Clone + 'static,
     ) -> T {
-        todo!();
+        let card = card.into();
+
+        match card {
+            Card::ID(id) => match &self.instances[id.0] {
+                InstanceOrPlayer::Instance(instance) => {
+                    let (owner, zone) = self.zone(id);
+                    let zone = zone.expect(&format!("public {:?} has no zone", id));
+
+                    let attachment = instance.attachment().map(|attachment| {
+                        self.instances[attachment.0].instance_ref().expect(&format!(
+                            "public {:?} attachment {:?} not public",
+                            id, attachment
+                        ))
+                    });
+
+                    f(CardInfo {
+                        instance,
+                        owner,
+                        zone,
+                        attachment,
+                    })
+                }
+                InstanceOrPlayer::Player(owner) => {
+                    let owner = {
+                        let copy = *owner;
+                        drop(owner);
+                        copy
+                    };
+
+                    self.context
+                        .reveal_unique(
+                            owner,
+                            move |secret| {
+                                secret
+                                    .reveal_from_card(id, f.clone())
+                                    .expect(&format!("{:?} not in player {:?} secret", id, owner))
+                            },
+                            |_| true,
+                        )
+                        .await
+                }
+            },
+            Card::Pointer(OpaquePointer { player, index }) => {
+                let revealed = self
+                    .context
+                    .reveal_unique(
+                        player,
+                        {
+                            let f = f.clone();
+
+                            move |secret| {
+                                secret
+                                    .reveal_from_card(secret.pointers[index], |info| {
+                                        Either::A(f(info))
+                                    })
+                                    .unwrap_or_else(|| Either::B(secret.pointers[index]))
+                            }
+                        },
+                        |_| true,
+                    )
+                    .await;
+
+                match revealed {
+                    Either::A(result) => result,
+                    Either::B(id) => match &self.instances[id.0] {
+                        InstanceOrPlayer::Instance(instance) => {
+                            let (owner, zone) = self.zone(id);
+                            let zone = zone.expect(&format!("public {:?} has no zone", id));
+
+                            let attachment = instance.attachment().map(|attachment| {
+                                self.instances[attachment.0].instance_ref().expect(&format!(
+                                    "public {:?} attachment {:?} not public",
+                                    id, attachment
+                                ))
+                            });
+
+                            f(CardInfo {
+                                instance,
+                                owner,
+                                zone,
+                                attachment,
+                            })
+                        }
+                        InstanceOrPlayer::Player(owner) => {
+                            let owner = {
+                                let copy = *owner;
+                                drop(owner);
+                                copy
+                            };
+
+                            self.context
+                                .reveal_unique(
+                                    owner,
+                                    move |secret| {
+                                        secret.reveal_from_card(id, f.clone()).expect(&format!(
+                                            "{:?} not in player {:?} secret",
+                                            id, owner
+                                        ))
+                                    },
+                                    |_| true,
+                                )
+                                .await
+                        }
+                    },
+                }
+            }
+        }
     }
 
     pub async fn reveal_from_cards<T: Secret>(

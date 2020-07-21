@@ -1,4 +1,4 @@
-use crate::{Card, InstanceID, Zone};
+use crate::{Card, Zone};
 
 #[derive(thiserror::Error, Debug)]
 pub enum MoveCardError {
@@ -9,10 +9,7 @@ pub enum MoveCardError {
 #[derive(thiserror::Error, Debug)]
 pub enum ModifyCardError {
     #[error("cannot find {card:?}")]
-    MissingPointer { card: Card },
-
-    #[error("cannot find {card:?} {id:?}")]
-    MissingInstance { card: Card, id: InstanceID },
+    MissingInstance { card: Card },
 }
 
 #[derive(thiserror::Error, Debug)]
