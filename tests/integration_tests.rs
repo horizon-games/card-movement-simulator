@@ -59,7 +59,7 @@ impl card_movement_simulator::State for State {
 
                     let card_opaque_ptr = live_game.new_card(from_player, base_card_type);
 
-                    assert!(live_game.reveal_ok().await);
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
 
                     eprintln!(
                         "Moving opaque ref {:?} into its \"from\" zone: player {}'s {:?}",
@@ -70,13 +70,13 @@ impl card_movement_simulator::State for State {
                         .move_card(card_opaque_ptr, from_player, from_zone)
                         .await;
 
-                    assert!(live_game.reveal_ok().await);
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
 
                     live_game
                         .move_pointer(card_opaque_ptr, &card_ptr_bucket)
                         .await;
 
-                    assert!(live_game.reveal_ok().await);
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
 
                     eprintln!(
                         "Moving opaque ref {:?} into its \"to\" zone: player {}'s {:?}",
@@ -87,7 +87,7 @@ impl card_movement_simulator::State for State {
                         .move_card(card_opaque_ptr, to_player, to_zone)
                         .await;
 
-                    assert!(live_game.reveal_ok().await);
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
                 }
                 Action::Detach {
                     parent_ptr_bucket,
@@ -114,7 +114,7 @@ impl card_movement_simulator::State for State {
                                 && info.zone == to_zone)
                             .await
                     );
-                    assert!(live_game.reveal_ok().await);
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
                 }
                 Action::Attach {
                     parent_base_card,
@@ -137,11 +137,11 @@ impl card_movement_simulator::State for State {
                     live_game.move_card(card_ptr, card_owner, card_zone).await;
                     live_game.move_pointer(card_ptr, &card_ptr_bucket).await;
 
-                    assert!(live_game.reveal_ok().await);
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
                     live_game
                         .move_card(card_ptr, 0, Zone::Attachment { parent: parent_ptr })
                         .await;
-                    assert!(live_game.reveal_ok().await);
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
 
                     assert_eq!(
                         live_game
