@@ -660,12 +660,14 @@ impl<S: State> CardGame<S> {
                                 .id();
 
                             self.move_card(attachment, owner, Zone::Dust { public: true })
-                                .await;
+                                .await
+                                .expect(&format!("unable to dust attachment {:?}", attachment));
                         }
                         (None, Some(default)) => {
                             // attach base attachment
 
                             let attachment = self.new_card(owner, default);
+
                             let instance = self.instances[id.0]
                                 .instance_mut()
                                 .expect("immutable instance exists, but no mutable instance");
@@ -678,6 +680,7 @@ impl<S: State> CardGame<S> {
                             let attachment = attachment
                                 .expect("attachment base exists, but no attachment")
                                 .id();
+
                             let attachment = self.instances[attachment.0].instance_mut().expect("immutable attachment instance exists, but no mutable attachment instance");
 
                             attachment.state = default.new_card_state();
@@ -690,11 +693,13 @@ impl<S: State> CardGame<S> {
                                 .id();
 
                             self.move_card(attachment, owner, Zone::Dust { public: true })
-                                .await;
+                                .await
+                                .expect(&format!("unable to dust attachment {:?}", attachment));
 
                             // attach base attachment
 
                             let attachment = self.new_card(owner, default);
+
                             let instance = self.instances[id.0]
                                 .instance_mut()
                                 .expect("immutable instance exists, but no mutable instance");
@@ -702,6 +707,12 @@ impl<S: State> CardGame<S> {
                             instance.attachment = Some(attachment);
                         }
                     }
+
+                    let instance = self.instances[id.0]
+                        .instance_mut()
+                        .expect("immutable instance exists, but no mutable instance");
+
+                    instance.state = instance.base.new_card_state();
                 }
                 InstanceOrPlayer::Player(owner) => {}
             },
