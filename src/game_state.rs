@@ -130,6 +130,12 @@ impl<S: State> GameState<S> {
             InstanceOrPlayer::Player(owner) => (*owner, None),
         }
     }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn instances(&self) -> usize {
+        self.instances.len()
+    }
 }
 
 impl<S: State> arcadeum::store::State for GameState<S> {
