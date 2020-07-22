@@ -703,10 +703,7 @@ impl<S: State> CardGame<S> {
                         }
                     }
                 }
-                InstanceOrPlayer::Player(owner) => {
-                    self.context.mutate_secret(owner, |secret, _, _| {
-                    });
-                }
+                InstanceOrPlayer::Player(owner) => {}
             },
             Card::Pointer(OpaquePointer { player, index }) => {}
         }
