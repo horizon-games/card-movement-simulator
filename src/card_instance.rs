@@ -3,7 +3,7 @@ use {
     std::ops::{Deref, DerefMut},
 };
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct CardInstance<S: State> {
     pub(crate) id: InstanceID,
 

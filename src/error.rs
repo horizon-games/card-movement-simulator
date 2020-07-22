@@ -1,4 +1,4 @@
-use crate::{Card, Zone};
+use crate::{Player, Card, Zone};
 
 #[derive(thiserror::Error, Debug)]
 pub enum MoveCardError {
@@ -7,9 +7,17 @@ pub enum MoveCardError {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum ModifyCardError {
-    #[error("cannot find {card:?}")]
-    MissingInstance { card: Card },
+pub enum SecretMoveCardError {
+    #[error("cannot find {card:?} in player {player:?}'s secret")]
+    MissingInstance { card: Card, player: Player },
+    #[error("cannot move dusted {card:?}")]
+    DustedCard { card: Card },
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum SecretModifyCardError {
+    #[error("cannot find {card:?} in player {player:?}'s secret")]
+    MissingInstance { card: Card, player: Player },
 }
 
 #[derive(thiserror::Error, Debug)]
