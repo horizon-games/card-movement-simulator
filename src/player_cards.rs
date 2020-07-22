@@ -88,4 +88,8 @@ impl PlayerCards {
                     .map(|i| (Zone::Casting, i))
             })
     }
+
+    pub(crate) fn remove_from(&mut self, zone: Zone, index: usize) {
+        todo!();
+    }
 }

@@ -1,6 +1,6 @@
 use crate::CardState;
 
-pub trait BaseCard: Clone + PartialEq {
+pub trait BaseCard: serde::Serialize + serde::de::DeserializeOwned + Clone + PartialEq {
     type CardState: CardState;
 
     fn attachment(&self) -> Option<Self>;

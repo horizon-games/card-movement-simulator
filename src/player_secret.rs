@@ -17,11 +17,11 @@ pub struct PlayerSecret<S: State> {
 
     player: Player,
 
-    deck: Vec<InstanceID>,
-    hand: Vec<Option<InstanceID>>,
-    dust: Vec<InstanceID>,
-    limbo: Vec<InstanceID>,
-    card_selection: Vec<InstanceID>,
+    pub(crate) deck: Vec<InstanceID>,
+    pub(crate) hand: Vec<Option<InstanceID>>,
+    pub(crate) dust: Vec<InstanceID>,
+    pub(crate) limbo: Vec<InstanceID>,
+    pub(crate) card_selection: Vec<InstanceID>,
 }
 
 impl<S: State> Deref for PlayerSecret<S> {
@@ -159,12 +159,12 @@ impl<S: State> PlayerSecret<S> {
         random: &mut dyn rand::RngCore,
         log: &mut dyn FnMut(&dyn Event),
         f: impl FnOnce(CardInfoMut<S>),
-    ) -> Result<(), error::ModifyCardError> {
+    ) -> Result<(), error::SecretModifyCardError> {
         let card = card.into();
 
         let instance = self
             .instance(card)
-            .ok_or(error::ModifyCardError::MissingInstance { card })?;
+            .ok_or(error::SecretModifyCardError::MissingInstance { card, player: self.player })?;
 
         let owner = self.player;
 
@@ -260,6 +260,20 @@ impl<S: State> PlayerSecret<S> {
 
     pub(crate) fn append_card_selection_to_pointers(&mut self) {
         self.pointers.extend(&self.card_selection);
+    }
+
+    pub(crate) fn attach_card(&mut self, card: impl Into<Card>, attachment: impl Into<Card>) -> Result<(), error::SecretMoveCardError> {
+        todo!()
+    }
+
+    pub(crate) fn dust_card(&mut self, card: impl Into<Card>) -> Result<(), error::SecretMoveCardError> {
+        todo!()
+    }
+
+    /// Remove an InstanceID from all zones in this secret.
+    /// Internal API only.
+    pub(crate) fn remove_id(&mut self, id: InstanceID) {
+        todo!();
     }
 
     fn id(&self, card: impl Into<Card>) -> Option<InstanceID> {
