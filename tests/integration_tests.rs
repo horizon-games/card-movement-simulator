@@ -98,9 +98,8 @@ impl card_movement_simulator::State for State {
                     let parent_owner = 0;
                     let parent_ptr = live_game.new_card(parent_owner, BaseCard::WithAttachment);
                     let attachment_ptr = live_game
-                        .reveal_attachment(parent_ptr)
-                        .await
-                        .expect("BaseCard::WithAttachment must have attachment.");
+                        .reveal_from_card(parent_ptr, |info| info.attachment.expect("BaseCard::WithAttachment must have attachment.").id())
+                        .await;
                     live_game.move_pointer(parent_ptr, &parent_ptr_bucket).await;
                     live_game
                         .move_pointer(attachment_ptr, &attachment_ptr_bucket)
@@ -111,7 +110,7 @@ impl card_movement_simulator::State for State {
                     assert!(
                         live_game
                             .reveal_from_card(attachment_ptr, move |info| info.owner == to_player
-                                && info.zone == to_zone)
+                                && info.zone.eq(to_zone).unwrap_or(false))
                             .await
                     );
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
@@ -195,10 +194,10 @@ impl card_movement_simulator::State for State {
 
                 Action::OpaquePointerAssociationDoesntHoldThroughDraw => {
                     let card_ptr = live_game.new_card(0, BaseCard::Basic);
-                    assert_eq!(live_game.player(0).deck(), 0);
+                    assert_eq!(live_game.player_cards(0).deck(), 0);
                     live_game.move_card(card_ptr, 0, Zone::Deck).await;
 
-                    assert_eq!(live_game.player(0).deck(), 1);
+                    assert_eq!(live_game.player_cards(0).deck(), 1);
                     // In a real scenario, the deck could have any number of cards.
                     // For our test, having 1 card is enough to prove that secrecy would hold for more,
                     // but an intuitive observer (us) can understand that there's only 1 card we could possibly draw.
@@ -281,7 +280,7 @@ impl card_movement_simulator::State for State {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
 struct Secret;
 
-#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 enum BaseCard {
     Basic,
     WithAttachment,

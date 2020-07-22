@@ -633,7 +633,83 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn reset_card(&mut self, card: impl Into<Card>) {
-        todo!();
+        let card = card.into();
+
+        match card {
+            Card::ID(id) => match &self.instances[id.0] {
+                InstanceOrPlayer::Instance(instance) => {
+                    let owner = self.owner(id);
+
+                    let attachment = instance.attachment().map(|attachment| {
+                        self.instances[attachment.0].instance_ref().expect(&format!(
+                            "public {:?} attachment {:?} not public",
+                            id, attachment
+                        ))
+                    });
+
+                    match (
+                        attachment.map(|attachment| &attachment.base),
+                        instance.base.attachment(),
+                    ) {
+                        (None, None) => (),
+                        (Some(..), None) => {
+                            // dust current attachment
+
+                            let attachment = attachment
+                                .expect("attachment base exists, but no attachment")
+                                .id();
+
+                            self.move_card(attachment, owner, Zone::Dust { public: true })
+                                .await;
+                        }
+                        (None, Some(default)) => {
+                            // attach base attachment
+
+                            let attachment = self.new_card(owner, default);
+                            let instance = self.instances[id.0]
+                                .instance_mut()
+                                .expect("immutable instance exists, but no mutable instance");
+
+                            instance.attachment = Some(attachment);
+                        }
+                        (Some(current), Some(default)) if *current == default => {
+                            // reset current attachment
+
+                            let attachment = attachment
+                                .expect("attachment base exists, but no attachment")
+                                .id();
+                            let attachment = self.instances[attachment.0].instance_mut().expect("immutable attachment instance exists, but no mutable attachment instance");
+
+                            attachment.state = default.new_card_state();
+                        }
+                        (Some(..), Some(default)) => {
+                            // dust current attachment
+
+                            let attachment = attachment
+                                .expect("attachment base exists, but no attachment")
+                                .id();
+
+                            self.move_card(attachment, owner, Zone::Dust { public: true })
+                                .await;
+
+                            // attach base attachment
+
+                            let attachment = self.new_card(owner, default);
+                            let instance = self.instances[id.0]
+                                .instance_mut()
+                                .expect("immutable instance exists, but no mutable instance");
+
+                            instance.attachment = Some(attachment);
+                        }
+                    }
+                }
+                InstanceOrPlayer::Player(owner) => {
+                    self.context.mutate_secret(owner, |secret, _, _| {
+                    });
+                }
+            },
+            Card::Pointer(OpaquePointer { player, index }) => {}
+        }
     }
 
     pub async fn reset_cards(&mut self, cards: Vec<Card>) {
