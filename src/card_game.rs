@@ -651,7 +651,9 @@ impl<S: State> CardGame<S> {
                         attachment.map(|attachment| &attachment.base),
                         instance.base.attachment(),
                     ) {
-                        (None, None) => (),
+                        (None, None) => {
+                            // do nothing
+                        }
                         (Some(..), None) => {
                             // dust current attachment
 
@@ -730,7 +732,54 @@ impl<S: State> CardGame<S> {
 
                     instance.state = instance.base.new_card_state();
                 }
-                InstanceOrPlayer::Player(owner) => {}
+                InstanceOrPlayer::Player(owner) => {
+                    let owner = {
+                        let copy = *owner;
+                        drop(owner);
+                        copy
+                    };
+
+                    self.context.mutate_secret(owner, |secret, _, _| {
+                        let instance = secret
+                            .instance(id)
+                            .expect(&format!("player {} secret {:?} not in secret", owner, id));
+
+                        let attachment = instance.attachment().map(|attachment| {
+                            secret.instance(attachment).expect(&format!(
+                                "player {} secret {:?} attachment {:?} not secret",
+                                owner, id, attachment
+                            ))
+                        });
+
+                        match (
+                            attachment.map(|attachment| &attachment.base),
+                            instance.base.attachment(),
+                        ) {
+                            (None, None) => {
+                                // do nothing
+                            }
+                            (Some(..), None) => {
+                                // dust current attachment
+                            }
+                            (None, Some(default)) => {
+                                // attach base attachment
+                            }
+                            (Some(current), Some(default)) if *current == default => {
+                                // reset current attachment
+                            }
+                            (Some(..), Some(default)) => {
+                                // dust current attachment
+                                // attach base attachment
+                            }
+                        }
+
+                        let instance = secret
+                            .instance_mut(id)
+                            .expect("immutable instance exists, but no mutable instance");
+
+                        instance.state = instance.base.new_card_state();
+                    });
+                }
             },
             Card::Pointer(OpaquePointer { player, index }) => {}
         }
