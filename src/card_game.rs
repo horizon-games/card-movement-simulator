@@ -661,18 +661,26 @@ impl<S: State> CardGame<S> {
 
                             self.move_card(attachment, owner, Zone::Dust { public: true })
                                 .await
-                                .expect(&format!("unable to dust attachment {:?}", attachment));
+                                .expect(&format!(
+                                    "unable to move attachment {:?} to public dust",
+                                    attachment
+                                ));
                         }
                         (None, Some(default)) => {
                             // attach base attachment
 
                             let attachment = self.new_card(owner, default);
 
-                            let instance = self.instances[id.0]
-                                .instance_mut()
-                                .expect("immutable instance exists, but no mutable instance");
-
-                            instance.attachment = Some(attachment);
+                            self.move_card(
+                                attachment,
+                                owner,
+                                Zone::Attachment { parent: id.into() },
+                            )
+                            .await
+                            .expect(&format!(
+                                "unable to attach limbo {:?} to {:?}",
+                                attachment, id
+                            ));
                         }
                         (Some(current), Some(default)) if *current == default => {
                             // reset current attachment
@@ -694,17 +702,25 @@ impl<S: State> CardGame<S> {
 
                             self.move_card(attachment, owner, Zone::Dust { public: true })
                                 .await
-                                .expect(&format!("unable to dust attachment {:?}", attachment));
+                                .expect(&format!(
+                                    "unable to move attachment {:?} to public dust",
+                                    attachment
+                                ));
 
                             // attach base attachment
 
                             let attachment = self.new_card(owner, default);
 
-                            let instance = self.instances[id.0]
-                                .instance_mut()
-                                .expect("immutable instance exists, but no mutable instance");
-
-                            instance.attachment = Some(attachment);
+                            self.move_card(
+                                attachment,
+                                owner,
+                                Zone::Attachment { parent: id.into() },
+                            )
+                            .await
+                            .expect(&format!(
+                                "unable to attach limbo {:?} to {:?}",
+                                attachment, id
+                            ));
                         }
                     }
 
