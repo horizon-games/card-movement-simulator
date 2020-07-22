@@ -1,6 +1,6 @@
 use crate::CardState;
 
-pub trait BaseCard: Clone {
+pub trait BaseCard: Clone + PartialEq {
     type CardState: CardState;
 
     fn attachment(&self) -> Option<Self>;
