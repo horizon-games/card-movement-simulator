@@ -245,6 +245,11 @@ impl<S: State> PlayerSecret<S> {
         }
     }
 
+    pub(crate) fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {
+        self.id(card)
+            .and_then(move |id| self.instances.get_mut(&id))
+    }
+
     pub(crate) fn append_deck_to_pointers(&mut self) {
         self.pointers.extend(&self.deck);
     }
@@ -270,11 +275,6 @@ impl<S: State> PlayerSecret<S> {
                 }
             }
         }
-    }
-
-    fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {
-        self.id(card)
-            .and_then(move |id| self.instances.get_mut(&id))
     }
 }
 
