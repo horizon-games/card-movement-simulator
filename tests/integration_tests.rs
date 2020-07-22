@@ -1,6 +1,6 @@
 use {
     arcadeum::store::Tester,
-    card_movement_simulator::{CardGame, CardInstance, GameState, Player, Zone},
+    card_movement_simulator::{Card, CardGame, CardInstance, GameState, InstanceID, Player, Zone},
     std::{convert::TryInto, future::Future, pin::Pin},
 };
 
@@ -57,35 +57,40 @@ impl card_movement_simulator::State for State {
 
                     eprintln!("and then...");
 
-                    let card_opaque_ptr = live_game.new_card(from_player, base_card_type);
+                    let card_id = live_game.new_card(from_player, base_card_type);
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
 
                     eprintln!(
-                        "Moving opaque ref {:?} into its \"from\" zone: player {}'s {:?}",
-                        card_opaque_ptr, from_player, from_zone,
+                        "Moving card {:?} into its \"from\" zone: player {}'s {:?}",
+                        card_id, from_player, from_zone,
                     );
 
                     live_game
-                        .move_card(card_opaque_ptr, from_player, from_zone)
-                        .await;
+                        .move_card(card_id, from_player, from_zone)
+                        .await
+                        .unwrap();
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
 
-                    live_game
-                        .move_pointer(card_opaque_ptr, &card_ptr_bucket)
-                        .await;
+                    let card: Card = if let Some(ptr_owner) = card_ptr_bucket {
+                        live_game
+                            .new_secret_pointers(ptr_owner, |mut secret| {
+                                secret.new_pointer(card_id);
+                            })
+                            .await[0]
+                    } else {
+                        card_id.into()
+                    };
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
 
                     eprintln!(
-                        "Moving opaque ref {:?} into its \"to\" zone: player {}'s {:?}",
-                        card_opaque_ptr, to_player, to_zone,
+                        "Moving card {:?} into its \"to\" zone: player {}'s {:?}",
+                        card, to_player, to_zone,
                     );
 
-                    live_game
-                        .move_card(card_opaque_ptr, to_player, to_zone)
-                        .await;
+                    live_game.move_card(card, to_player, to_zone).await.unwrap();
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
                 }
@@ -95,25 +100,33 @@ impl card_movement_simulator::State for State {
                     to_player,
                     to_zone,
                 } => {
+                    // TODO parent_ptr_bucket is never used (wasn't actually used for anything in previous tests)
                     let parent_owner = 0;
-                    let parent_ptr = live_game.new_card(parent_owner, BaseCard::WithAttachment);
-                    let attachment_ptr = live_game
-                        .reveal_from_card(parent_ptr, |info| {
+                    let parent_id = live_game.new_card(parent_owner, BaseCard::WithAttachment);
+                    let attachment_id = live_game
+                        .reveal_from_card(parent_id, |info| {
                             info.attachment
                                 .expect("BaseCard::WithAttachment must have attachment.")
                                 .id()
                         })
                         .await;
-                    live_game.move_pointer(parent_ptr, &parent_ptr_bucket).await;
+
+                    let attachment: Card = if let Some(ptr_owner) = attachment_ptr_bucket {
+                        live_game
+                            .new_secret_pointers(ptr_owner, |mut secret| {
+                                secret.new_pointer(attachment_id);
+                            })
+                            .await[0]
+                    } else {
+                        attachment_id.into()
+                    };
                     live_game
-                        .move_pointer(attachment_ptr, &attachment_ptr_bucket)
-                        .await;
-                    live_game
-                        .move_card(attachment_ptr, to_player, to_zone)
-                        .await;
+                        .move_card(attachment, to_player, to_zone)
+                        .await
+                        .unwrap();
                     assert!(
                         live_game
-                            .reveal_from_card(attachment_ptr, move |info| info.owner == to_player
+                            .reveal_from_card(attachment, move |info| info.owner == to_player
                                 && info.zone.eq(to_zone).unwrap_or(false))
                             .await
                     );
@@ -128,33 +141,57 @@ impl card_movement_simulator::State for State {
                     card_zone,
                 } => {
                     let parent_owner = 0;
-                    let parent_ptr = live_game.new_card(parent_owner, parent_base_card);
+                    let parent_id = live_game.new_card(parent_owner, parent_base_card);
                     live_game
-                        .move_card(parent_ptr, parent_owner, parent_zone)
+                        .move_card(parent_id, parent_owner, parent_zone)
+                        .await
+                        .unwrap();
+
+                    let parent: Card = if let Some(ptr_owner) = parent_ptr_bucket {
+                        live_game
+                            .new_secret_pointers(ptr_owner, |mut secret| {
+                                secret.new_pointer(parent_id);
+                            })
+                            .await[0]
+                    } else {
+                        parent_id.into()
+                    };
+
+                    let original_attachment = live_game
+                        .reveal_from_card(parent_id, |info| info.attachment.map(|c| c.id()))
                         .await;
-                    live_game.move_pointer(parent_ptr, &parent_ptr_bucket).await;
 
-                    let original_attachment = live_game.reveal_attachment(parent_ptr).await;
-
-                    let card_ptr = live_game.new_card(card_owner, BaseCard::Attachment);
-                    live_game.move_card(card_ptr, card_owner, card_zone).await;
-                    live_game.move_pointer(card_ptr, &card_ptr_bucket).await;
+                    let card_id = live_game.new_card(card_owner, BaseCard::Attachment);
+                    live_game
+                        .move_card(card_id, card_owner, card_zone)
+                        .await
+                        .unwrap();
+                    let card: Card = if let Some(ptr_owner) = card_ptr_bucket {
+                        live_game
+                            .new_secret_pointers(ptr_owner, |mut secret| {
+                                secret.new_pointer(card_id);
+                            })
+                            .await[0]
+                    } else {
+                        card_id.into()
+                    };
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
                     live_game
-                        .move_card(card_ptr, 0, Zone::Attachment { parent: parent_ptr })
-                        .await;
+                        .move_card(card, 0, Zone::Attachment { parent: parent })
+                        .await
+                        .unwrap();
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
 
                     assert_eq!(
                         live_game
-                            .reveal_from_card(parent_ptr, |info| CardInstance::attachment(
+                            .reveal_from_card(parent, |info| CardInstance::attachment(
                                 info.instance
                             ))
                             .await,
                         Some(
                             live_game
-                                .reveal_from_card(card_ptr, |info| CardInstance::id(info.instance))
+                                .reveal_from_card(card, |info| CardInstance::id(info.instance))
                                 .await
                         )
                     );
@@ -162,10 +199,10 @@ impl card_movement_simulator::State for State {
                     if let Some(original_attachment) = original_attachment {
                         // original attachment should have been dusted
                         let parent_id = live_game
-                            .reveal_from_card(parent_ptr, |info| CardInstance::id(info.instance))
+                            .reveal_from_card(parent, |info| CardInstance::id(info.instance))
                             .await;
 
-                        let parent_card_is_public = live_game.is_card_public(parent_id);
+                        let parent_card_is_public = parent_id.instance(&live_game, None).is_some();
 
                         assert!(
                             live_game
@@ -185,21 +222,29 @@ impl card_movement_simulator::State for State {
                 Action::ReplacingAttachOnSecretCardDoesNotLeakInfo => {
                     // All assertions that these methods work correctly are made in the auto-generated Attach tests.
 
-                    let parent_ptr = live_game.new_card(0, BaseCard::WithAttachment);
+                    let parent = live_game.new_card(0, BaseCard::WithAttachment);
                     live_game
-                        .move_card(parent_ptr, 0, Zone::Hand { public: false })
-                        .await;
+                        .move_card(parent, 0, Zone::Hand { public: false })
+                        .await
+                        .unwrap();
 
-                    let card_ptr = live_game.new_card(0, BaseCard::Attachment);
+                    let card = live_game.new_card(0, BaseCard::Attachment);
                     live_game
-                        .move_card(card_ptr, 0, Zone::Attachment { parent: parent_ptr })
-                        .await;
+                        .move_card(
+                            card,
+                            0,
+                            Zone::Attachment {
+                                parent: parent.into(),
+                            },
+                        )
+                        .await
+                        .unwrap();
                 }
 
                 Action::OpaquePointerAssociationDoesntHoldThroughDraw => {
-                    let card_ptr = live_game.new_card(0, BaseCard::Basic);
+                    let card_id = live_game.new_card(0, BaseCard::Basic);
                     assert_eq!(live_game.player_cards(0).deck(), 0);
-                    live_game.move_card(card_ptr, 0, Zone::Deck).await;
+                    live_game.move_card(card_id, 0, Zone::Deck).await.unwrap();
 
                     assert_eq!(live_game.player_cards(0).deck(), 1);
                     // In a real scenario, the deck could have any number of cards.
@@ -213,36 +258,23 @@ impl card_movement_simulator::State for State {
                         .expect("Player should have drawn a card.");
 
                     // Now, we have to prove that there's no *public* association between these two references.
-                    assert_ne!(
-                        card_ptr, drawn_card,
-                        "These must be different opaque references."
-                    );
-                    assert!(match (live_game.id_for_pointer(card_ptr), live_game.id_for_pointer(drawn_card)) {
-                        (Some(id_1), Some(id_2)) if id_1 == id_2 => false,
-                        (Some(id_1), Some(id_2)) if id_1 != id_2 => panic!("There was only one card in deck but we drew a different one..."),
-                    _ => true
-                    }, "The MaybeSecretIDs pointed to must not be publicly reconcilable to the same value");
+                    assert!(drawn_card.id().is_none(), "The drawn card must be secret.");
 
-                    // But, the cards must have been associated in secret.
-
-                    let card_id = live_game
-                        .reveal_from_card(card_ptr, |info| CardInstance::id(info.instance))
-                        .await;
-
+                    // But, the cards must be associated in secret.
                     let drawn_id = live_game
-                        .reveal_from_card(drawn_card, |info| CardInstance::id(info.instance))
+                        .reveal_from_card(drawn_card, |info| info.instance.id())
                         .await;
 
                     assert_eq!(card_id, drawn_id);
                 }
                 Action::InstanceFromIDSetup => {
                     let card = live_game.new_card(0, BaseCard::WithAttachment);
-                    live_game.move_card(card, 0, Zone::Field).await;
+                    live_game.move_card(card, 0, Zone::Field).await.unwrap();
 
                     // Public Attachment
                     // Public WithAttachment
 
-                    assert_eq!(live_game.cards_len(), 2);
+                    assert_eq!(live_game.instances(), 2);
 
                     let secret = live_game
                         .new_secret_cards(0, |info| {
@@ -250,14 +282,14 @@ impl card_movement_simulator::State for State {
                         })
                         .await[0];
 
-                    live_game.move_card(secret, 0, Zone::Deck).await;
+                    live_game.move_card(secret, 0, Zone::Deck).await.unwrap();
 
                     // Public Attachment
                     // Public WithAttachment
                     // No card
                     // Secret 0 Basic
 
-                    assert_eq!(live_game.cards_len(), 4);
+                    assert_eq!(live_game.instances(), 4);
 
                     let secret = live_game
                         .new_secret_cards(1, |info| {
@@ -265,7 +297,7 @@ impl card_movement_simulator::State for State {
                         })
                         .await[0];
 
-                    live_game.move_card(secret, 1, Zone::Deck).await;
+                    live_game.move_card(secret, 1, Zone::Deck).await.unwrap();
 
                     // Public Attachment
                     // Public WithAttachment
@@ -274,7 +306,7 @@ impl card_movement_simulator::State for State {
                     // No card
                     // Secret 1 Basic
 
-                    assert_eq!(live_game.cards_len(), 6);
+                    assert_eq!(live_game.instances(), 6);
                 }
             }
         })
@@ -311,8 +343,8 @@ impl card_movement_simulator::BaseCard for BaseCard {
 struct CardState;
 
 impl card_movement_simulator::CardState for CardState {
-    fn eq(&self, other: &Self) -> bool {
-        todo!();
+    fn eq(&self, _other: &Self) -> bool {
+        true
     }
 }
 
@@ -407,7 +439,7 @@ fn public_instance_from_id() {
     // This is an implementation detail.
     // Constructing a public card in public limbo gives the attachment the ID after the parent card.
 
-    let id = card_movement_simulator::InstanceID::from_raw(1);
+    let id: InstanceID = serde_cbor::from_slice(&[1]).unwrap();
 
     assert!(id.instance(tester.state(), None).is_some());
 }
@@ -426,7 +458,7 @@ fn secret_instance_from_id() {
     // This is an implementation detail.
     // Constructing a public card in public limbo gives the parent card the ID after the attachment.
 
-    let id = card_movement_simulator::InstanceID::from_raw(2);
+    let id: InstanceID = serde_cbor::from_slice(&[2]).unwrap();
 
     assert!(id
         .instance(tester.state(), Some(&tester.secret(0)))
@@ -447,7 +479,7 @@ fn opponent_instance_from_id() {
     // This is an implementation detail.
     // Constructing a public card in public limbo gives the parent card the ID after the attachment.
 
-    let id = card_movement_simulator::InstanceID::from_raw(4);
+    let id: InstanceID = serde_cbor::from_slice(&[4]).unwrap();
 
     assert!(id
         .instance(tester.state(), Some(&tester.secret(0)))
