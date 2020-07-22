@@ -620,7 +620,7 @@ impl<S: State> CardGame<S> {
         &mut self,
         cards: Vec<Card>,
         f: impl Fn(CardInfo<S>) -> bool,
-    ) -> impl Iterator<Item = Card> {
+    ) -> Vec<Card> {
         let f = self.reveal_from_cards(cards.clone(), f).await;
 
         assert_eq!(f.len(), cards.len());
@@ -629,6 +629,7 @@ impl<S: State> CardGame<S> {
             .into_iter()
             .zip(f)
             .filter_map(|(card, f)| if f { Some(card) } else { None })
+            .collect()
     }
 
     pub async fn reset_card(&mut self, card: impl Into<Card>) {
