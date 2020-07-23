@@ -1456,7 +1456,7 @@ impl<S: State> CardGame<S> {
             None => (),
         }
 
-        todo!();
+        Ok((owner, location.map(|(zone, ..)| zone)))
     }
 
     pub async fn move_cards(
