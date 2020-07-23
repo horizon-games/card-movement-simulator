@@ -1913,7 +1913,18 @@ impl<S: State> CardGame<S> {
                         None
                     }
                     Card::Pointer(..) => {
-                        let id = self.reveal_id(parent).await;
+                        let id = match parent {
+                            Card::ID(id) => id,
+                            Card::Pointer(OpaquePointer { player, index }) => {
+                                self.context
+                                    .reveal_unique(
+                                        player,
+                                        |secret| secret.pointers[index],
+                                        |_| true,
+                                    )
+                                    .await
+                            }
+                        };
 
                         self.context
                             .mutate_secret(parent_card_player, |secret, _, log| {
@@ -1949,7 +1960,18 @@ impl<S: State> CardGame<S> {
                     if Some(card_ptr_player) == card_bucket {
                         None
                     } else {
-                        Some(self.reveal_id(card).await)
+                        Some(match card {
+                            Card::ID(id) => id,
+                            Card::Pointer(OpaquePointer { player, index }) => {
+                                self.context
+                                    .reveal_unique(
+                                        player,
+                                        |secret| secret.pointers[index],
+                                        |_| true,
+                                    )
+                                    .await
+                            }
+                        })
                     }
                 }
                 Card::ID(card_id) => Some(card_id),
@@ -2098,7 +2120,18 @@ impl<S: State> CardGame<S> {
                 Some(parent_id) => match parent_bucket {
                     None => {
                         let card_id = match card_id {
-                            None => self.reveal_id(card).await,
+                            None => match card {
+                                Card::ID(id) => id,
+                                Card::Pointer(OpaquePointer { player, index }) => {
+                                    self.context
+                                        .reveal_unique(
+                                            player,
+                                            |secret| secret.pointers[index],
+                                            |_| true,
+                                        )
+                                        .await
+                                }
+                            },
                             Some(card_id) => card_id,
                         };
 
