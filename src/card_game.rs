@@ -5,8 +5,10 @@ use {
     },
     rand::seq::IteratorRandom,
     std::{
+        future::Future,
         iter::repeat,
         ops::{Deref, DerefMut},
+        pin::Pin,
     },
 };
 
@@ -1830,13 +1832,12 @@ impl<S: State> CardGame<S> {
         todo!();
     }
 
-    fn attach_card(
-        &mut self,
+    fn attach_card<'a>(
+        &'a mut self,
         card: impl Into<Card>,
         parent: impl Into<Card>,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<(Player, Option<Zone>), error::MoveCardError>>>,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<(Player, Option<Zone>), error::MoveCardError>> + 'a>>
+    {
         let card = card.into();
         let parent = parent.into();
         Box::pin(async move {
