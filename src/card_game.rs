@@ -1542,34 +1542,33 @@ impl<S: State> CardGame<S> {
             .or_else(|| instance.as_ref().map(|v| v.id))
             .expect("Either we know ID or we've revealed the instance.");
 
-        let player_state = self.player_cards_mut(to_player);
         match to_zone {
             Zone::Deck => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
                     secret.deck.push(id);
                 });
 
-                player_state.deck += 1;
+                self.player_cards_mut(to_player).deck += 1;
             }
             Zone::Hand { public: false } => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
                     secret.hand.push(Some(id));
                 });
 
-                player_state.hand.push(None);
+                self.player_cards_mut(to_player).hand.push(None);
             }
             Zone::Hand { public: true } => {
-                player_state.hand.push(Some(id));
+                self.player_cards_mut(to_player).hand.push(Some(id));
 
                 self.context.mutate_secret(to_player, |secret, _, _| {
                     secret.hand.push(None);
                 });
             }
             Zone::Field => {
-                player_state.field.push(id);
+                self.player_cards_mut(to_player).field.push(id);
             }
             Zone::Graveyard => {
-                player_state.graveyard.push(id);
+                self.player_cards_mut(to_player).graveyard.push(id);
             }
             Zone::Limbo { public: false } => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
@@ -1577,17 +1576,17 @@ impl<S: State> CardGame<S> {
                 });
             }
             Zone::Limbo { public: true } => {
-                player_state.limbo.push(id);
+                self.player_cards_mut(to_player).limbo.push(id);
             }
             Zone::CardSelection => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
                     secret.card_selection.push(id);
                 });
 
-                player_state.card_selection += 1;
+                self.player_cards_mut(to_player).card_selection += 1;
             }
             Zone::Casting => {
-                player_state.casting.push(id);
+                self.player_cards_mut(to_player).casting.push(id);
             }
             Zone::Dust { public: false } => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
@@ -1595,7 +1594,7 @@ impl<S: State> CardGame<S> {
                 });
             }
             Zone::Dust { public: true } => {
-                player_state.dust.push(id);
+                self.player_cards_mut(to_player).dust.push(id);
             }
             Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
         }
@@ -1654,7 +1653,8 @@ impl<S: State> CardGame<S> {
                     .attachment = None;
             }
             Some(location) => {
-                self.player_cards_mut(owner).remove_from(location);
+                self.player_cards_mut(owner)
+                    .remove_from(location.0, location.1);
             }
             None => (),
         }
