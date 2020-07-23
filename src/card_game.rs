@@ -1971,7 +1971,7 @@ impl<S: State> CardGame<S> {
                                 self.context
                                     .reveal_unique(
                                         player,
-                                        |secret| secret.pointers[index],
+                                        move |secret| secret.pointers[index],
                                         |_| true,
                                     )
                                     .await
@@ -2167,7 +2167,7 @@ impl<S: State> CardGame<S> {
                                     self.context
                                         .reveal_unique(
                                             player,
-                                            |secret| secret.pointers[index],
+                                            move |secret| secret.pointers[index],
                                             |_| true,
                                         )
                                         .await
