@@ -2016,10 +2016,6 @@ impl<S: State> CardGame<S> {
                 self.player_cards_mut(owner).remove_from(zone, index);
             }
 
-            if let Some(card_id) = card_id {
-                self.remove_id(card_id);
-            }
-
             match card {
                 Card::ID(id) => {
                     for player in 0..2 {
