@@ -638,6 +638,8 @@ impl<S: State> CardGame<S> {
         match card {
             Card::ID(id) => match &self.instances[id.0] {
                 InstanceOrPlayer::Instance(instance) => {
+                    // public ID to public instance
+
                     let owner = self.owner(id);
 
                     let attachment = instance.attachment().map(|attachment| {
@@ -680,7 +682,7 @@ impl<S: State> CardGame<S> {
                             )
                             .await
                             .expect(&format!(
-                                "unable to attach limbo {:?} to {:?}",
+                                "unable to attach public limbo {:?} to {:?}",
                                 attachment, id
                             ));
                         }
@@ -720,7 +722,7 @@ impl<S: State> CardGame<S> {
                             )
                             .await
                             .expect(&format!(
-                                "unable to attach limbo {:?} to {:?}",
+                                "unable to attach public limbo {:?} to {:?}",
                                 attachment, id
                             ));
                         }
@@ -732,9 +734,9 @@ impl<S: State> CardGame<S> {
 
                     instance.state = instance.base.new_card_state();
                 }
-
-                // public instance ID to secret instance
                 InstanceOrPlayer::Player(owner) => {
+                    // public ID to secret instance
+
                     let owner = {
                         let copy = *owner;
                         drop(owner);
@@ -753,7 +755,7 @@ impl<S: State> CardGame<S> {
                             ))
                         });
 
-                        if let Some(player_secret::Mode::NewCards(mut attachment_id)) = secret.mode {
+                        if let Some(player_secret::Mode::NewCards(attachment_id)) = secret.mode {
                             match (
                                 attachment,
                                 instance.base.attachment(),
@@ -763,12 +765,14 @@ impl<S: State> CardGame<S> {
                                 }
                                 (Some(current), None) => {
                                     // dust current attachment
+
                                     let current_id = current.id();
+
                                     secret.dust_card(current_id).expect("current_id is in this secret, and is not already dust.");
                                 }
                                 (None, Some(default)) => {
-                                    // Attach base attachment
-                                    
+                                    // attach base attachment
+
                                     let state = default.new_card_state();
 
                                     let attachment = CardInstance {
@@ -809,11 +813,15 @@ impl<S: State> CardGame<S> {
                                 }
                             }
 
-                            // Ensure we increment instance ID regardless of whether or not we instantiated an attachment.
-                            // This is to avoid leaking information about the attachment that was already on the card.
-                            attachment_id.0 += 1;
+                            // unconditionally increment instance ID to avoid leaking attachment information
+
+                            if let Some(player_secret::Mode::NewCards(attachment_id)) = &mut secret.mode {
+                                attachment_id.0 += 1;
+                            } else {
+                                unreachable!("{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
+                            }
                         } else {
-                            unreachable!("mode {:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
+                            unreachable!("{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
                         }
 
                         let instance = secret
