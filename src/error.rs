@@ -9,6 +9,8 @@ pub enum MoveCardError {
 #[derive(thiserror::Error, Debug)]
 pub enum SecretMoveCardError {
     #[error("cannot find {card:?} in player {player:?}'s secret")]
+    MissingPointer { card: Card, player: Player },
+    #[error("cannot find {card:?} in player {player:?}'s secret")]
     MissingInstance { card: Card, player: Player },
     #[error("cannot move dusted {card:?}")]
     DustedCard { card: Card },

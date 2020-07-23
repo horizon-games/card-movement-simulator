@@ -272,14 +272,67 @@ impl<S: State> PlayerSecret<S> {
         card: impl Into<Card>,
         attachment: impl Into<Card>,
     ) -> Result<(), error::SecretMoveCardError> {
-        todo!()
+        let card = card.into();
+        let attachment = attachment.into();
+
+        if let Card::Pointer(OpaquePointer { player, .. }) = attachment {
+            if player != self.player {
+                return Err(error::SecretMoveCardError::MissingPointer {
+                    card: attachment,
+                    player: self.player,
+                });
+            }
+        }
+
+        let instance = self
+            .instance(card)
+            .ok_or(error::SecretMoveCardError::MissingInstance {
+                card,
+                player: self.player,
+            })?;
+
+        if let Some(attachment) = instance.attachment {
+            self.dust_card(attachment)?;
+        }
+
+        let attachment = match attachment {
+            Card::ID(id) => id,
+            Card::Pointer(OpaquePointer { index, .. }) => self.pointers[index],
+        };
+
+        self.remove_id(attachment);
+
+        let instance = self
+            .instance_mut(card)
+            .expect(&format!("{:?} vanished", card));
+
+        instance.attachment = Some(attachment);
+
+        Ok(())
     }
 
     pub(crate) fn dust_card(
         &mut self,
         card: impl Into<Card>,
     ) -> Result<(), error::SecretMoveCardError> {
-        todo!()
+        let card = card.into();
+
+        let id = match card {
+            Card::ID(id) => id,
+            Card::Pointer(OpaquePointer { player, index }) => {
+                if player == self.player {
+                    self.pointers[index]
+                } else {
+                    return Err(error::SecretMoveCardError::MissingPointer { card, player });
+                }
+            }
+        };
+
+        self.remove_id(id);
+
+        self.dust.push(id);
+
+        Ok(())
     }
 
     /// Remove an InstanceID from all zones in this secret.
