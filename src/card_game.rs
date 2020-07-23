@@ -1600,7 +1600,7 @@ impl<S: State> CardGame<S> {
             {
                 secrets.push(
                     self.context
-                        .reveal_unique(player, |secret| secret, |_| true)
+                        .reveal_unique(player, |secret| secret.clone(), |_| true)
                         .await,
                 );
             }
