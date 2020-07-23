@@ -1849,6 +1849,8 @@ impl<S: State> CardGame<S> {
             let card_bucket = match card {
                 Card::ID(_) => None,
                 Card::Pointer(OpaquePointer { player, index }) => {
+                    let buckets = buckets.clone();
+
                     self.context
                         .reveal_unique(
                             player,
@@ -1862,6 +1864,8 @@ impl<S: State> CardGame<S> {
             let parent_bucket = match parent {
                 Card::ID(_) => None,
                 Card::Pointer(OpaquePointer { player, index }) => {
+                    let buckets = buckets.clone();
+
                     self.context
                         .reveal_unique(
                             player,
@@ -1920,7 +1924,7 @@ impl<S: State> CardGame<S> {
                                 self.context
                                     .reveal_unique(
                                         player,
-                                        |secret| secret.pointers[index],
+                                        move |secret| secret.pointers[index],
                                         |_| true,
                                     )
                                     .await
