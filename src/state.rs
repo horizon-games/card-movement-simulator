@@ -1,9 +1,9 @@
 use {
     crate::{Action, Address, BaseCard, CardGame, GameState, Nonce, Player, Secret, ID},
-    std::{future::Future, pin::Pin},
+    std::{fmt::Debug, future::Future, pin::Pin},
 };
 
-pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + 'static {
+pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug + 'static {
     /// Identifier type
     type ID: ID;
 
@@ -14,7 +14,7 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + 'stati
     type Action: Action;
 
     /// Secret type
-    type Secret: Secret;
+    type Secret: Secret + Debug;
 
     /// Base card type
     type BaseCard: BaseCard;

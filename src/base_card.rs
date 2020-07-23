@@ -1,6 +1,8 @@
-use crate::CardState;
+use {crate::CardState, std::fmt::Debug};
 
-pub trait BaseCard: serde::Serialize + serde::de::DeserializeOwned + Clone + PartialEq {
+pub trait BaseCard:
+    serde::Serialize + serde::de::DeserializeOwned + Clone + PartialEq + Debug
+{
     type CardState: CardState;
 
     fn attachment(&self) -> Option<Self>;

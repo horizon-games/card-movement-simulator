@@ -11,7 +11,7 @@ use {
     },
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
 pub struct GameState<S: State> {
     #[serde(bound = "S: State")]
     pub(crate) instances: Vec<InstanceOrPlayer<S>>,
@@ -193,7 +193,7 @@ impl<S: State> arcadeum::store::State for GameState<S> {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub(crate) enum InstanceOrPlayer<S: State> {
     #[serde(bound = "S: State")]
     Instance(CardInstance<S>),
