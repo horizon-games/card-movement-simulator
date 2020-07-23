@@ -162,9 +162,12 @@ impl<S: State> PlayerSecret<S> {
     ) -> Result<(), error::SecretModifyCardError> {
         let card = card.into();
 
-        let instance = self
-            .instance(card)
-            .ok_or(error::SecretModifyCardError::MissingInstance { card, player: self.player })?;
+        let instance =
+            self.instance(card)
+                .ok_or(error::SecretModifyCardError::MissingInstance {
+                    card,
+                    player: self.player,
+                })?;
 
         let owner = self.player;
 
@@ -262,11 +265,18 @@ impl<S: State> PlayerSecret<S> {
         self.pointers.extend(&self.card_selection);
     }
 
-    pub(crate) fn attach_card(&mut self, card: impl Into<Card>, attachment: impl Into<Card>) -> Result<(), error::SecretMoveCardError> {
+    pub(crate) fn attach_card(
+        &mut self,
+        card: impl Into<Card>,
+        attachment: impl Into<Card>,
+    ) -> Result<(), error::SecretMoveCardError> {
         todo!()
     }
 
-    pub(crate) fn dust_card(&mut self, card: impl Into<Card>) -> Result<(), error::SecretMoveCardError> {
+    pub(crate) fn dust_card(
+        &mut self,
+        card: impl Into<Card>,
+    ) -> Result<(), error::SecretMoveCardError> {
         todo!()
     }
 

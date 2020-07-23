@@ -832,7 +832,316 @@ impl<S: State> CardGame<S> {
                     }).await;
                 }
             },
-            Card::Pointer(OpaquePointer { player, index }) => {}
+            Card::Pointer(OpaquePointer { player, index }) => {
+                let id = self
+                    .context
+                    .reveal_unique(
+                        player,
+                        move |secret| {
+                            let id = secret.pointers[index];
+
+                            if secret.instances.contains_key(&id) {
+                                None
+                            } else {
+                                Some(id)
+                            }
+                        },
+                        |_| true,
+                    )
+                    .await;
+
+                match id {
+                    None => {
+                        let owner = player;
+
+                        self.new_secret_cards(owner, |mut secret| {
+                        let id = secret.pointers[index];
+
+                        let instance = secret
+                            .instance(id)
+                            .expect(&format!("player {} secret {:?} not in secret", owner, id));
+
+                        let attachment = instance.attachment().map(|attachment| {
+                            secret.instance(attachment).expect(&format!(
+                                "player {} secret {:?} attachment {:?} not secret",
+                                owner, id, attachment
+                            ))
+                        });
+
+                        if let Some(player_secret::Mode::NewCards(attachment_id)) = secret.mode {
+                            match (
+                                attachment,
+                                instance.base.attachment(),
+                            ) {
+                                (None, None) => {
+                                    // do nothing
+                                }
+                                (Some(current), None) => {
+                                    // dust current attachment
+
+                                    let current_id = current.id();
+
+                                    secret.dust_card(current_id).expect("current_id is in this secret, and is not already dust.");
+                                }
+                                (None, Some(default)) => {
+                                    // attach base attachment
+
+                                    let state = default.new_card_state();
+
+                                    let attachment = CardInstance {
+                                        id: attachment_id,
+                                        base: default,
+                                        attachment: None,
+                                        state,
+                                    };
+
+                                    secret.instances.insert(attachment_id, attachment);
+
+                                    secret.attach_card(id, attachment_id).expect("Both id and attachment_id are in this secret.");
+                                }
+                                (Some(current), Some(default)) if current.base == default => {
+                                    // reset current attachment
+                                    let attachment_base_state = current.base.new_card_state();
+                                    let current_id = current.id();
+                                    secret.instance_mut(current_id).expect("").state = attachment_base_state;
+                            }
+                                (Some(current), Some(default)) => {
+                                    // dust current attachment
+                                    let current_id = current.id();
+                                    secret.dust_card(current_id).expect("current_id is in this secret, and is not already dust.");
+
+                                    // Attach base attachment
+                                    let state = default.new_card_state();
+
+                                    let attachment = CardInstance {
+                                        id: attachment_id,
+                                        base: default,
+                                        attachment: None,
+                                        state,
+                                    };
+
+                                    secret.instances.insert(attachment_id, attachment);
+
+                                    secret.attach_card(id, attachment_id).expect("Both id and attachment_id are in this secret.");
+                                }
+                            }
+
+                            // unconditionally increment instance ID to avoid leaking attachment information
+
+                            if let Some(player_secret::Mode::NewCards(attachment_id)) = &mut secret.mode {
+                                attachment_id.0 += 1;
+                            } else {
+                                unreachable!("{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
+                            }
+                        } else {
+                            unreachable!("{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
+                        }
+
+                        let instance = secret
+                            .instance_mut(id)
+                            .expect("immutable instance exists, but no mutable instance");
+
+                        instance.state = instance.base.new_card_state();
+                    }).await;
+                    }
+                    Some(id) => match &self.instances[id.0] {
+                        InstanceOrPlayer::Instance(instance) => {
+                            // public ID to public instance
+
+                            let owner = self.owner(id);
+
+                            let attachment = instance.attachment().map(|attachment| {
+                                self.instances[attachment.0].instance_ref().expect(&format!(
+                                    "public {:?} attachment {:?} not public",
+                                    id, attachment
+                                ))
+                            });
+
+                            match (
+                                attachment.map(|attachment| &attachment.base),
+                                instance.base.attachment(),
+                            ) {
+                                (None, None) => {
+                                    // do nothing
+                                }
+                                (Some(..), None) => {
+                                    // dust current attachment
+
+                                    let attachment = attachment
+                                        .expect("attachment base exists, but no attachment")
+                                        .id();
+
+                                    self.move_card(attachment, owner, Zone::Dust { public: true })
+                                        .await
+                                        .expect(&format!(
+                                            "unable to move attachment {:?} to public dust",
+                                            attachment
+                                        ));
+                                }
+                                (None, Some(default)) => {
+                                    // attach base attachment
+
+                                    let attachment = self.new_card(owner, default);
+
+                                    self.move_card(
+                                        attachment,
+                                        owner,
+                                        Zone::Attachment { parent: id.into() },
+                                    )
+                                    .await
+                                    .expect(&format!(
+                                        "unable to attach public limbo {:?} to {:?}",
+                                        attachment, id
+                                    ));
+                                }
+                                (Some(current), Some(default)) if *current == default => {
+                                    // reset current attachment
+
+                                    let attachment = attachment
+                                        .expect("attachment base exists, but no attachment")
+                                        .id();
+
+                                    let attachment = self.instances[attachment.0].instance_mut().expect("immutable attachment instance exists, but no mutable attachment instance");
+
+                                    attachment.state = default.new_card_state();
+                                }
+                                (Some(..), Some(default)) => {
+                                    // dust current attachment
+
+                                    let attachment = attachment
+                                        .expect("attachment base exists, but no attachment")
+                                        .id();
+
+                                    self.move_card(attachment, owner, Zone::Dust { public: true })
+                                        .await
+                                        .expect(&format!(
+                                            "unable to move attachment {:?} to public dust",
+                                            attachment
+                                        ));
+
+                                    // attach base attachment
+
+                                    let attachment = self.new_card(owner, default);
+
+                                    self.move_card(
+                                        attachment,
+                                        owner,
+                                        Zone::Attachment { parent: id.into() },
+                                    )
+                                    .await
+                                    .expect(&format!(
+                                        "unable to attach public limbo {:?} to {:?}",
+                                        attachment, id
+                                    ));
+                                }
+                            }
+
+                            let instance = self.instances[id.0]
+                                .instance_mut()
+                                .expect("immutable instance exists, but no mutable instance");
+
+                            instance.state = instance.base.new_card_state();
+                        }
+                        InstanceOrPlayer::Player(owner) => {
+                            // public ID to secret instance
+
+                            let owner = {
+                                let copy = *owner;
+                                drop(owner);
+                                copy
+                            };
+
+                            self.new_secret_cards(owner, |mut secret| {
+                        let instance = secret
+                            .instance(id)
+                            .expect(&format!("player {} secret {:?} not in secret", owner, id));
+
+                        let attachment = instance.attachment().map(|attachment| {
+                            secret.instance(attachment).expect(&format!(
+                                "player {} secret {:?} attachment {:?} not secret",
+                                owner, id, attachment
+                            ))
+                        });
+
+                        if let Some(player_secret::Mode::NewCards(attachment_id)) = secret.mode {
+                            match (
+                                attachment,
+                                instance.base.attachment(),
+                            ) {
+                                (None, None) => {
+                                    // do nothing
+                                }
+                                (Some(current), None) => {
+                                    // dust current attachment
+
+                                    let current_id = current.id();
+
+                                    secret.dust_card(current_id).expect("current_id is in this secret, and is not already dust.");
+                                }
+                                (None, Some(default)) => {
+                                    // attach base attachment
+
+                                    let state = default.new_card_state();
+
+                                    let attachment = CardInstance {
+                                        id: attachment_id,
+                                        base: default,
+                                        attachment: None,
+                                        state,
+                                    };
+
+                                    secret.instances.insert(attachment_id, attachment);
+
+                                    secret.attach_card(id, attachment_id).expect("Both id and attachment_id are in this secret.");
+                                }
+                                (Some(current), Some(default)) if current.base == default => {
+                                    // reset current attachment
+                                    let attachment_base_state = current.base.new_card_state();
+                                    let current_id = current.id();
+                                    secret.instance_mut(current_id).expect("").state = attachment_base_state;
+                            }
+                                (Some(current), Some(default)) => {
+                                    // dust current attachment
+                                    let current_id = current.id();
+                                    secret.dust_card(current_id).expect("current_id is in this secret, and is not already dust.");
+
+                                    // Attach base attachment
+                                    let state = default.new_card_state();
+
+                                    let attachment = CardInstance {
+                                        id: attachment_id,
+                                        base: default,
+                                        attachment: None,
+                                        state,
+                                    };
+
+                                    secret.instances.insert(attachment_id, attachment);
+
+                                    secret.attach_card(id, attachment_id).expect("Both id and attachment_id are in this secret.");
+                                }
+                            }
+
+                            // unconditionally increment instance ID to avoid leaking attachment information
+
+                            if let Some(player_secret::Mode::NewCards(attachment_id)) = &mut secret.mode {
+                                attachment_id.0 += 1;
+                            } else {
+                                unreachable!("{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
+                            }
+                        } else {
+                            unreachable!("{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
+                        }
+
+                        let instance = secret
+                            .instance_mut(id)
+                            .expect("immutable instance exists, but no mutable instance");
+
+                        instance.state = instance.base.new_card_state();
+                    }).await;
+                        }
+                    },
+                }
+            }
         }
     }
 
@@ -998,16 +1307,17 @@ impl<S: State> CardGame<S> {
         // We also need to know who owns the card, regardless of its secrecy, so we can later update the public state for that player.
         let (bucket, owner) = match card {
             Card::Pointer(OpaquePointer { player, index }) => {
-                let buckets: Vec<_> = self.instances.iter().enumerate().map(|(i, instance)| 
-                    (instance.player(), self.owner(InstanceID(i)))
-                ).collect();
+                let buckets: Vec<_> = self
+                    .instances
+                    .iter()
+                    .enumerate()
+                    .map(|(i, instance)| (instance.player(), self.owner(InstanceID(i))))
+                    .collect();
 
                 self.context
                     .reveal_unique(
                         player,
-                        move |secret| {
-                            buckets[secret.pointers[index].0]
-                        },
+                        move |secret| buckets[secret.pointers[index].0],
                         |_| true,
                     )
                     .await
@@ -1021,11 +1331,7 @@ impl<S: State> CardGame<S> {
                 if bucket != Some(player) || to_bucket != Some(player) {
                     Some(
                         self.context
-                            .reveal_unique(
-                                player,
-                                move |secret| secret.pointers[index],
-                                |_| true,
-                            )
+                            .reveal_unique(player, move |secret| secret.pointers[index], |_| true)
                             .await,
                     )
                 } else {
@@ -1042,18 +1348,26 @@ impl<S: State> CardGame<S> {
             None => {
                 let id = id.expect("ID should have been revealed in this case");
 
-                Some(self.location(id).1.expect("Location for a public card must be public."))
+                Some(
+                    self.location(id)
+                        .1
+                        .expect("Location for a public card must be public."),
+                )
             }
             Some(player) => {
                 self.context
                     .reveal_unique(
                         player,
                         move |secret| {
-                            let location = secret.location(id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index])).expect("The secret should know the zone.");
+                            let location = secret
+                                .location(id.unwrap_or_else(|| {
+                                    secret.pointers[card.pointer().unwrap().index]
+                                }))
+                                .expect("The secret should know the zone.");
                             match location.0 {
                                 Zone::Limbo { public: false } => None,
                                 Zone::Attachment { .. } => None,
-                                zone => Some((zone, location.1))
+                                zone => Some((zone, location.1)),
                             }
                         },
                         |_| true,
@@ -1155,7 +1469,7 @@ impl<S: State> CardGame<S> {
                     });
 
                     self.context.mutate_secret(owner, |secret, _, _| {
-                        if let Some((Zone::Hand {public: false}, index)) = location {
+                        if let Some((Zone::Hand { public: false }, index)) = location {
                             secret.hand.remove(index);
                         }
                     });
@@ -1172,15 +1486,21 @@ impl<S: State> CardGame<S> {
                     .reveal_unique(
                         player,
                         move |secret| {
-                            let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                            let id = id
+                                .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
 
-                            let instance = secret.instance(id).expect("Secret has the instance for this ID");
+                            let instance = secret
+                                .instance(id)
+                                .expect("Secret has the instance for this ID");
 
                             (
                                 Some(instance.clone()),
-                                instance
-                                    .attachment
-                                    .map(|attachment| secret.instance(attachment).expect("Secret has the instance for this ID").clone()),
+                                instance.attachment.map(|attachment| {
+                                    secret
+                                        .instance(attachment)
+                                        .expect("Secret has the instance for this ID")
+                                        .clone()
+                                }),
                             )
                         },
                         |_| true,
@@ -1306,8 +1626,7 @@ impl<S: State> CardGame<S> {
                     }
                     Some(to_bucket_player) => {
                         let attachment_id = attachment_instance.id;
-                        self.game.cards[usize::from(attachment_id)] =
-                            to_bucket_player.into();
+                        self.game.cards[usize::from(attachment_id)] = to_bucket_player.into();
 
                         self.context
                             .mutate_secret(to_bucket_player, move |secret, _, _| {
@@ -1321,7 +1640,9 @@ impl<S: State> CardGame<S> {
         }
 
         match location {
-            Some(Zone::Attachment { parent: Card::ID(id) }) => {
+            Some(Zone::Attachment {
+                parent: Card::ID(id),
+            }) => {
                 self.instances[id.0]
                     .instance_mut()
                     .expect("Card should have been attached to a public parent")
@@ -1508,23 +1829,22 @@ impl<S: State> CardGame<S> {
         &mut self,
         card: impl Into<Card>,
         parent: impl Into<Card>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = (Player, Option<Zone>)>>>{
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = (Player, Option<Zone>)>>> {
         let card = card.into();
         let parent = parent.into();
         Box::pin(async move {
-            let buckets: Vec<_> = self.instances.iter().map(|instance| 
-                instance.player()
-            ).collect();
+            let buckets: Vec<_> = self
+                .instances
+                .iter()
+                .map(|instance| instance.player())
+                .collect();
             let card_bucket = match card {
                 Card::ID(_) => None,
-                Card::Pointer(OpaquePointer {player, index}) => {
-
+                Card::Pointer(OpaquePointer { player, index }) => {
                     self.context
                         .reveal_unique(
                             player,
-                            move |secret| {
-                                buckets[secret.pointers[index].0]
-                            },
+                            move |secret| buckets[secret.pointers[index].0],
                             |_| true,
                         )
                         .await
@@ -1533,13 +1853,11 @@ impl<S: State> CardGame<S> {
 
             let parent_bucket = match parent {
                 Card::ID(_) => None,
-                Card::Pointer(OpaquePointer {player, index}) => {
+                Card::Pointer(OpaquePointer { player, index }) => {
                     self.context
                         .reveal_unique(
                             player,
-                            move |secret| {
-                                buckets[secret.pointers[index].0]
-                            },
+                            move |secret| buckets[secret.pointers[index].0],
                             |_| true,
                         )
                         .await
@@ -1549,58 +1867,63 @@ impl<S: State> CardGame<S> {
             // Dust parent's current attachment, if any
             let parent_id = match parent_bucket {
                 None => {
-                    let (id, owner, attachment) = self.reveal_from_card(parent, |instance| (instance.id, instance.owner, instance.attachment.map(|attachment| attachment.id))).await;
-                    
-                    if let Some(attachment) = attachment
-                    {
+                    let (id, owner, attachment) = self
+                        .reveal_from_card(parent, |instance| {
+                            (
+                                instance.id,
+                                instance.owner,
+                                instance.attachment.map(|attachment| attachment.id),
+                            )
+                        })
+                        .await;
+
+                    if let Some(attachment) = attachment {
                         self.move_card(attachment, owner, Zone::Dust { public: true })
-                        .await
-                        .expect(&format!(
-                            "unable to move attachment {:?} to public dust",
-                            attachment
-                        ));
+                            .await
+                            .expect(&format!(
+                                "unable to move attachment {:?} to public dust",
+                                attachment
+                            ));
                     }
 
                     Some(id)
                 }
-                Some(parent_card_player) => {
-                    match self.game.opaque_ptrs[usize::from(parent)] {
-                        MaybeSecretID::Secret(ptr_player) if ptr_player == parent_card_player => {
-                            self.context
-                                .mutate_secret(parent_card_player, |secret, _, log| {
-                                    let id = secret.opaque_ptrs[&parent];
+                Some(parent_card_player) => match self.game.opaque_ptrs[usize::from(parent)] {
+                    MaybeSecretID::Secret(ptr_player) if ptr_player == parent_card_player => {
+                        self.context
+                            .mutate_secret(parent_card_player, |secret, _, log| {
+                                let id = secret.opaque_ptrs[&parent];
 
-                                    if let Some(attachment) = secret.cards[&id].attachment {
-                                        secret.dust_secretly(attachment, log);
-                                    }
-                                });
+                                if let Some(attachment) = secret.cards[&id].attachment {
+                                    secret.dust_secretly(attachment, log);
+                                }
+                            });
 
-                            None
-                        }
-                        MaybeSecretID::Secret(..) => {
-                            let id = self.reveal_id(parent).await;
-
-                            self.context
-                                .mutate_secret(parent_card_player, |secret, _, log| {
-                                    if let Some(attachment) = secret.cards[&id].attachment {
-                                        secret.dust_secretly(attachment, log);
-                                    }
-                                });
-
-                            Some(id)
-                        }
-                        MaybeSecretID::Public(id) => {
-                            self.context
-                                .mutate_secret(parent_card_player, |secret, _, log| {
-                                    if let Some(attachment) = secret.cards[&id].attachment {
-                                        secret.dust_secretly(attachment, log);
-                                    }
-                                });
-
-                            Some(id)
-                        }
+                        None
                     }
-                }
+                    MaybeSecretID::Secret(..) => {
+                        let id = self.reveal_id(parent).await;
+
+                        self.context
+                            .mutate_secret(parent_card_player, |secret, _, log| {
+                                if let Some(attachment) = secret.cards[&id].attachment {
+                                    secret.dust_secretly(attachment, log);
+                                }
+                            });
+
+                        Some(id)
+                    }
+                    MaybeSecretID::Public(id) => {
+                        self.context
+                            .mutate_secret(parent_card_player, |secret, _, log| {
+                                if let Some(attachment) = secret.cards[&id].attachment {
+                                    secret.dust_secretly(attachment, log);
+                                }
+                            });
+
+                        Some(id)
+                    }
+                },
             };
 
             // Remove card from its current zone, secretly and possibly publicly.
