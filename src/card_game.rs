@@ -1448,7 +1448,7 @@ impl<S: State> CardGame<S> {
                     Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
                 }
 
-                return todo!();
+                return Ok((bucket_owner, location.map(|(zone, ..)| zone)));
             }
         }
 
