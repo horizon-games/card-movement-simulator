@@ -2151,7 +2151,7 @@ impl<S: State> CardGame<S> {
                                 secret.pointers[card.pointer().expect("").index]
                             });
 
-                            secret.instance(parent).expect("").attachment = Some(card_id);
+                            secret.instance_mut(parent).expect("").attachment = Some(card_id);
                         });
                 }
                 Some(parent_id) => match parent_bucket {
