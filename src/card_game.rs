@@ -1983,10 +1983,15 @@ impl<S: State> CardGame<S> {
                     None => {
                         self.context
                             .reveal_unique(
-                                self.game.opaque_ptrs[usize::from(card)]
-                                    .player()
-                                    .expect("Card pointer should be secret"),
-                                move |secret| secret.opaque_ptrs[&card],
+                                card.pointer()
+                                    .expect("Card pointer should be secret")
+                                    .player,
+                                move |secret| {
+                                    secret.pointers[card
+                                        .pointer()
+                                        .expect("Card pointer should be secret")
+                                        .index]
+                                },
                                 |_| true,
                             )
                             .await
@@ -1997,28 +2002,23 @@ impl<S: State> CardGame<S> {
                 let instance = match card_bucket {
                     None => {
                         let parent_bucket_player = parent_bucket
-                            .player()
                             .expect("parent bucket isn't public, but also not a player's secret");
 
-                        std::mem::replace(
-                            &mut self.game.cards[usize::from(card_id)],
-                            MaybeSecretCard::Secret(parent_bucket_player),
-                        )
-                        .expect("the card was public but wasn't in the global array")
+                        self.instances[card_id.0] = InstanceOrPlayer::Player(parent_bucket_player);
                     }
                     Some(card_bucket_player) => {
                         let instance = self
                             .context
                             .reveal_unique(
                                 card_bucket_player,
-                                move |secret| secret.cards[&card_id].clone(),
+                                move |secret| secret.instance(card_id).clone(),
                                 |_| true,
                             )
                             .await;
 
                         self.context
                             .mutate_secret(card_bucket_player, |secret, _, _| {
-                                secret.cards.remove(&card_id);
+                                secret.remove_id(card_id);
                             });
 
                         instance
@@ -2029,15 +2029,14 @@ impl<S: State> CardGame<S> {
                 // Add card to parent's bucket.
                 match parent_bucket {
                     None => {
-                        self.game.cards[usize::from(card_id)] = MaybeSecretCard::Public(instance);
+                        self.instances[card_id.0] = InstanceOrPlayer::Instance(instance);
                     }
                     Some(parent_bucket_player) => {
-                        self.game.cards[usize::from(card_id)] =
-                            MaybeSecretCard::Secret(parent_bucket_player);
+                        self.instances[card_id.0] = InstanceOrPlayer::Player(parent_bucket_player);
 
                         self.context
                             .mutate_secret(parent_bucket_player, |secret, _, _| {
-                                secret.cards.insert(card_id, instance.clone());
+                                secret.instances.insert(card_id, instance.clone());
                             });
                     }
                 }
@@ -2050,16 +2049,15 @@ impl<S: State> CardGame<S> {
             let card_id = match card_id {
                 None => {
                     // we don't reveal the card id if it's in the same bucket as the parent
-                    let parent_bucket_player = parent_bucket.player();
-                    if let Some(parent_bucket_player) = parent_bucket_player {
+                    if let Some(parent_bucket_player) = parent_bucket {
                         if card_bucket != Some(parent_bucket_player) {
                             Some(
                                 self
                                     .context
                                     .reveal_unique(
-                                        card_bucket.player().expect("We would have had a card_id if the card was in the public bucket"),
+                                        card_bucket.expect("We would have had a card_id if the card was in the public bucket"),
                                         move |secret| {
-                                            secret.opaque_ptrs[&card]
+                                            secret.pointers[card.pointer().expect("").index]
                                         },
                                         |_| true
                                     ).await
@@ -2079,14 +2077,15 @@ impl<S: State> CardGame<S> {
             match parent_id {
                 None => {
                     let parent_bucket_player = parent_bucket
-                        .player()
                         .expect("Parent pointer and card are both in some player's secret");
 
                     self.context
                         .mutate_secret(parent_bucket_player, |secret, _, _| {
-                            let card_id = card_id.unwrap_or_else(|| secret.opaque_ptrs[&card]);
+                            let card_id = card_id.unwrap_or_else(|| {
+                                secret.pointers[card.pointer().expect("").index]
+                            });
 
-                            secret.cards[&secret.opaque_ptrs[&parent]].attachment = Some(card_id);
+                            secret.instance(parent).expect("").attachment = Some(card_id);
                         });
                 }
                 Some(parent_id) => match parent_bucket {
@@ -2096,14 +2095,17 @@ impl<S: State> CardGame<S> {
                             Some(card_id) => card_id,
                         };
 
-                        self.game.cards[usize::from(parent_id)].expect_mut("If the parent bucket is public, the public state must have that card").attachment = Some(card_id);
+                        self.instances[parent_id.0].instance_mut().expect("If the parent bucket is public, the public state must have that card").attachment = Some(card_id);
                     }
                     Some(parent_bucket_player) => {
                         self.context
                             .mutate_secret(parent_bucket_player, |secret, _, _| {
-                                let card_id = card_id.unwrap_or_else(|| secret.opaque_ptrs[&card]);
+                                let card_id = card_id.unwrap_or_else(|| {
+                                    secret.pointers[card.pointer().expect("").index]
+                                });
 
-                                secret.cards[&parent_id].attachment = Some(card_id);
+                                secret.instance_mut(parent_id).expect("").attachment =
+                                    Some(card_id);
                             })
                     }
                 },
