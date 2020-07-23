@@ -11,7 +11,7 @@ use {
     },
 };
 
-#[derive(Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
 pub struct GameState<S: State> {
     pub(crate) instances: Vec<InstanceOrPlayer<S>>,
 
@@ -153,15 +153,15 @@ impl<S: State> arcadeum::store::State for GameState<S> {
     }
 
     fn deserialize(data: &[u8]) -> Result<Self, String> {
-        todo!();
+        serde_cbor::from_slice(data).map_err(|error| error.to_string())
     }
 
     fn is_serializable(&self) -> bool {
-        self.serialize().is_some()
+        true
     }
 
     fn serialize(&self) -> Option<Vec<u8>> {
-        todo!();
+        Some(serde_cbor::to_vec(self).unwrap())
     }
 
     fn verify(&self, player: Option<Player>, action: &Self::Action) -> Result<(), String> {
@@ -191,7 +191,7 @@ impl<S: State> arcadeum::store::State for GameState<S> {
     }
 }
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub(crate) enum InstanceOrPlayer<S: State> {
     Instance(CardInstance<S>),
     Player(Player),

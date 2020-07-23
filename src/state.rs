@@ -3,7 +3,7 @@ use {
     std::{future::Future, pin::Pin},
 };
 
-pub trait State: Clone + 'static {
+pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + 'static {
     /// Identifier type
     type ID: ID;
 
