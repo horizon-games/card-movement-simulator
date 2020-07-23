@@ -92,13 +92,25 @@ impl PlayerCards {
     pub(crate) fn remove_from(&mut self, zone: Zone, index: usize) {
         match zone {
             Zone::Deck => self.deck -= 1,
-            Zone::Hand { .. } => { self.hand.remove(index); }
-            Zone::Field => { self.field.remove(index); }
-            Zone::Graveyard => { self.graveyard.remove(index); }
-            Zone::Dust { public: true } => { self.dust.remove(index); }
+            Zone::Hand { .. } => {
+                self.hand.remove(index);
+            }
+            Zone::Field => {
+                self.field.remove(index);
+            }
+            Zone::Graveyard => {
+                self.graveyard.remove(index);
+            }
+            Zone::Dust { public: true } => {
+                self.dust.remove(index);
+            }
             Zone::Attachment { .. } => todo!(),
-            Zone::Limbo { public: true } => { self.limbo.remove(index); }
-            Zone::Casting => { self.casting.remove(index); }
+            Zone::Limbo { public: true } => {
+                self.limbo.remove(index);
+            }
+            Zone::Casting => {
+                self.casting.remove(index);
+            }
             Zone::CardSelection => self.card_selection -= 1,
             _ => (),
         }
