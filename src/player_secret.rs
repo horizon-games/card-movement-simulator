@@ -6,10 +6,12 @@ use {
     std::ops::{Deref, DerefMut},
 };
 
-#[derive(Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct PlayerSecret<S: State> {
+    #[serde(bound = "S: State")]
     pub secret: S::Secret,
 
+    #[serde(bound = "S: State")]
     pub(crate) instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
     pub(crate) pointers: Vec<InstanceID>,
 
@@ -302,16 +304,6 @@ impl<S: State> PlayerSecret<S> {
     }
 }
 
-impl<S: State> arcadeum::store::Secret for PlayerSecret<S> {
-    fn deserialize(data: &[u8]) -> Result<Self, String> {
-        todo!();
-    }
-
-    fn serialize(&self) -> Vec<u8> {
-        todo!();
-    }
-}
-
 impl<S: State> Default for PlayerSecret<S>
 where
     S::Secret: Default,
@@ -336,7 +328,7 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub(crate) enum Mode {
     NewCards(InstanceID),
     NewPointers,
