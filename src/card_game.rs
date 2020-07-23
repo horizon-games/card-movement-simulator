@@ -1653,8 +1653,25 @@ impl<S: State> CardGame<S> {
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
-    pub async fn move_pointer(&mut self, card: impl Into<Card>, player: Player) {
-        todo!();
+    pub async fn move_pointer(&mut self, card: impl Into<Card>, player: Option<Player>) -> Card {
+        let card = card.into();
+
+        let id = match card {
+            Card::ID(id) => id,
+            Card::Pointer(OpaquePointer { player, index }) => {
+                self.context
+                    .reveal_unique(player, move |secret| secret.pointers[index], |_| true)
+                    .await
+            }
+        };
+
+        match player {
+            None => id.into(),
+            Some(player) => {
+                self.new_secret_pointers(player, |mut secret| secret.new_pointer(id))
+                    .await[0]
+            }
+        }
     }
 
     fn attach_card<'a>(
