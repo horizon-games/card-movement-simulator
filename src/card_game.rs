@@ -1906,7 +1906,7 @@ impl<S: State> CardGame<S> {
 
                                 if let Some(attachment) = secret.instance(id).expect("").attachment
                                 {
-                                    secret.dust_card(attachment);
+                                    secret.dust_card(attachment).expect("");
                                 }
                             });
 
@@ -1919,7 +1919,7 @@ impl<S: State> CardGame<S> {
                             .mutate_secret(parent_card_player, |secret, _, log| {
                                 if let Some(attachment) = secret.instance(id).expect("").attachment
                                 {
-                                    secret.dust_card(attachment);
+                                    secret.dust_card(attachment).expect("");
                                 }
                             });
 
@@ -1930,7 +1930,7 @@ impl<S: State> CardGame<S> {
                             .mutate_secret(parent_card_player, |secret, _, log| {
                                 if let Some(attachment) = secret.instance(id).expect("").attachment
                                 {
-                                    secret.dust_card(attachment);
+                                    secret.dust_card(attachment).expect("");
                                 }
                             });
 
