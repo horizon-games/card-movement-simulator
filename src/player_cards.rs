@@ -1,6 +1,6 @@
 use crate::{InstanceID, Zone};
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
 pub struct PlayerCards {
     pub(crate) deck: usize,
     pub(crate) hand: Vec<Option<InstanceID>>,

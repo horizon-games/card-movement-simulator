@@ -5,6 +5,7 @@ use {
     },
     rand::seq::IteratorRandom,
     std::{
+        convert::TryInto,
         future::Future,
         iter::repeat,
         ops::{Deref, DerefMut},
@@ -1589,13 +1590,34 @@ impl<S: State> CardGame<S> {
     #[cfg(debug_assertions)]
     #[doc(hidden)]
     pub async fn print(&mut self) {
-        todo!();
+        let secrets = {
+            let mut secrets = Vec::with_capacity(self.all_player_cards().len());
+
+            for player in 0u8..secrets
+                .capacity()
+                .try_into()
+                .expect("more than 255 players")
+            {
+                secrets.push(
+                    self.context
+                        .reveal_unique(player, |secret| secret, |_| true)
+                        .await,
+                );
+            }
+
+            secrets
+        };
+
+        println!("{:#?}", self.state);
+        println!("{:#?}", secrets);
     }
 
     #[cfg(debug_assertions)]
     #[doc(hidden)]
     pub async fn reveal_ok(&mut self) -> Result<(), error::RevealOkError> {
-        todo!();
+        // todo!();
+
+        Ok(())
     }
 
     #[cfg(debug_assertions)]

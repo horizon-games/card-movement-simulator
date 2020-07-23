@@ -6,7 +6,7 @@ use {
     std::ops::{Deref, DerefMut},
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct PlayerSecret<S: State> {
     #[serde(bound = "S: State")]
     pub secret: S::Secret,
