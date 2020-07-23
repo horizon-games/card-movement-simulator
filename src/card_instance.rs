@@ -7,10 +7,12 @@ use {
 pub struct CardInstance<S: State> {
     pub(crate) id: InstanceID,
 
+    #[serde(bound = "S: State")]
     pub(crate) base: S::BaseCard,
 
     pub(crate) attachment: Option<InstanceID>,
 
+    #[serde(bound = "S: State")]
     pub(crate) state: <S::BaseCard as BaseCard>::CardState,
 }
 
