@@ -989,6 +989,26 @@ impl<S: State> CardGame<S> {
     pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) {
         let card = card.into();
 
+        let card = if let Card::Pointer(OpaquePointer { player, index }) = card {
+            self.context
+                .reveal_unique(
+                    player,
+                    move |secret| {
+                        let id = secret.pointers[index];
+
+                        if secret.instances.contains_key(&id) {
+                            card
+                        } else {
+                            id.into()
+                        }
+                    },
+                    |_| true,
+                )
+                .await
+        } else {
+            card
+        };
+
         match card {
             Card::ID(id) => {
                 let Self { state, context } = self;
@@ -1034,78 +1054,14 @@ impl<S: State> CardGame<S> {
                 }
             }
             Card::Pointer(OpaquePointer { player, index }) => {
-                let id = self
-                    .context
-                    .reveal_unique(
-                        player,
-                        move |secret| {
-                            let id = secret.pointers[index];
-
-                            if secret.instances.contains_key(&id) {
-                                None
-                            } else {
-                                Some(id)
-                            }
-                        },
-                        |_| true,
-                    )
-                    .await;
-
-                match id {
-                    None => {
-                        self.context.mutate_secret(player, |secret, random, log| {
-                            secret
-                                .modify_card(card, random, log, |instance| f(instance))
-                                .expect(&format!(
-                                    "player {} secret {:?} not in secret",
-                                    player, card
-                                ));
-                        });
-                    }
-                    Some(id) => {
-                        let Self { state, context } = self;
-
-                        match &state.instances[id.0] {
-                            InstanceOrPlayer::Instance(instance) => {
-                                let (owner, zone) = state.zone(id);
-                                let zone = zone.expect(&format!("public {:?} has no zone", id));
-
-                                let attachment = instance.attachment.map(|attachment| {
-                                    state.instances[attachment.0]
-                                        .instance_ref()
-                                        .expect(&format!(
-                                            "public {:?} attachment {:?} not public",
-                                            id, attachment
-                                        ))
-                                        .clone()
-                                });
-
-                                let instance = state.instances[id.0]
-                                    .instance_mut()
-                                    .expect(&format!("{:?} vanished", id));
-
-                                f(CardInfoMut {
-                                    instance,
-                                    owner,
-                                    zone,
-                                    attachment: attachment.as_ref(),
-                                    random: &mut context.random().await,
-                                    log: &mut |event| context.log(event),
-                                });
-                            }
-                            InstanceOrPlayer::Player(owner) => {
-                                self.context.mutate_secret(*owner, |secret, random, log| {
-                                    secret
-                                        .modify_card(card, random, log, |instance| f(instance))
-                                        .expect(&format!(
-                                            "player {} secret {:?} not in secret",
-                                            owner, card
-                                        ));
-                                });
-                            }
-                        }
-                    }
-                }
+                self.context.mutate_secret(player, |secret, random, log| {
+                    secret
+                        .modify_card(card, random, log, |instance| f(instance))
+                        .expect(&format!(
+                            "player {} secret {:?} not in secret",
+                            player, card
+                        ));
+                });
             }
         }
     }
