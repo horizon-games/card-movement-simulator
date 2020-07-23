@@ -1642,9 +1642,12 @@ impl<S: State> CardGame<S> {
         }
 
         match location {
-            Some(Zone::Attachment {
-                parent: Card::ID(id),
-            }) => {
+            Some((
+                Zone::Attachment {
+                    parent: Card::ID(id),
+                },
+                ..,
+            )) => {
                 self.instances[id.0]
                     .instance_mut()
                     .expect("Card should have been attached to a public parent")
@@ -1831,7 +1834,9 @@ impl<S: State> CardGame<S> {
         &mut self,
         card: impl Into<Card>,
         parent: impl Into<Card>,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = (Player, Option<Zone>)>>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<(Player, Option<Zone>), error::MoveCardError>>>,
+    > {
         let card = card.into();
         let parent = parent.into();
         Box::pin(async move {
