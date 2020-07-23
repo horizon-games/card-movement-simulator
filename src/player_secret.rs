@@ -6,7 +6,7 @@ use {
     std::ops::{Deref, DerefMut},
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(Clone)]
 pub struct PlayerSecret<S: State> {
     pub secret: S::Secret,
 
@@ -299,6 +299,16 @@ impl<S: State> PlayerSecret<S> {
                 }
             }
         }
+    }
+}
+
+impl<S: State> arcadeum::store::Secret for PlayerSecret<S> {
+    fn deserialize(data: &[u8]) -> Result<Self, String> {
+        todo!();
+    }
+
+    fn serialize(&self) -> Vec<u8> {
+        todo!();
     }
 }
 
