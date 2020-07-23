@@ -1694,7 +1694,15 @@ impl<S: State> CardGame<S> {
         to_player: Player,
         to_zone: Zone,
     ) -> Vec<Result<(Player, Option<Zone>), error::MoveCardError>> {
-        todo!();
+        // todo!(): betterize this implementation
+
+        let mut results = Vec::with_capacity(cards.len());
+
+        for card in cards {
+            results.push(self.move_card(card, to_player, to_zone).await);
+        }
+
+        results
     }
 
     pub async fn draw_card(&mut self, player: Player) -> Option<Card> {
