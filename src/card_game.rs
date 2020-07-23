@@ -1977,12 +1977,47 @@ impl<S: State> CardGame<S> {
                 Card::ID(card_id) => Some(card_id),
             };
 
-            if let (card_owner, Some(card_location)) = self.reveal_id_location(card).await {
-                self.player_cards_mut(card_owner).remove_from(card_location);
+            let owner = card_bucket.unwrap_or_else(|| self.owner(card_id.unwrap()));
+
+            // Reveal the zone that a card came from
+            let location = match card_bucket {
+                None => {
+                    let id = card_id.expect("ID should have been revealed in this case");
+
+                    Some(
+                        self.location(id)
+                            .1
+                            .expect("Location for a public card must be public."),
+                    )
+                }
+                Some(player) => {
+                    self.context
+                        .reveal_unique(
+                            player,
+                            move |secret| {
+                                let location = secret
+                                    .location(card_id.unwrap_or_else(|| {
+                                        secret.pointers[card.pointer().unwrap().index]
+                                    }))
+                                    .expect("The secret should know the zone.");
+                                match location.0 {
+                                    Zone::Limbo { public: false } => None,
+                                    Zone::Attachment { .. } => None,
+                                    zone => Some((zone, location.1)),
+                                }
+                            },
+                            |_| true,
+                        )
+                        .await
+                }
+            };
+
+            if let Some((zone, index)) = location {
+                self.player_cards_mut(owner).remove_from(zone, index);
             }
 
             if let Some(card_id) = card_id {
-                self.game.remove_id(card_id);
+                self.remove_id(card_id);
             }
 
             match card {
@@ -2155,6 +2190,7 @@ impl<S: State> CardGame<S> {
                     }
                 },
             }
+            Ok((owner, location.map(|(zone, ..)| zone)))
         })
     }
 }
