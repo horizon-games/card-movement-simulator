@@ -1,4 +1,4 @@
-use crate::{Player, Card, Zone};
+use crate::{Card, Player, Zone};
 
 #[derive(thiserror::Error, Debug)]
 pub enum MoveCardError {
