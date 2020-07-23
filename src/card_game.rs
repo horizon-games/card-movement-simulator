@@ -1511,11 +1511,11 @@ impl<S: State> CardGame<S> {
                     let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
 
                     // We're removing a card with an attachment from the secret
-                    if let Some(attachment_id) = secret.cards[&id].attachment {
-                        secret.cards.remove(&attachment_id);
+                    if let Some(attachment_id) = secret.instance(id).expect("").attachment {
+                        secret.instances.remove(&attachment_id);
                     }
 
-                    secret.cards.remove(&id);
+                    secret.instances.remove(&id);
 
                     // find what collection id is in and remove it
                     secret.deck.retain(|i| *i != id);
@@ -1525,8 +1525,10 @@ impl<S: State> CardGame<S> {
                     secret.dust.retain(|i| *i != id);
 
                     // We're removing the attachment from a card in the secret
-                    if let Some(parent_instance) =
-                        secret.cards.values_mut().find(|c| c.attachment == Some(id))
+                    if let Some(parent_instance) = secret
+                        .instances
+                        .values_mut()
+                        .find(|c| c.attachment == Some(id))
                     {
                         parent_instance.attachment = None;
                     }
@@ -1540,7 +1542,7 @@ impl<S: State> CardGame<S> {
             .or_else(|| instance.as_ref().map(|v| v.id))
             .expect("Either we know ID or we've revealed the instance.");
 
-        let player_state = self.game.player_mut(to_player);
+        let player_state = self.player_cards_mut(to_player);
         match to_zone {
             Zone::Deck => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
@@ -1604,14 +1606,14 @@ impl<S: State> CardGame<S> {
 
             match to_bucket {
                 None => {
-                    self.game.cards[usize::from(id)] = instance.into();
+                    self.instances[id.0] = instance.into();
                 }
                 Some(to_bucket_player) => {
-                    self.game.cards[usize::from(id)] = to_bucket_player.into();
+                    self.instances[id.0] = to_bucket_player.into();
 
                     self.context
                         .mutate_secret(to_bucket_player, move |secret, _, _| {
-                            secret.cards.insert(instance.id, instance.clone());
+                            secret.instances.insert(instance.id, instance.clone());
                         });
                 }
             }
@@ -1622,16 +1624,16 @@ impl<S: State> CardGame<S> {
 
                 match to_bucket {
                     None => {
-                        self.game.cards[usize::from(attachment_id)] = attachment_instance.into();
+                        self.instances[attachment_id.0] = attachment_instance.into();
                     }
                     Some(to_bucket_player) => {
                         let attachment_id = attachment_instance.id;
-                        self.game.cards[usize::from(attachment_id)] = to_bucket_player.into();
+                        self.instances[attachment_id.0] = to_bucket_player.into();
 
                         self.context
                             .mutate_secret(to_bucket_player, move |secret, _, _| {
                                 secret
-                                    .cards
+                                    .instances
                                     .insert(attachment_instance.id, attachment_instance.clone());
                             });
                     }
@@ -1649,7 +1651,7 @@ impl<S: State> CardGame<S> {
                     .attachment = None;
             }
             Some(location) => {
-                self.game.player_mut(owner).remove_from(location);
+                self.player_cards_mut(owner).remove_from(location);
             }
             None => (),
         }
