@@ -1707,19 +1707,7 @@ impl<S: State> CardGame<S> {
                     Card::Pointer(OpaquePointer {
                         player: ptr_player,
                         index,
-                    }) if ptr_player == parent_card_player => {
-                        self.context
-                            .mutate_secret(parent_card_player, |secret, _, log| {
-                                let id = secret.pointers[index];
-
-                                if let Some(attachment) = secret.instance(id).expect("").attachment
-                                {
-                                    secret.dust_card(attachment).expect("");
-                                }
-                            });
-
-                        None
-                    }
+                    }) if ptr_player == parent_card_player => None,
                     Card::Pointer(..) => {
                         let id = match parent {
                             Card::ID(id) => id,
@@ -1734,27 +1722,9 @@ impl<S: State> CardGame<S> {
                             }
                         };
 
-                        self.context
-                            .mutate_secret(parent_card_player, |secret, _, log| {
-                                if let Some(attachment) = secret.instance(id).expect("").attachment
-                                {
-                                    secret.dust_card(attachment).expect("");
-                                }
-                            });
-
                         Some(id)
                     }
-                    Card::ID(id) => {
-                        self.context
-                            .mutate_secret(parent_card_player, |secret, _, log| {
-                                if let Some(attachment) = secret.instance(id).expect("").attachment
-                                {
-                                    secret.dust_card(attachment).expect("");
-                                }
-                            });
-
-                        Some(id)
-                    }
+                    Card::ID(id) => Some(id),
                 },
             };
 
