@@ -454,9 +454,17 @@ impl<S: State> CardGame<S> {
     pub async fn reveal_from_cards<T: Secret>(
         &mut self,
         cards: Vec<Card>,
-        f: impl Fn(CardInfo<S>) -> T,
+        f: impl Fn(CardInfo<S>) -> T + Clone + 'static,
     ) -> Vec<T> {
-        todo!();
+        // todo!(): betterize this implementation
+
+        let mut revealed = Vec::with_capacity(cards.len());
+
+        for card in cards {
+            revealed.push(self.reveal_from_card(card, f.clone()).await);
+        }
+
+        revealed
     }
 
     pub async fn reveal_parent(&mut self, card: impl Into<Card>) -> Option<Card> {
@@ -615,13 +623,21 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn reveal_parents(&mut self, cards: Vec<Card>) -> Vec<Option<Card>> {
-        todo!();
+        // todo!(): betterize this implementation
+
+        let mut revealed = Vec::with_capacity(cards.len());
+
+        for card in cards {
+            revealed.push(self.reveal_parent(card).await);
+        }
+
+        revealed
     }
 
     pub async fn filter_cards(
         &mut self,
         cards: Vec<Card>,
-        f: impl Fn(CardInfo<S>) -> bool,
+        f: impl Fn(CardInfo<S>) -> bool + Clone + 'static,
     ) -> Vec<Card> {
         let f = self.reveal_from_cards(cards.clone(), f).await;
 
@@ -1148,7 +1164,11 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn reset_cards(&mut self, cards: Vec<Card>) {
-        todo!();
+        // todo!(): betterize this implementation
+
+        for card in cards {
+            self.reset_card(card).await;
+        }
     }
 
     pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) {
@@ -1276,7 +1296,11 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn modify_cards(&mut self, cards: Vec<Card>, f: impl Fn(CardInfoMut<S>)) {
-        todo!();
+        // todo!(): betterize this implementation
+
+        for card in cards {
+            self.modify_card(card, &f).await;
+        }
     }
 
     pub async fn move_card(
