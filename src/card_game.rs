@@ -2033,14 +2033,19 @@ impl<S: State> CardGame<S> {
                         let parent_bucket_player = parent_bucket
                             .expect("parent bucket isn't public, but also not a player's secret");
 
-                        self.instances[card_id.0] = InstanceOrPlayer::Player(parent_bucket_player);
+                        std::mem::replace(
+                            &mut self.instances[card_id.0],
+                            InstanceOrPlayer::Player(parent_bucket_player),
+                        )
+                        .instance()
+                        .expect("")
                     }
                     Some(card_bucket_player) => {
                         let instance = self
                             .context
                             .reveal_unique(
                                 card_bucket_player,
-                                move |secret| secret.instance(card_id).clone(),
+                                move |secret| secret.instance(card_id).expect("").clone(),
                                 |_| true,
                             )
                             .await;
