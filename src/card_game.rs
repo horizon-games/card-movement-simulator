@@ -1888,36 +1888,42 @@ impl<S: State> CardGame<S> {
 
                     Some(id)
                 }
-                Some(parent_card_player) => match self.game.opaque_ptrs[usize::from(parent)] {
-                    MaybeSecretID::Secret(ptr_player) if ptr_player == parent_card_player => {
+                Some(parent_card_player) => match parent {
+                    Card::Pointer(OpaquePointer {
+                        player: ptr_player,
+                        index,
+                    }) if ptr_player == parent_card_player => {
                         self.context
                             .mutate_secret(parent_card_player, |secret, _, log| {
-                                let id = secret.opaque_ptrs[&parent];
+                                let id = secret.pointers[index];
 
-                                if let Some(attachment) = secret.cards[&id].attachment {
-                                    secret.dust_secretly(attachment, log);
+                                if let Some(attachment) = secret.instance(id).expect("").attachment
+                                {
+                                    secret.dust_card(attachment);
                                 }
                             });
 
                         None
                     }
-                    MaybeSecretID::Secret(..) => {
+                    Card::Pointer(..) => {
                         let id = self.reveal_id(parent).await;
 
                         self.context
                             .mutate_secret(parent_card_player, |secret, _, log| {
-                                if let Some(attachment) = secret.cards[&id].attachment {
-                                    secret.dust_secretly(attachment, log);
+                                if let Some(attachment) = secret.instance(id).expect("").attachment
+                                {
+                                    secret.dust_card(attachment);
                                 }
                             });
 
                         Some(id)
                     }
-                    MaybeSecretID::Public(id) => {
+                    Card::ID(id) => {
                         self.context
                             .mutate_secret(parent_card_player, |secret, _, log| {
-                                if let Some(attachment) = secret.cards[&id].attachment {
-                                    secret.dust_secretly(attachment, log);
+                                if let Some(attachment) = secret.instance(id).expect("").attachment
+                                {
+                                    secret.dust_card(attachment);
                                 }
                             });
 
@@ -1928,33 +1934,43 @@ impl<S: State> CardGame<S> {
 
             // Remove card from its current zone, secretly and possibly publicly.
 
-            let card_id = match self.game.opaque_ptrs[usize::from(card)] {
-                MaybeSecretID::Secret(card_ptr_player) => {
+            let card_id = match card {
+                Card::Pointer(OpaquePointer {
+                    player: card_ptr_player,
+                    index,
+                }) => {
                     if Some(card_ptr_player) == card_bucket {
                         None
                     } else {
                         Some(self.reveal_id(card).await)
                     }
                 }
-                MaybeSecretID::Public(card_id) => Some(card_id),
+                Card::ID(card_id) => Some(card_id),
             };
 
             if let (card_owner, Some(card_location)) = self.reveal_id_location(card).await {
-                self.game.player_mut(card_owner).remove_from(card_location);
+                self.player_cards_mut(card_owner).remove_from(card_location);
             }
 
             if let Some(card_id) = card_id {
                 self.game.remove_id(card_id);
             }
 
-            for player in 0..2 {
-                self.context.mutate_secret(player, |secret, _, _| {
-                    if let Some(card_id) =
-                        card_id.or_else(|| secret.opaque_ptrs.get(&card).copied())
-                    {
-                        secret.remove_id(card_id);
+            match card {
+                Card::ID(id) => {
+                    for player in 0..2 {
+                        self.context.mutate_secret(player, |secret, _, _| {
+                            secret.remove_id(id);
+                        });
                     }
-                });
+                }
+                Card::Pointer(OpaquePointer { player, index }) => {
+                    self.context.mutate_secret(player, |secret, _, _| {
+                        let id = secret.pointers[index];
+
+                        secret.remove_id(id);
+                    });
+                }
             }
 
             // Step 3 and 4 only need to be performed if the source and destination buckets are different.
