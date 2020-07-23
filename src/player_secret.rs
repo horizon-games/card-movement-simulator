@@ -285,7 +285,18 @@ impl<S: State> PlayerSecret<S> {
     /// Remove an InstanceID from all zones in this secret.
     /// Internal API only.
     pub(crate) fn remove_id(&mut self, id: InstanceID) {
-        todo!();
+        self.deck.retain(|deck_id| *deck_id != id);
+        self.hand.retain(|hand_id| *hand_id != Some(id));
+        self.dust.retain(|dust_id| *dust_id != id);
+        self.limbo.retain(|limbo_id| *limbo_id != id);
+        self.card_selection
+            .retain(|card_selection_id| *card_selection_id != id);
+
+        self.instances.values_mut().for_each(|instance| {
+            if instance.attachment == Some(id) {
+                instance.attachment = None;
+            }
+        });
     }
 
     fn id(&self, card: impl Into<Card>) -> Option<InstanceID> {
