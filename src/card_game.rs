@@ -1617,6 +1617,26 @@ impl<S: State> CardGame<S> {
     pub async fn reveal_ok(&mut self) -> Result<(), error::RevealOkError> {
         // todo!();
 
+        let secrets = {
+            let mut secrets = Vec::with_capacity(self.all_player_cards().len());
+
+            for player in 0u8..secrets
+                .capacity()
+                .try_into()
+                .expect("more than 255 players")
+            {
+                secrets.push(
+                    self.context
+                        .reveal_unique(player, |secret| secret.clone(), |_| true)
+                        .await,
+                );
+            }
+
+            secrets
+        };
+
+        secrets.iter().any(|secret| secret.pointers.iter().any(|pointer| pointer.0 >= self.instances.len()));
+
         Ok(())
     }
 
