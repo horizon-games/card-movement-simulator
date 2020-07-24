@@ -1,6 +1,8 @@
 use {
     arcadeum::store::Tester,
-    card_movement_simulator::{Card, CardGame, CardInstance, GameState, InstanceID, Player, Zone},
+    card_movement_simulator::{
+        Card, CardGame, CardInstance, GameState, InstanceID, Player, PlayerSecret, Zone,
+    },
     std::{convert::TryInto, future::Future, pin::Pin},
 };
 
@@ -131,7 +133,10 @@ impl card_movement_simulator::State for State {
                     );
                     assert!(
                         live_game
-                            .reveal_from_card(attachment, move |info| info.zone.eq(to_zone).unwrap_or(false))
+                            .reveal_from_card(attachment, move |info| info
+                                .zone
+                                .eq(to_zone)
+                                .unwrap_or(false))
                             .await
                     );
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
@@ -405,7 +410,10 @@ impl card_movement_simulator::ID for ID {
 fn replacing_attach_on_secret_card_does_not_leak_existence_of_current_attachment() {
     let reveals = Tester::new(
         GameState::<State>::default(),
-        Default::default(),
+        [
+            PlayerSecret::new(0, Default::default()),
+            PlayerSecret::new(1, Default::default()),
+        ],
         Default::default(),
     )
     .unwrap()
@@ -419,7 +427,10 @@ fn replacing_attach_on_secret_card_does_not_leak_existence_of_current_attachment
 fn opaque_pointer_association_does_not_hold_through_draw() {
     Tester::new(
         GameState::<State>::default(),
-        Default::default(),
+        [
+            PlayerSecret::new(0, Default::default()),
+            PlayerSecret::new(1, Default::default()),
+        ],
         Default::default(),
     )
     .unwrap()
@@ -434,7 +445,10 @@ fn opaque_pointer_association_does_not_hold_through_draw() {
 fn public_instance_from_id() {
     let mut tester = Tester::new(
         GameState::<State>::default(),
-        Default::default(),
+        [
+            PlayerSecret::new(0, Default::default()),
+            PlayerSecret::new(1, Default::default()),
+        ],
         Default::default(),
     )
     .unwrap();
@@ -453,7 +467,10 @@ fn public_instance_from_id() {
 fn secret_instance_from_id() {
     let mut tester = Tester::new(
         GameState::<State>::default(),
-        Default::default(),
+        [
+            PlayerSecret::new(0, Default::default()),
+            PlayerSecret::new(1, Default::default()),
+        ],
         Default::default(),
     )
     .unwrap();
@@ -474,7 +491,10 @@ fn secret_instance_from_id() {
 fn opponent_instance_from_id() {
     let mut tester = Tester::new(
         GameState::<State>::default(),
-        Default::default(),
+        [
+            PlayerSecret::new(0, Default::default()),
+            PlayerSecret::new(1, Default::default()),
+        ],
         Default::default(),
     )
     .unwrap();
