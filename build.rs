@@ -82,18 +82,18 @@ fn main() -> std::io::Result<()> {
 
     // Generate tests for detaching into all zones.
     // Detach {
-    //     parent_ptr_bucket: Option<Player>,
+    //     parent_ptr_bucket: Zone,
     //     attachment_ptr_bucket: Option<Player>,
     //     to_player: Player,
     //     to_zone: Zone,
     // },
-    for parent_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+    for parent_zone in &zones {
         for attachment_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
             for to_player in 0..2 {
                 for to_zone in &zones {
                     let stripped_name = identifier_ify_string(&format!(
-                        "detach_parent_ptr_{}_attachment_ptr_{}_to_{}_{}",
-                        parent_ptr_bucket, attachment_ptr_bucket, to_player, to_zone
+                        "detach_parent_in_{}_attachment_ptr_{}_to_{}_{}",
+                        parent_zone, attachment_ptr_bucket, to_player, to_zone
                     ));
                     generated_tests.push_str(&format!(
                         "
@@ -109,7 +109,7 @@ fn main() -> std::io::Result<()> {
                           )
                           .unwrap()
                           .apply(Some(0), &Action::Detach {{
-                              parent_ptr_bucket: {parent_ptr_bucket},
+                              parent_zone: {parent_zone},
                               attachment_ptr_bucket: {attachment_ptr_bucket},
                               to_player: {to_player},
                               to_zone: {to_zone},
@@ -119,7 +119,7 @@ fn main() -> std::io::Result<()> {
 
                         ",
                         stripped_name = stripped_name,
-                        parent_ptr_bucket = parent_ptr_bucket,
+                        parent_zone = parent_zone,
                         attachment_ptr_bucket = attachment_ptr_bucket,
                         to_player = to_player,
                         to_zone = to_zone,
