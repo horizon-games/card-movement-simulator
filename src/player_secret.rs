@@ -238,6 +238,8 @@ impl<S: State> PlayerSecret<S> {
 
             self.pointers.push(card);
 
+            self.limbo.push(card);
+
             card
         } else {
             panic!("called PlayerSecret::new_card outside of CardGame::new_secret_cards");
