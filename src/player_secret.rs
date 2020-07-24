@@ -234,6 +234,8 @@ impl<S: State> PlayerSecret<S> {
 
             id.0 += 1;
 
+            self.mode = Some(Mode::NewCards(id));
+
             self.pointers.push(card);
 
             card

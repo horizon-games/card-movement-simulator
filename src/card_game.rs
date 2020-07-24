@@ -1635,7 +1635,12 @@ impl<S: State> CardGame<S> {
             secrets
         };
 
-        secrets.iter().any(|secret| secret.pointers.iter().any(|pointer| pointer.0 >= self.instances.len()));
+        secrets.iter().any(|secret| {
+            secret
+                .pointers
+                .iter()
+                .any(|pointer| pointer.0 >= self.instances.len())
+        });
 
         Ok(())
     }
