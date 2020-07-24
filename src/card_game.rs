@@ -2228,8 +2228,8 @@ impl<S: State> CardGame<S> {
                             let card_id = card_id.unwrap_or_else(|| {
                                 secret.pointers[card.pointer().expect("").index]
                             });
-
-                            secret.instance_mut(parent).expect("").attachment = Some(card_id);
+                            let parent_id = secret.pointers[parent.pointer().expect("").index];
+                            secret.attach_card(parent_id, card_id).expect("");
                         });
                 }
                 Some(parent_id) => match parent_bucket {
@@ -2259,8 +2259,7 @@ impl<S: State> CardGame<S> {
                                     secret.pointers[card.pointer().expect("").index]
                                 });
 
-                                secret.instance_mut(parent_id).expect("").attachment =
-                                    Some(card_id);
+                                secret.attach_card(parent_id, card_id).expect("");
                             })
                     }
                 },
