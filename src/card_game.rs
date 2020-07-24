@@ -1340,6 +1340,18 @@ impl<S: State> CardGame<S> {
             .or_else(|| instance.as_ref().map(|v| v.id))
             .expect("Either we know ID or we've revealed the instance.");
 
+        // If this card came from a secret
+        if let Some(bucket_owner) = bucket {
+            self.context.mutate_secret(bucket_owner, |secret, _, _| {
+                // Take its ID out of any zones in that secret.
+                secret.remove_id(id);
+            });
+        } else if let Some((Zone::Hand { public: true }, index)) = location {
+            self.context.mutate_secret(owner, |secret, _, _| {
+                secret.hand.remove(index);
+            });
+        }
+
         match to_zone {
             Zone::Deck => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
