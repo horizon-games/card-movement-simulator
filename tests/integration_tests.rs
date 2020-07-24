@@ -281,6 +281,7 @@ impl card_movement_simulator::State for State {
                             info.secret.new_card(BaseCard::Basic);
                         })
                         .await[0];
+                    assert_eq!(live_game.instances(), 3);
 
                     live_game.move_card(secret, 0, Zone::Deck).await.unwrap();
 
