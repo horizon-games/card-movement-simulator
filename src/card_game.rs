@@ -2018,8 +2018,7 @@ impl<S: State> CardGame<S> {
                 }
                 Some(parent_card_player) => match parent {
                     Card::Pointer(OpaquePointer {
-                        player: ptr_player,
-                        index,
+                        player: ptr_player, ..
                     }) if ptr_player == parent_card_player => None,
                     Card::Pointer(..) => {
                         let id = match parent {
@@ -2107,22 +2106,11 @@ impl<S: State> CardGame<S> {
                 self.player_cards_mut(owner).remove_from(zone, index);
             }
 
-            match card {
-                Card::ID(id) => {
-                    for player in 0..2 {
-                        self.context.mutate_secret(player, |secret, _, _| {
-                            secret.remove_id(id);
-                        });
-                    }
-                }
-                Card::Pointer(OpaquePointer { player, index }) => {
-                    self.context.mutate_secret(player, |secret, _, _| {
-                        let id = secret.pointers[index];
-
-                        secret.remove_id(id);
-                    });
-                }
-            }
+            self.context.mutate_secret(owner, |secret, _, _| {
+                // Either we know the ID, or it's in this secret!
+                let id = card_id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                secret.remove_id(id);
+            });
 
             // Step 3 and 4 only need to be performed if the source and destination buckets are different.
             // Move card to parent's bucket.
