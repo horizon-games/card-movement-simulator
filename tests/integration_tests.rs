@@ -458,7 +458,7 @@ fn public_instance_from_id() {
     // This is an implementation detail.
     // Constructing a public card in public limbo gives the attachment the ID after the parent card.
 
-    let id: InstanceID = serde_cbor::from_slice(&[1]).unwrap();
+    let id: InstanceID = InstanceID::from_raw(1);
 
     assert!(id.instance(tester.state(), None).is_some());
 }
@@ -480,7 +480,7 @@ fn secret_instance_from_id() {
     // This is an implementation detail.
     // Constructing a public card in public limbo gives the parent card the ID after the attachment.
 
-    let id: InstanceID = serde_cbor::from_slice(&[2]).unwrap();
+    let id: InstanceID = InstanceID::from_raw(0);
 
     assert!(id
         .instance(tester.state(), Some(&tester.secret(0)))
@@ -504,7 +504,7 @@ fn opponent_instance_from_id() {
     // This is an implementation detail.
     // Constructing a public card in public limbo gives the parent card the ID after the attachment.
 
-    let id: InstanceID = serde_cbor::from_slice(&[4]).unwrap();
+    let id: InstanceID = InstanceID::from_raw(4);
 
     assert!(id
         .instance(tester.state(), Some(&tester.secret(0)))
