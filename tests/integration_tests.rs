@@ -97,7 +97,7 @@ impl card_movement_simulator::State for State {
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
                 }
                 Action::Detach {
-                    parent_ptr_bucket,
+                    parent_zone,
                     attachment_ptr_bucket,
                     to_player,
                     to_zone,
@@ -105,6 +105,12 @@ impl card_movement_simulator::State for State {
                     // TODO parent_ptr_bucket is never used (wasn't actually used for anything in previous tests)
                     let parent_owner = 0;
                     let parent_id = live_game.new_card(parent_owner, BaseCard::WithAttachment);
+
+                    live_game
+                        .move_card(parent_id, 0, parent_zone)
+                        .await
+                        .unwrap();
+
                     let attachment_id = live_game
                         .reveal_from_card(parent_id, |info| {
                             info.attachment
@@ -369,7 +375,7 @@ enum Action {
         to_zone: Zone,                   // 11
     },
     Detach {
-        parent_ptr_bucket: Option<Player>,     // 3
+        parent_zone: Zone,                     // 11
         attachment_ptr_bucket: Option<Player>, // 3
         to_player: Player,                     // 2
         to_zone: Zone,                         // 11
