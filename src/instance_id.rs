@@ -7,6 +7,12 @@ use {
 pub struct InstanceID(pub(crate) usize);
 
 impl InstanceID {
+    #[doc(hidden)]
+    /// Internal-only API! Creates an instance ID from a usize.
+    /// Never use this in prod-facing code.
+    pub fn from_raw(raw: usize) -> InstanceID {
+        InstanceID(raw)
+    }
     pub fn instance<'a, S: State>(
         &self,
         state: &'a GameState<S>,
