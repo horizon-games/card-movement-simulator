@@ -1259,11 +1259,11 @@ impl<S: State> CardGame<S> {
                     )
                     .instance()
                     .expect(
-                        "Card was identified as public, but it's actually MaybeSecretCard::Secret",
+                        "Card was identified as public, but it's actually InstanceOrPlayer::Player",
                     );
 
                     let attachment = instance.attachment.map(|attachment_id| {
-                        std::mem::replace(&mut self.instances[attachment_id.0], InstanceOrPlayer::Player(to_bucket_player)).instance().expect("Since parent Card is public, attachment was identified as public, but it's actually MaybeSecretCard::Secret")
+                        std::mem::replace(&mut self.instances[attachment_id.0], InstanceOrPlayer::Player(to_bucket_player)).instance().expect("Since parent Card is public, attachment was identified as public, but it's actually InstanceOrPlayer::Player")
                     });
 
                     self.context.mutate_secret(owner, |secret, _, _| {
@@ -1641,6 +1641,255 @@ impl<S: State> CardGame<S> {
                 .iter()
                 .any(|pointer| pointer.0 >= self.instances.len())
         });
+
+        // Only one bucket may contain the CardInstance for an InstanceID.
+        // If a CardInstance has an attachment, the attachment must be in the same Bucket.
+        let real_instance_ids = self
+            .instances
+            .iter()
+            .flat_map(|card| card.instance_ref().map(|instance| instance.id))
+            .chain(
+                secrets
+                    .iter()
+                    .flat_map(|secret| secret.instances.keys().copied()),
+            );
+
+        for id in real_instance_ids.clone() {
+            match &self.instances[id.0] {
+                InstanceOrPlayer::Player(player) => {
+                    // The card must be in that player's secret cards
+
+                    if !secrets[usize::from(*player)].instances.contains_key(&id) {
+                        return Err(error::RevealOkError::Error {
+                            err: format!("Card should have been in player {}'s secret", player),
+                        });
+                    }
+
+                    // The card must not be in the other player's secret cards
+
+                    if secrets[usize::from(1 - *player)]
+                        .instances
+                        .contains_key(&id)
+                    {
+                        return Err(error::RevealOkError::Error {
+                            err: format!(
+                                "Card should not have been in player {}'s secret",
+                                1 - player
+                            ),
+                        });
+                    }
+
+                    // The instance's attachment, if any, should also be in this player's secret.
+                    if let Some(attachment_id) = secrets[usize::from(*player)]
+                        .instance(id)
+                        .unwrap()
+                        .attachment
+                    {
+                        if !secrets[usize::from(*player)]
+                            .instances
+                            .contains_key(&attachment_id)
+                        {
+                            return Err(error::RevealOkError::Error {
+                                err: format!(
+                                    "Card's attachment should have been in player {}'s secret",
+                                    player
+                                ),
+                            });
+                        }
+                    }
+                }
+                InstanceOrPlayer::Instance(instance) => {
+                    // The card shouldn't be in either player's secret cards
+
+                    for (player_id, secret) in secrets.iter().enumerate() {
+                        if secret.instances.contains_key(&id) {
+                            return Err(error::RevealOkError::Error {
+                                err: format!(
+                                    "InstanceID {:?} is both public and in player {:?}'s secret",
+                                    id, player_id
+                                ),
+                            });
+                        }
+                    }
+
+                    // The instance's attachment, if any, should also be public.
+
+                    if let Some(attachment) = instance.attachment {
+                        if let InstanceOrPlayer::Player(player) = self.instances[attachment.0] {
+                            return Err(error::RevealOkError::Error {
+                                err: format!("The instance for card {} is public, but its attachment {} is in player {}'s secret", id.0, attachment.0, player)});
+                        }
+                    }
+                }
+            }
+        }
+
+        // An InstanceID must occur in all zones combined at most once.
+        // It can be 0, because some InstanceIDs correspond to non-existent attachments.
+        for id in 0..self.instances.len() {
+            let id = InstanceID(id);
+
+            // Count the number of times id occurs in public and secret state.
+
+            let mut count = 0;
+
+            for (player_id, player) in self.all_player_cards().iter().enumerate() {
+                let player_id: Player =
+                    player_id
+                        .try_into()
+                        .map_err(|error| error::RevealOkError::Error {
+                            err: format!("{}", error),
+                        })?;
+
+                count += player
+                    .hand
+                    .iter()
+                    .filter(|hand_id| **hand_id == Some(id))
+                    .count();
+                count += player
+                    .field
+                    .iter()
+                    .filter(|field_id| **field_id == id)
+                    .count();
+                count += player
+                    .graveyard
+                    .iter()
+                    .filter(|graveyard_id| **graveyard_id == id)
+                    .count();
+                count += player
+                    .limbo
+                    .iter()
+                    .filter(|limbo_id| **limbo_id == id)
+                    .count();
+                count += player
+                    .casting
+                    .iter()
+                    .filter(|casting_id| **casting_id == id)
+                    .count();
+                count += player.dust.iter().filter(|dust_id| **dust_id == id).count();
+                count += self
+                    .instances
+                    .iter()
+                    .filter(|card| {
+                        if let InstanceOrPlayer::Instance(instance) = card {
+                            instance.attachment == Some(id) && self.owner(instance.id) == player_id
+                        } else {
+                            false
+                        }
+                    })
+                    .count();
+            }
+
+            for secret in &secrets {
+                count += secret.deck.iter().filter(|deck_id| **deck_id == id).count();
+                count += secret
+                    .hand
+                    .iter()
+                    .filter(|hand_id| **hand_id == Some(id))
+                    .count();
+                count += secret
+                    .limbo
+                    .iter()
+                    .filter(|limbo_id| **limbo_id == id)
+                    .count();
+                count += secret.dust.iter().filter(|dust_id| **dust_id == id).count();
+                count += secret
+                    .card_selection
+                    .iter()
+                    .filter(|card_selection_id| **card_selection_id == id)
+                    .count();
+                count += secret
+                    .instances
+                    .values()
+                    .filter(|instance| instance.attachment == Some(id))
+                    .count();
+            }
+
+            if count > 1 {
+                return Err(error::RevealOkError::Error {
+                    err: format!(
+                        "Instance ID {} occurs {} times in public and secret state",
+                        id.0, count
+                    ),
+                });
+            }
+        }
+
+        // If an instance is public, it should be in a public zone.
+        // If an instance is secret, it should be in a secret zone.
+
+        for id in real_instance_ids {
+            match self.instances[id.0] {
+                InstanceOrPlayer::Player(player) => {
+                    if !secrets[usize::from(player)].location(id).is_some() {
+                        return Err(error::RevealOkError::Error {
+                            err: format!(
+                            "{:?} is in player {}'s secret bucket, but not in any of their zzones",
+                            id, player
+                        ),
+                        });
+                    }
+                }
+                InstanceOrPlayer::Instance(..) => {
+                    self.owner(id);
+                }
+            }
+        }
+
+        // Public state deck must match secret state deck length.
+        for (player_id, player) in self.all_player_cards().iter().enumerate() {
+            if secrets[player_id].deck.len() != player.deck {
+                return Err(error::RevealOkError::Error {
+                    err: format!(
+                        "Player {}'s public deck size is {}, but their private deck size is {}.",
+                        player_id,
+                        player.deck,
+                        secrets[player_id].deck.len()
+                    ),
+                });
+            }
+        }
+
+        // Public state card selection must match secret state card selection length.
+        for (player_id, player) in self.all_player_cards().iter().enumerate() {
+            if secrets[player_id].card_selection.len() != player.card_selection {
+                return Err(error::RevealOkError::Error {
+                    err: format!("Player {}'s public card selection size is {}, but their private card selection size is {}.", player_id, player.card_selection, secrets[player_id].card_selection.len())
+                }
+                );
+            }
+        }
+
+        // For each card in Public & Secret hand, if one Bucket has None, the other must have Some(ID).
+        for (player, secret) in self.all_player_cards().iter().zip(secrets.iter()) {
+            for (index, (public_hand, secret_hand)) in
+                player.hand.iter().zip(secret.hand.iter()).enumerate()
+            {
+                match (public_hand, secret_hand) {
+                    (Some(_), None) | (None, Some(_)) => {
+                        // ok! only one state has it
+                    }
+                    (Some(public_some), Some(private_some)) => {
+                        return Err(error::RevealOkError::Error {
+                            err: format!("Both public state & private state({:?}) have Some(_) at hand position {:?} .\nPublic: Some({:?}), Private: Some({:?})", player, index, public_some, private_some)});
+                    }
+                    (None, None) => {
+                        return Err(error::RevealOkError::Error {
+                            err: "Both public & private state have None at this hand position."
+                                .to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        for id in self
+            .instances
+            .iter()
+            .flat_map(|card| card.instance_ref().map(|instance| instance.id))
+        {
+            self.owner(id); // should be able to call owner for each public id
+        }
 
         Ok(())
     }
