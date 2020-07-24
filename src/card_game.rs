@@ -1993,7 +1993,6 @@ impl<S: State> CardGame<S> {
                 }
             };
 
-            // Dust parent's current attachment, if any
             let parent_id = match parent_bucket {
                 None => {
                     let (id, owner, attachment) = self
@@ -2175,7 +2174,7 @@ impl<S: State> CardGame<S> {
 
                         self.context
                             .mutate_secret(card_bucket_player, |secret, _, _| {
-                                secret.remove_id(card_id);
+                                secret.instances.remove(&card_id);
                             });
 
                         instance
