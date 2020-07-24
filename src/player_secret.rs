@@ -17,13 +17,13 @@ pub struct PlayerSecret<S: State> {
 
     pub(crate) mode: Option<Mode>,
 
-    player: Player,
-
     pub(crate) deck: Vec<InstanceID>,
     pub(crate) hand: Vec<Option<InstanceID>>,
     pub(crate) dust: Vec<InstanceID>,
     pub(crate) limbo: Vec<InstanceID>,
     pub(crate) card_selection: Vec<InstanceID>,
+
+    player: Player,
 }
 
 impl<S: State> Deref for PlayerSecret<S> {
@@ -41,6 +41,25 @@ impl<S: State> DerefMut for PlayerSecret<S> {
 }
 
 impl<S: State> PlayerSecret<S> {
+    pub fn new(player: Player, secret: S::Secret) -> Self {
+        Self {
+            secret,
+
+            instances: Default::default(),
+            pointers: Default::default(),
+
+            mode: Default::default(),
+
+            deck: Default::default(),
+            hand: Default::default(),
+            dust: Default::default(),
+            limbo: Default::default(),
+            card_selection: Default::default(),
+
+            player,
+        }
+    }
+
     pub fn player(&self) -> Player {
         self.player
     }
@@ -368,30 +387,6 @@ impl<S: State> PlayerSecret<S> {
                     None
                 }
             }
-        }
-    }
-}
-
-impl<S: State> Default for PlayerSecret<S>
-where
-    S::Secret: Default,
-{
-    fn default() -> Self {
-        Self {
-            secret: Default::default(),
-
-            instances: Default::default(),
-            pointers: Default::default(),
-
-            mode: Default::default(),
-
-            player: Default::default(),
-
-            deck: Default::default(),
-            hand: Default::default(),
-            dust: Default::default(),
-            limbo: Default::default(),
-            card_selection: Default::default(),
         }
     }
 }

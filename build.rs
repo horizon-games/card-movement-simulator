@@ -46,7 +46,10 @@ fn main() -> std::io::Result<()> {
                             fn test_{stripped_name}() {{
                               Tester::new(
                                   GameState::<State>::default(),
-                                  Default::default(),
+                                  [
+                                      PlayerSecret::new(0, Default::default()),
+                                      PlayerSecret::new(1, Default::default()),
+                                  ],
                                   Default::default(),
                               )
                               .unwrap()
@@ -98,7 +101,10 @@ fn main() -> std::io::Result<()> {
                         fn test_{stripped_name}() {{
                           Tester::new(
                               GameState::<State>::default(),
-                              Default::default(),
+                              [
+                                  PlayerSecret::new(0, Default::default()),
+                                  PlayerSecret::new(1, Default::default()),
+                              ],
                               Default::default(),
                           )
                           .unwrap()
@@ -153,7 +159,10 @@ fn main() -> std::io::Result<()> {
                         fn test_{stripped_name}() {{
                           Tester::new(
                               GameState::<State>::default(),
-                              Default::default(),
+                              [
+                                  PlayerSecret::new(0, Default::default()),
+                                  PlayerSecret::new(1, Default::default()),
+                              ],
                               Default::default(),
                           )
                           .unwrap()
