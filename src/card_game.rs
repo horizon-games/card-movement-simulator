@@ -1713,8 +1713,9 @@ impl<S: State> CardGame<S> {
                 .iter()
                 .map(|instance| instance.player())
                 .collect();
+
             let card_bucket = match card {
-                Card::ID(_) => None,
+                Card::ID(id) => buckets[id.0],
                 Card::Pointer(OpaquePointer { player, index }) => {
                     let buckets = buckets.clone();
 
@@ -1729,7 +1730,7 @@ impl<S: State> CardGame<S> {
             };
 
             let parent_bucket = match parent {
-                Card::ID(_) => None,
+                Card::ID(id) => buckets[id.0],
                 Card::Pointer(OpaquePointer { player, index }) => {
                     let buckets = buckets.clone();
 
