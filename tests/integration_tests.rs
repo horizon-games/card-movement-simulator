@@ -126,8 +126,12 @@ impl card_movement_simulator::State for State {
                         .unwrap();
                     assert!(
                         live_game
-                            .reveal_from_card(attachment, move |info| info.owner == to_player
-                                && info.zone.eq(to_zone).unwrap_or(false))
+                            .reveal_from_card(attachment, move |info| info.owner == to_player)
+                            .await
+                    );
+                    assert!(
+                        live_game
+                            .reveal_from_card(attachment, move |info| info.zone.eq(to_zone).unwrap_or(false))
                             .await
                     );
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
