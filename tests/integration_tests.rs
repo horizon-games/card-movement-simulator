@@ -102,7 +102,6 @@ impl card_movement_simulator::State for State {
                     to_player,
                     to_zone,
                 } => {
-                    // TODO parent_ptr_bucket is never used (wasn't actually used for anything in previous tests)
                     let parent_owner = 0;
                     let parent_id = live_game.new_card(parent_owner, BaseCard::WithAttachment);
 
