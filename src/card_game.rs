@@ -1512,14 +1512,14 @@ impl<S: State> CardGame<S> {
     pub async fn new_secret_cards(
         &mut self,
         player: Player,
-        f: impl Fn(SecretCardsInfo<S>),
+        f: impl Fn(SecretInfo<S>),
     ) -> Vec<Card> {
         let start = self.instances.len();
 
         self.context.mutate_secret(player, |secret, random, log| {
             secret.mode = Some(player_secret::Mode::NewCards(InstanceID(start)));
 
-            f(SecretCardsInfo {
+            f(SecretInfo {
                 secret,
                 random,
                 log,
@@ -1565,12 +1565,12 @@ impl<S: State> CardGame<S> {
     pub async fn new_secret_pointers(
         &mut self,
         player: Player,
-        f: impl Fn(SecretPointersInfo<S>),
+        f: impl Fn(SecretInfo<S>),
     ) -> Vec<Card> {
         self.context.mutate_secret(player, |secret, random, log| {
             secret.mode = Some(player_secret::Mode::NewPointers);
 
-            f(SecretPointersInfo {
+            f(SecretInfo {
                 secret,
                 random,
                 log,
@@ -2288,14 +2288,6 @@ pub struct CardInfo<'a, S: State> {
     pub attachment: Option<&'a CardInstance<S>>,
 }
 
-impl<S: State> Deref for CardInfo<'_, S> {
-    type Target = CardInstance<S>;
-
-    fn deref(&self) -> &Self::Target {
-        self.instance
-    }
-}
-
 pub struct CardInfoMut<'a, S: State> {
     pub instance: &'a mut CardInstance<S>,
     pub owner: Player,
@@ -2303,6 +2295,20 @@ pub struct CardInfoMut<'a, S: State> {
     pub attachment: Option<&'a CardInstance<S>>,
     pub random: &'a mut dyn rand::RngCore,
     pub log: &'a mut dyn FnMut(&dyn Event),
+}
+
+pub struct SecretInfo<'a, S: State> {
+    pub secret: &'a mut PlayerSecret<S>,
+    pub random: &'a mut dyn rand::RngCore,
+    pub log: &'a mut dyn FnMut(&dyn Event),
+}
+
+impl<S: State> Deref for CardInfo<'_, S> {
+    type Target = CardInstance<S>;
+
+    fn deref(&self) -> &Self::Target {
+        self.instance
+    }
 }
 
 impl<S: State> Deref for CardInfoMut<'_, S> {
@@ -2319,13 +2325,7 @@ impl<S: State> DerefMut for CardInfoMut<'_, S> {
     }
 }
 
-pub struct SecretCardsInfo<'a, S: State> {
-    pub secret: &'a mut PlayerSecret<S>,
-    pub random: &'a mut dyn rand::RngCore,
-    pub log: &'a mut dyn FnMut(&dyn Event),
-}
-
-impl<S: State> Deref for SecretCardsInfo<'_, S> {
+impl<S: State> Deref for SecretInfo<'_, S> {
     type Target = PlayerSecret<S>;
 
     fn deref(&self) -> &Self::Target {
@@ -2333,84 +2333,9 @@ impl<S: State> Deref for SecretCardsInfo<'_, S> {
     }
 }
 
-impl<S: State> DerefMut for SecretCardsInfo<'_, S> {
+impl<S: State> DerefMut for SecretInfo<'_, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.secret
-    }
-}
-
-impl<S: State> SecretCardsInfo<'_, S> {
-    pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
-        if let Some(player_secret::Mode::NewCards(mut id)) = self.mode {
-            let attachment = base.attachment().map(|attachment| {
-                let state = attachment.new_card_state();
-                let instance = CardInstance {
-                    id,
-                    base: attachment,
-                    attachment: None,
-                    state,
-                };
-
-                self.instances.insert(id, instance);
-
-                id
-            });
-
-            id.0 += 1;
-
-            let card = id;
-            let state = base.new_card_state();
-            let instance = CardInstance {
-                id,
-                base,
-                attachment,
-                state,
-            };
-
-            self.instances.insert(id, instance);
-
-            id.0 += 1;
-
-            self.mode = Some(player_secret::Mode::NewCards(id));
-
-            self.pointers.push(card);
-
-            self.limbo.push(card);
-
-            card
-        } else {
-            unreachable!("called SecretCardsInfo::new_card outside of CardGame::new_secret_cards");
-        }
-    }
-}
-
-pub struct SecretPointersInfo<'a, S: State> {
-    pub secret: &'a mut PlayerSecret<S>,
-    pub random: &'a mut dyn rand::RngCore,
-    pub log: &'a mut dyn FnMut(&dyn Event),
-}
-
-impl<S: State> Deref for SecretPointersInfo<'_, S> {
-    type Target = PlayerSecret<S>;
-
-    fn deref(&self) -> &Self::Target {
-        self.secret
-    }
-}
-
-impl<S: State> DerefMut for SecretPointersInfo<'_, S> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.secret
-    }
-}
-
-impl<S: State> SecretPointersInfo<'_, S> {
-    pub fn new_pointer(&mut self, id: InstanceID) {
-        if let Some(player_secret::Mode::NewPointers) = self.mode {
-            self.pointers.push(id);
-        } else {
-            unreachable!("called SecretPointersInfo::new_pointer outside of CardGame::new_secret_pointers");
-        }
     }
 }
 

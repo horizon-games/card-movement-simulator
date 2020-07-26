@@ -222,6 +222,57 @@ impl<S: State> PlayerSecret<S> {
         Ok(())
     }
 
+    pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
+        if let Some(Mode::NewCards(mut id)) = self.mode {
+            let attachment = base.attachment().map(|attachment| {
+                let state = attachment.new_card_state();
+                let instance = CardInstance {
+                    id,
+                    base: attachment,
+                    attachment: None,
+                    state,
+                };
+
+                self.instances.insert(id, instance);
+
+                id
+            });
+
+            id.0 += 1;
+
+            let card = id;
+            let state = base.new_card_state();
+            let instance = CardInstance {
+                id,
+                base,
+                attachment,
+                state,
+            };
+
+            self.instances.insert(id, instance);
+
+            id.0 += 1;
+
+            self.mode = Some(Mode::NewCards(id));
+
+            self.pointers.push(card);
+
+            self.limbo.push(card);
+
+            card
+        } else {
+            panic!("called PlayerSecret::new_card outside of CardGame::new_secret_cards");
+        }
+    }
+
+    pub fn new_pointer(&mut self, id: InstanceID) {
+        if let Some(Mode::NewPointers) = self.mode {
+            self.pointers.push(id);
+        } else {
+            panic!("called PlayerSecret::new_pointer outside of CardGame::new_secret_pointers");
+        }
+    }
+
     pub(crate) fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {
         self.id(card)
             .and_then(move |id| self.instances.get_mut(&id))
