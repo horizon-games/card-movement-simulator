@@ -2313,44 +2313,46 @@ impl<S: State> DerefMut for SecretCardsInfo<'_, S> {
 
 impl<S: State> SecretCardsInfo<'_, S> {
     pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
-        let mut next_instance = self.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+        let mut next_instance = self.next_instance.expect(
+            "`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call",
+        );
 
-            let attachment = base.attachment().map(|attachment| {
-                let state = attachment.new_card_state();
-                let instance = CardInstance {
-                    id: next_instance,
-                    base: attachment,
-                    attachment: None,
-                    state,
-                };
-
-                self.instances.insert(next_instance, instance);
-
-                next_instance
-            });
-
-            next_instance.0 += 1;
-
-            let card = next_instance;
-            let state = base.new_card_state();
+        let attachment = base.attachment().map(|attachment| {
+            let state = attachment.new_card_state();
             let instance = CardInstance {
                 id: next_instance,
-                base,
-                attachment,
+                base: attachment,
+                attachment: None,
                 state,
             };
 
             self.instances.insert(next_instance, instance);
 
-            next_instance.0 += 1;
+            next_instance
+        });
 
-            self.next_instance = Some(next_instance);
+        next_instance.0 += 1;
 
-            self.pointers.push(card);
+        let card = next_instance;
+        let state = base.new_card_state();
+        let instance = CardInstance {
+            id: next_instance,
+            base,
+            attachment,
+            state,
+        };
 
-            self.limbo.push(card);
+        self.instances.insert(next_instance, instance);
 
-            card
+        next_instance.0 += 1;
+
+        self.next_instance = Some(next_instance);
+
+        self.pointers.push(card);
+
+        self.limbo.push(card);
+
+        card
     }
 }
 
