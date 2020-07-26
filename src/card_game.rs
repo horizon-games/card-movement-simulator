@@ -794,7 +794,8 @@ impl<S: State> CardGame<S> {
                             ))
                         });
 
-                        if let Some(player_secret::Mode::NewCards(attachment_id)) = secret.mode {
+                        let next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+
                             match (
                                 attachment,
                                 instance.base.attachment(),
@@ -815,15 +816,15 @@ impl<S: State> CardGame<S> {
                                     let state = default.new_card_state();
 
                                     let attachment = CardInstance {
-                                        id: attachment_id,
+                                        id: next_instance,
                                         base: default,
                                         attachment: None,
                                         state,
                                     };
 
-                                    secret.instances.insert(attachment_id, attachment);
+                                    secret.instances.insert(next_instance, attachment);
 
-                                    secret.attach_card(id, attachment_id).expect("Both id and attachment_id are in this secret.");
+                                    secret.attach_card(id, next_instance).expect("Unable to secretly attach a secret card to another card in the same secret.");
                                 }
                                 (Some(current), Some(default)) if current.base == default => {
                                     // reset current attachment
@@ -836,32 +837,26 @@ impl<S: State> CardGame<S> {
                                     let current_id = current.id();
                                     secret.dust_card(current_id).expect("current_id is in this secret, and is not already dust.");
 
-                                    // Attach base attachment
+                                    // attach base attachment
+
                                     let state = default.new_card_state();
 
                                     let attachment = CardInstance {
-                                        id: attachment_id,
+                                        id: next_instance,
                                         base: default,
                                         attachment: None,
                                         state,
                                     };
 
-                                    secret.instances.insert(attachment_id, attachment);
+                                    secret.instances.insert(next_instance, attachment);
 
-                                    secret.attach_card(id, attachment_id).expect("Both id and attachment_id are in this secret.");
+                                    secret.attach_card(id, next_instance).expect("Unable to secretly attach a secret card to another card in the same secret.");
                                 }
                             }
 
                             // unconditionally increment instance ID to avoid leaking attachment information
 
-                            if let Some(player_secret::Mode::NewCards(attachment_id)) = &mut secret.mode {
-                                attachment_id.0 += 1;
-                            } else {
-                                unreachable!("{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
-                            }
-                        } else {
-                            unreachable!("{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards", secret.mode);
-                        }
+                        secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call").0 += 1;
 
                         let instance = secret
                             .instance_mut(id)
@@ -886,7 +881,8 @@ impl<S: State> CardGame<S> {
                         ))
                     });
 
-                    if let Some(player_secret::Mode::NewCards(attachment_id)) = secret.mode {
+        let next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+
                         match (attachment, instance.base.attachment()) {
                             (None, None) => {
                                 // do nothing
@@ -906,17 +902,17 @@ impl<S: State> CardGame<S> {
                                 let state = default.new_card_state();
 
                                 let attachment = CardInstance {
-                                    id: attachment_id,
+                                    id: next_instance,
                                     base: default,
                                     attachment: None,
                                     state,
                                 };
 
-                                secret.instances.insert(attachment_id, attachment);
+                                secret.instances.insert(next_instance, attachment);
 
                                 secret
-                                    .attach_card(id, attachment_id)
-                                    .expect("Both id and attachment_id are in this secret.");
+                                    .attach_card(id, next_instance)
+                                    .expect("Both id and next_instance are in this secret.");
                             }
                             (Some(current), Some(default)) if current.base == default => {
                                 // reset current attachment
@@ -936,37 +932,23 @@ impl<S: State> CardGame<S> {
                                 let state = default.new_card_state();
 
                                 let attachment = CardInstance {
-                                    id: attachment_id,
+                                    id: next_instance,
                                     base: default,
                                     attachment: None,
                                     state,
                                 };
 
-                                secret.instances.insert(attachment_id, attachment);
+                                secret.instances.insert(next_instance, attachment);
 
                                 secret
-                                    .attach_card(id, attachment_id)
-                                    .expect("Both id and attachment_id are in this secret.");
+                                    .attach_card(id, next_instance)
+                                    .expect("Both id and next_instance are in this secret.");
                             }
                         }
 
                         // unconditionally increment instance ID to avoid leaking attachment information
 
-                        if let Some(player_secret::Mode::NewCards(attachment_id)) = &mut secret.mode
-                        {
-                            attachment_id.0 += 1;
-                        } else {
-                            unreachable!(
-                                "{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards",
-                                secret.mode
-                            );
-                        }
-                    } else {
-                        unreachable!(
-                            "{:?} is not Mode::NewCards(..) inside CardGame::new_secret_cards",
-                            secret.mode
-                        );
-                    }
+                        secret.next_instance.as_mut().expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call").0 += 1;
 
                     let instance = secret
                         .instance_mut(id)
@@ -1512,14 +1494,14 @@ impl<S: State> CardGame<S> {
     pub async fn new_secret_cards(
         &mut self,
         player: Player,
-        f: impl Fn(SecretInfo<S>),
+        f: impl Fn(SecretCardsInfo<S>),
     ) -> Vec<Card> {
         let start = self.instances.len();
 
         self.context.mutate_secret(player, |secret, random, log| {
-            secret.mode = Some(player_secret::Mode::NewCards(InstanceID(start)));
+            secret.next_instance = Some(InstanceID(start));
 
-            f(SecretInfo {
+            f(SecretCardsInfo {
                 secret,
                 random,
                 log,
@@ -1531,11 +1513,7 @@ impl<S: State> CardGame<S> {
             .reveal_unique(
                 player,
                 |secret| {
-                    if let Some(player_secret::Mode::NewCards(id)) = secret.mode {
-                        (secret.pointers.len(), id.0)
-                    } else {
-                        unreachable!("{:?} is not Mode::NewCards(..)", secret.mode);
-                    }
+                    (secret.pointers.len(), secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call").0)
                 },
                 |_| true,
             )
@@ -1545,7 +1523,7 @@ impl<S: State> CardGame<S> {
         assert!(end >= start);
 
         self.context.mutate_secret(player, |secret, _, _| {
-            secret.mode = None;
+            secret.next_instance = None;
         });
 
         self.instances
@@ -1565,12 +1543,10 @@ impl<S: State> CardGame<S> {
     pub async fn new_secret_pointers(
         &mut self,
         player: Player,
-        f: impl Fn(SecretInfo<S>),
+        f: impl Fn(SecretPointersInfo<S>),
     ) -> Vec<Card> {
         self.context.mutate_secret(player, |secret, random, log| {
-            secret.mode = Some(player_secret::Mode::NewPointers);
-
-            f(SecretInfo {
+            f(SecretPointersInfo {
                 secret,
                 random,
                 log,
@@ -1583,10 +1559,6 @@ impl<S: State> CardGame<S> {
             .await;
 
         assert!(pointers >= self.player_cards(player).pointers);
-
-        self.context.mutate_secret(player, |secret, _, _| {
-            secret.mode = None;
-        });
 
         let player_cards = self.player_cards_mut(player);
 
@@ -2288,6 +2260,14 @@ pub struct CardInfo<'a, S: State> {
     pub attachment: Option<&'a CardInstance<S>>,
 }
 
+impl<S: State> Deref for CardInfo<'_, S> {
+    type Target = CardInstance<S>;
+
+    fn deref(&self) -> &Self::Target {
+        self.instance
+    }
+}
+
 pub struct CardInfoMut<'a, S: State> {
     pub instance: &'a mut CardInstance<S>,
     pub owner: Player,
@@ -2295,20 +2275,6 @@ pub struct CardInfoMut<'a, S: State> {
     pub attachment: Option<&'a CardInstance<S>>,
     pub random: &'a mut dyn rand::RngCore,
     pub log: &'a mut dyn FnMut(&dyn Event),
-}
-
-pub struct SecretInfo<'a, S: State> {
-    pub secret: &'a mut PlayerSecret<S>,
-    pub random: &'a mut dyn rand::RngCore,
-    pub log: &'a mut dyn FnMut(&dyn Event),
-}
-
-impl<S: State> Deref for CardInfo<'_, S> {
-    type Target = CardInstance<S>;
-
-    fn deref(&self) -> &Self::Target {
-        self.instance
-    }
 }
 
 impl<S: State> Deref for CardInfoMut<'_, S> {
@@ -2325,7 +2291,13 @@ impl<S: State> DerefMut for CardInfoMut<'_, S> {
     }
 }
 
-impl<S: State> Deref for SecretInfo<'_, S> {
+pub struct SecretCardsInfo<'a, S: State> {
+    pub secret: &'a mut PlayerSecret<S>,
+    pub random: &'a mut dyn rand::RngCore,
+    pub log: &'a mut dyn FnMut(&dyn Event),
+}
+
+impl<S: State> Deref for SecretCardsInfo<'_, S> {
     type Target = PlayerSecret<S>;
 
     fn deref(&self) -> &Self::Target {
@@ -2333,9 +2305,78 @@ impl<S: State> Deref for SecretInfo<'_, S> {
     }
 }
 
-impl<S: State> DerefMut for SecretInfo<'_, S> {
+impl<S: State> DerefMut for SecretCardsInfo<'_, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.secret
+    }
+}
+
+impl<S: State> SecretCardsInfo<'_, S> {
+    pub fn new_card(&mut self, base: S::BaseCard) -> InstanceID {
+        let mut next_instance = self.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+
+            let attachment = base.attachment().map(|attachment| {
+                let state = attachment.new_card_state();
+                let instance = CardInstance {
+                    id: next_instance,
+                    base: attachment,
+                    attachment: None,
+                    state,
+                };
+
+                self.instances.insert(next_instance, instance);
+
+                next_instance
+            });
+
+            next_instance.0 += 1;
+
+            let card = next_instance;
+            let state = base.new_card_state();
+            let instance = CardInstance {
+                id: next_instance,
+                base,
+                attachment,
+                state,
+            };
+
+            self.instances.insert(next_instance, instance);
+
+            next_instance.0 += 1;
+
+            self.next_instance = Some(next_instance);
+
+            self.pointers.push(card);
+
+            self.limbo.push(card);
+
+            card
+    }
+}
+
+pub struct SecretPointersInfo<'a, S: State> {
+    pub secret: &'a mut PlayerSecret<S>,
+    pub random: &'a mut dyn rand::RngCore,
+    pub log: &'a mut dyn FnMut(&dyn Event),
+}
+
+impl<S: State> Deref for SecretPointersInfo<'_, S> {
+    type Target = PlayerSecret<S>;
+
+    fn deref(&self) -> &Self::Target {
+        self.secret
+    }
+}
+
+impl<S: State> DerefMut for SecretPointersInfo<'_, S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.secret
+    }
+}
+
+impl<S: State> SecretPointersInfo<'_, S> {
+    pub fn new_pointer(&mut self, id: InstanceID) {
+        self.pointers.push(id);
     }
 }
 

@@ -291,8 +291,8 @@ impl card_movement_simulator::State for State {
                     assert_eq!(live_game.instances(), 2);
 
                     let secret = live_game
-                        .new_secret_cards(0, |info| {
-                            info.secret.new_card(BaseCard::Basic);
+                        .new_secret_cards(0, |mut info| {
+                            info.new_card(BaseCard::Basic);
                         })
                         .await[0];
                     assert_eq!(live_game.instances(), 4); // attachment or not info shouldn't be leaked
@@ -307,8 +307,8 @@ impl card_movement_simulator::State for State {
                     assert_eq!(live_game.instances(), 4);
 
                     let secret = live_game
-                        .new_secret_cards(1, |info| {
-                            info.secret.new_card(BaseCard::Basic);
+                        .new_secret_cards(1, |mut info| {
+                            info.new_card(BaseCard::Basic);
                         })
                         .await[0];
 
