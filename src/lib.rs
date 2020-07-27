@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 mod base_card;
+mod bind;
 mod card;
 mod card_game;
 mod card_instance;
