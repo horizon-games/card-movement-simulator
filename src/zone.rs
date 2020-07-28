@@ -1,5 +1,12 @@
 use crate::{error, Card};
 
+#[cfg(feature = "bindings")]
+use wasm_bindgen::prelude::wasm_bindgen;
+
+#[cfg_attr(
+    feature = "bindings",
+    derive(typescript_definitions::TypescriptDefinition)
+)]
 #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug)]
 pub enum Zone {
     Deck,
