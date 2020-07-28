@@ -13,6 +13,8 @@ rand = "^0.7.3"
 serde = "^1.0.111"
 serde_cbor = "^0.11.1"
 thiserror = "1.0.20"
+typescript-definitions = { git = "https://github.com/arilotter/typescript-definitions.git", optional = true }
+wasm-bindgen = { version = "0.2.64", optional = true }
 
 [build-dependencies]
 inflections = "^1.1.1"
@@ -22,4 +24,5 @@ arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", feat
 
 [features]
 default = []
+bindings = ["typescript-definitions", "wasm-bindgen"]
 reveal-backtrace = []
