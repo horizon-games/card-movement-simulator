@@ -206,8 +206,10 @@ impl<S: State> arcadeum::store::State for GameState<S> {
 )]
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub(crate) enum InstanceOrPlayer<S: State> {
-    #[serde(bound = "S: State")]
+    #[serde(bound = "S: State", rename = "instance")]
     Instance(CardInstance<S>),
+
+    #[serde(rename = "player")]
     Player(Player),
 }
 
