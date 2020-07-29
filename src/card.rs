@@ -12,7 +12,10 @@ use wasm_bindgen::prelude::wasm_bindgen;
 )]
 #[derive(serde::Serialize, serde::Deserialize, Copy, Clone)]
 pub enum Card {
+    #[serde(rename = "id")]
     ID(InstanceID),
+
+    #[serde(rename = "pointer")]
     Pointer(OpaquePointer),
 }
 
