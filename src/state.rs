@@ -1,6 +1,8 @@
 use {
-    crate::{Action, Address, BaseCard, CardGame, GameState, Nonce, Player, Secret, ID},
-    std::{fmt::Debug, future::Future, pin::Pin},
+    crate::{
+        Action, Address, BaseCard, CardGame, CardInstance, GameState, Nonce, Player, Secret, ID,
+    },
+    std::{cmp::Ordering, fmt::Debug, future::Future, pin::Pin},
 };
 
 pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug + 'static {
@@ -45,4 +47,8 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
         player: Option<Player>,
         action: Self::Action,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>>;
+
+    fn compare_cards(_a: &CardInstance<Self>, _b: &CardInstance<Self>) -> Option<Ordering> {
+        None
+    }
 }
