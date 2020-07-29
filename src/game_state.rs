@@ -11,6 +11,13 @@ use {
     },
 };
 
+#[cfg(feature = "bindings")]
+use wasm_bindgen::prelude::wasm_bindgen;
+
+#[cfg_attr(
+    feature = "bindings",
+    derive(typescript_definitions::TypescriptDefinition)
+)]
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
 pub struct GameState<S: State> {
     #[serde(bound = "S: State")]
@@ -193,6 +200,10 @@ impl<S: State> arcadeum::store::State for GameState<S> {
     }
 }
 
+#[cfg_attr(
+    feature = "bindings",
+    derive(typescript_definitions::TypescriptDefinition)
+)]
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub(crate) enum InstanceOrPlayer<S: State> {
     #[serde(bound = "S: State")]
