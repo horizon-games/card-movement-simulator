@@ -8,6 +8,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
     derive(typescript_definitions::TypescriptDefinition)
 )]
 #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug)]
+#[serde(tag = "name")]
 pub enum Zone {
     Deck,
     Hand { public: bool },
