@@ -6,6 +6,13 @@ use {
     std::ops::{Deref, DerefMut},
 };
 
+#[cfg(feature = "bindings")]
+use wasm_bindgen::prelude::wasm_bindgen;
+
+#[cfg_attr(
+    feature = "bindings",
+    derive(typescript_definitions::TypescriptDefinition)
+)]
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct PlayerSecret<S: State> {
     #[serde(bound = "S: State")]
