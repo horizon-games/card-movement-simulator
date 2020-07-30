@@ -14,7 +14,7 @@ use {
 };
 
 pub struct CardGame<S: State> {
-    pub(crate) state: GameState<S>,
+    pub state: GameState<S>,
 
     pub context: Context<S>,
 }
