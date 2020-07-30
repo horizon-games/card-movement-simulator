@@ -48,7 +48,7 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
         action: Self::Action,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>>;
 
-    fn compare_cards(_a: &CardInstance<Self>, _b: &CardInstance<Self>) -> Option<Ordering> {
-        None
+    fn compare_cards(_a: &CardInstance<Self>, _b: &CardInstance<Self>) -> Ordering {
+        Ordering::Equal
     }
 }
