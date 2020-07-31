@@ -679,7 +679,8 @@ impl<S: State> CardGame<S> {
                 InstanceOrPlayer::Instance(instance) => {
                     // public ID to public instance
 
-                    let owner = self.owner(id);
+                    let (owner, zone) = self.zone(id);
+                    let zone = zone.expect(&format!("public {:?} has no zone", id));
 
                     let attachment = instance.attachment().map(|attachment| {
                         self.instances[attachment.0].instance_ref().expect(&format!(
@@ -772,6 +773,18 @@ impl<S: State> CardGame<S> {
                         .expect("immutable instance exists, but no mutable instance");
 
                     instance.state = instance.base.new_card_state();
+
+                    match zone {
+                        Zone::Field => self.sort_field(owner),
+                        Zone::Attachment {
+                            parent: Card::ID(parent_id),
+                        } => {
+                            if let Some(Zone::Field) = self.zone(parent_id).1 {
+                                self.sort_field(owner);
+                            }
+                        }
+                        _ => (),
+                    }
                 }
                 InstanceOrPlayer::Player(owner) => {
                     // public ID to secret instance
@@ -1031,6 +1044,18 @@ impl<S: State> CardGame<S> {
                             random: &mut context.random().await,
                             log: &mut |event| context.log(event),
                         });
+
+                        match zone {
+                            Zone::Field => self.sort_field(owner),
+                            Zone::Attachment {
+                                parent: Card::ID(parent_id),
+                            } => {
+                                if let Some(Zone::Field) = self.zone(parent_id).1 {
+                                    self.sort_field(owner);
+                                }
+                            }
+                            _ => (),
+                        }
                     }
                     InstanceOrPlayer::Player(owner) => {
                         self.context.mutate_secret(*owner, |secret, random, log| {
@@ -1457,6 +1482,10 @@ impl<S: State> CardGame<S> {
                     .remove_from(location.0, location.1);
             }
             None => (),
+        }
+
+        if to_zone.is_field() {
+            self.sort_field(to_player);
         }
 
         Ok((owner, location.map(|(zone, ..)| zone)))
