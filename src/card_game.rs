@@ -969,6 +969,14 @@ impl<S: State> CardGame<S> {
         }
     }
 
+    pub async fn copy_card(&mut self, card: impl Into<Card>) -> Card {
+        todo!();
+    }
+
+    pub async fn copy_cards(&mut self, cards: Vec<Card>) -> Vec<Card> {
+        todo!();
+    }
+
     pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) {
         let card = card.into();
 
