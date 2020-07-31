@@ -1,6 +1,7 @@
 use {
     crate::{
-        Action, Address, BaseCard, CardGame, CardInstance, GameState, Nonce, Player, Secret, ID,
+        Action, Address, BaseCard, CardGame, CardInfo, CardInstance, GameState, Nonce, Player,
+        Secret, ID,
     },
     std::{cmp::Ordering, fmt::Debug, future::Future, pin::Pin},
 };
@@ -48,7 +49,7 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
         action: Self::Action,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>>;
 
-    fn field_order(_a: &CardInstance<Self>, _b: &CardInstance<Self>) -> Ordering {
+    fn field_order(_a: CardInfo<Self>, _b: CardInfo<Self>) -> Ordering {
         Ordering::Equal
     }
 }

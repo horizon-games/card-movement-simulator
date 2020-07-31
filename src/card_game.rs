@@ -2264,14 +2264,37 @@ impl<S: State> CardGame<S> {
         let mut field = self.player_cards(player).field.clone();
 
         field.sort_by(|a, b| {
-            S::field_order(
-                self.instances[a.0]
-                    .instance_ref()
-                    .expect("field instance is not in public state"),
-                self.instances[b.0]
-                    .instance_ref()
-                    .expect("field instance is not in public state"),
-            )
+            let a = self.instances[a.0]
+                .instance_ref()
+                .expect("field card is not public");
+
+            let b = self.instances[b.0]
+                .instance_ref()
+                .expect("field card is not public");
+
+            let a = CardInfo {
+                instance: a,
+                owner: player,
+                zone: Zone::Field,
+                attachment: a.attachment.map(|attachment| {
+                    self.instances[attachment.0]
+                        .instance_ref()
+                        .expect("field card attachment is not public")
+                }),
+            };
+
+            let b = CardInfo {
+                instance: b,
+                owner: player,
+                zone: Zone::Field,
+                attachment: b.attachment.map(|attachment| {
+                    self.instances[attachment.0]
+                        .instance_ref()
+                        .expect("field card attachment is not public")
+                }),
+            };
+
+            S::field_order(a, b)
         });
 
         self.player_cards_mut(player).field = field;
