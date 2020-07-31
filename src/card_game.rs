@@ -982,12 +982,222 @@ impl<S: State> CardGame<S> {
         }
     }
 
-    pub async fn copy_card(&mut self, card: impl Into<Card>, recurse: bool) -> Card {
-        todo!();
+    /// Copies a card.
+    ///
+    /// If the card is a public ID to player X's public instance, the card is copied to player X's public limbo.
+    /// If the card is a public ID to player X's secret instance, the card is copied to player X's secret limbo.
+    /// If the card is player X's secret pointer to a public instance, the card is copied to player X's secret limbo.
+    /// If the card is player X's secret pointer to player X's secret instance, the card is copied to player X's secret limbo.
+    /// If the card is player X's secret pointer to player Y's secret instance, the card is copied to player Y's secret limbo.
+    pub fn copy_card<'a>(
+        &'a mut self,
+        card: impl Into<Card>,
+        deep: bool,
+    ) -> Pin<Box<dyn Future<Output = Card> + 'a>> {
+        let card = card.into();
+
+        Box::pin(async move {
+            match card {
+                Card::ID(id) => match &self.instances[id.0] {
+                    InstanceOrPlayer::Instance(instance) => {
+                        let mut copy = instance.clone();
+
+                        copy.attachment = if deep {
+                            if let Some(attachment) = instance.attachment {
+                                Some(
+                                    self.copy_card(attachment, deep)
+                                        .await
+                                        .id()
+                                        .expect("public card attachment copy is not public"),
+                                )
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        self.instances.push(InstanceOrPlayer::Instance(copy));
+
+                        let copy = InstanceID(self.instances.len() - 1);
+                        let owner = self.owner(id);
+
+                        self.player_cards_mut(owner).limbo.push(copy);
+
+                        copy.into()
+                    }
+                    InstanceOrPlayer::Player(owner) => {
+                        let owner = {
+                            let copy = *owner;
+                            drop(owner);
+                            copy
+                        };
+
+                        self.new_secret_cards(owner, |mut secret| {
+                            let mut next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+
+                            let instance = &secret.instances[&id];
+
+                            let mut copy = instance.clone();
+
+                            copy.attachment = if deep {
+                                if let Some(attachment) = instance.attachment {
+                                    let attachment = secret.instances[&attachment].clone();
+                                    assert!(attachment.attachment.is_none());
+
+                                    secret.instances.insert(next_instance, attachment);
+
+                                    Some(next_instance)
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
+                            next_instance.0 += 1;
+
+                            secret.instances.insert(next_instance, copy);
+
+                            let copy = next_instance;
+
+                            next_instance.0 += 1;
+
+                            secret.next_instance = Some(next_instance);
+
+                            secret.limbo.push(copy);
+
+                            secret.pointers.push(copy);
+                        }).await[0]
+                    }
+                },
+                Card::Pointer(OpaquePointer { player, index }) => {
+                    let buckets: Vec<_> = self
+                        .instances
+                        .iter()
+                        .map(InstanceOrPlayer::player)
+                        .collect();
+
+                    let id = self
+                        .context
+                        .reveal_unique(
+                            player,
+                            move |secret| {
+                                let id = secret.pointers[index];
+
+                                buckets[id.0].and_then(|bucket| {
+                                    if bucket == player {
+                                        None
+                                    } else {
+                                        Some(id)
+                                    }
+                                })
+                            },
+                            |_| true,
+                        )
+                        .await;
+
+                    match id {
+                        None => {
+                            let instances = self.instances.clone();
+
+                            self.new_secret_cards(player, |mut secret| {
+                                let mut next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+
+                                let id = secret.pointers[index];
+
+                                let instance = instances[id.0].instance_ref().or_else(|| secret.instances.get(&id)).expect("instance is neither public nor in this secret");
+
+                                let mut copy = instance.clone();
+
+                                copy.attachment = if deep {
+                                    if let Some(attachment) = instance.attachment {
+                                        let attachment = secret.instances[&attachment].clone();
+                                        assert!(attachment.attachment.is_none());
+
+                                        secret.instances.insert(next_instance, attachment);
+
+                                        Some(next_instance)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                };
+
+                                next_instance.0 += 1;
+
+                                secret.instances.insert(next_instance, copy);
+
+                                let copy = next_instance;
+
+                                next_instance.0 += 1;
+
+                                secret.next_instance = Some(next_instance);
+
+                                secret.limbo.push(copy);
+
+                                secret.pointers.push(copy);
+                            }).await[0]
+                        }
+                        Some(id) => {
+                            let owner = self.instances[id.0]
+                                .player()
+                                .expect("instance is not in another player's secret");
+
+                            self.new_secret_cards(owner, |mut secret| {
+                                let mut next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+
+                                let instance = &secret.instances[&id];
+
+                                let mut copy = instance.clone();
+
+                                copy.attachment = if deep {
+                                    if let Some(attachment) = instance.attachment {
+                                        let attachment = secret.instances[&attachment].clone();
+                                        assert!(attachment.attachment.is_none());
+
+                                        secret.instances.insert(next_instance, attachment);
+
+                                        Some(next_instance)
+                                    } else {
+                                        None
+                                    }
+                                } else {
+                                    None
+                                };
+
+                                next_instance.0 += 1;
+
+                                secret.instances.insert(next_instance, copy);
+
+                                let copy = next_instance;
+
+                                next_instance.0 += 1;
+
+                                secret.next_instance = Some(next_instance);
+
+                                secret.limbo.push(copy);
+                            }).await;
+
+                            InstanceID(self.instances.len() - 1).into()
+                        }
+                    }
+                }
+            }
+        })
     }
 
-    pub async fn copy_cards(&mut self, cards: Vec<Card>, recurse: bool) -> Vec<Card> {
-        todo!();
+    pub async fn copy_cards(&mut self, cards: Vec<Card>, deep: bool) -> Vec<Card> {
+        // todo!(): betterize this implementation
+
+        let mut copies = Vec::new();
+
+        for card in cards {
+            copies.push(self.copy_card(card, deep).await);
+        }
+
+        copies
     }
 
     pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) {
@@ -1977,11 +2187,12 @@ impl<S: State> CardGame<S> {
     {
         let card = card.into();
         let parent = parent.into();
+
         Box::pin(async move {
             let buckets: Vec<_> = self
                 .instances
                 .iter()
-                .map(|instance| instance.player())
+                .map(InstanceOrPlayer::player)
                 .collect();
 
             let card_bucket = match card {
@@ -2425,9 +2636,9 @@ impl<S: State> SecretCardsInfo<'_, S> {
 
         self.next_instance = Some(next_instance);
 
-        self.pointers.push(card);
-
         self.limbo.push(card);
+
+        self.pointers.push(card);
 
         card
     }
