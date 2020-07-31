@@ -969,11 +969,11 @@ impl<S: State> CardGame<S> {
         }
     }
 
-    pub async fn copy_card(&mut self, card: impl Into<Card>) -> Card {
+    pub async fn copy_card(&mut self, card: impl Into<Card>, recurse: bool) -> Card {
         todo!();
     }
 
-    pub async fn copy_cards(&mut self, cards: Vec<Card>) -> Vec<Card> {
+    pub async fn copy_cards(&mut self, cards: Vec<Card>, recurse: bool) -> Vec<Card> {
         todo!();
     }
 
