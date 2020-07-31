@@ -2259,6 +2259,23 @@ impl<S: State> CardGame<S> {
             Ok((owner, location.map(|(zone, ..)| zone)))
         })
     }
+
+    fn sort_field(&mut self, player: Player) {
+        let mut field = self.player_cards(player).field.clone();
+
+        field.sort_by(|a, b| {
+            S::field_order(
+                self.instances[a.0]
+                    .instance_ref()
+                    .expect("field instance is not in public state"),
+                self.instances[b.0]
+                    .instance_ref()
+                    .expect("field instance is not in public state"),
+            )
+        });
+
+        self.player_cards_mut(player).field = field;
+    }
 }
 
 pub struct CardInfo<'a, S: State> {
