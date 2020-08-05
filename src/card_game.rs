@@ -486,6 +486,22 @@ impl<S: State> CardGame<S> {
         revealed
     }
 
+    pub async fn reveal_attachment(&mut self, card: impl Into<Card>) -> Option<Card> {
+        todo!();
+    }
+
+    pub async fn reveal_attachments(&mut self, cards: Vec<Card>) -> Vec<Option<Card>> {
+        // todo!(): betterize this implementation
+
+        let mut attachments = Vec::with_capacity(cards.len());
+
+        for card in cards {
+            attachments.push(self.reveal_attachment(card).await);
+        }
+
+        attachments
+    }
+
     pub async fn reveal_parent(&mut self, card: impl Into<Card>) -> Option<Card> {
         let card = card.into();
 
@@ -644,13 +660,13 @@ impl<S: State> CardGame<S> {
     pub async fn reveal_parents(&mut self, cards: Vec<Card>) -> Vec<Option<Card>> {
         // todo!(): betterize this implementation
 
-        let mut revealed = Vec::with_capacity(cards.len());
+        let mut parents = Vec::with_capacity(cards.len());
 
         for card in cards {
-            revealed.push(self.reveal_parent(card).await);
+            parents.push(self.reveal_parent(card).await);
         }
 
-        revealed
+        parents
     }
 
     pub async fn filter_cards(
