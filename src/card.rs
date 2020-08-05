@@ -1,5 +1,5 @@
 use {
-    crate::{error, InstanceID, OpaquePointer},
+    crate::{error, CardInstance, InstanceID, OpaquePointer, State},
     std::fmt::{Debug, Error, Formatter},
 };
 
@@ -94,6 +94,12 @@ impl From<OpaquePointer> for Card {
 impl From<&OpaquePointer> for Card {
     fn from(ptr: &OpaquePointer) -> Self {
         Self::Pointer(*ptr)
+    }
+}
+
+impl<T: State> From<&CardInstance<T>> for Card {
+    fn from(instance: &CardInstance<T>) -> Self {
+        instance.id.into()
     }
 }
 
