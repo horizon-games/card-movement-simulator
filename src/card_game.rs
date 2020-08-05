@@ -341,17 +341,19 @@ impl<S: State> CardGame<S> {
     pub async fn reveal_if_any(
         &mut self,
         cards: Vec<Card>,
-        f: impl Fn(CardInfo<S>) -> bool,
+        f: impl Fn(CardInfo<S>) -> bool + Clone + 'static,
     ) -> bool {
-        todo!();
+        // todo!(): betterize this implementation
+
+        self.reveal_from_cards(cards, f).await.iter().any(|f| *f)
     }
 
     pub async fn reveal_if_every(
         &mut self,
         cards: Vec<Card>,
-        f: impl Fn(CardInfo<S>) -> bool,
+        f: impl Fn(CardInfo<S>) -> bool + Clone + 'static,
     ) -> bool {
-        todo!();
+        !self.reveal_if_any(cards, move |card| !f(card)).await
     }
 
     pub async fn reveal_from_card<T: Secret>(
