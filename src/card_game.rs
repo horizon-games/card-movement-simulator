@@ -338,6 +338,22 @@ impl<S: State> CardGame<S> {
         !self.reveal_if_cards_eq(a, b).await
     }
 
+    pub async fn reveal_if_any(
+        &mut self,
+        cards: Vec<Card>,
+        f: impl Fn(CardInfo<S>) -> bool,
+    ) -> bool {
+        todo!();
+    }
+
+    pub async fn reveal_if_every(
+        &mut self,
+        cards: Vec<Card>,
+        f: impl Fn(CardInfo<S>) -> bool,
+    ) -> bool {
+        todo!();
+    }
+
     pub async fn reveal_from_card<T: Secret>(
         &mut self,
         card: impl Into<Card>,
