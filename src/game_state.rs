@@ -1,7 +1,7 @@
 use {
     crate::{
-        Address, Card, CardGame, CardInstance, Context, InstanceID, OpaquePointer, Player,
-        PlayerCards, PlayerSecret, State, Zone,
+        Address, Card, CardGame, CardInstance, Context, InstanceID, CardLocation, OpaquePointer,
+        Player, PlayerCards, PlayerSecret, State, Zone,
     },
     std::{
         convert::TryInto,
@@ -82,16 +82,10 @@ impl<S: State> GameState<S> {
     }
 
     pub fn owner(&self, id: InstanceID) -> Player {
-        self.zone(id).0
+        self.location(id).player
     }
 
-    pub fn zone(&self, id: InstanceID) -> (Player, Option<Zone>) {
-        let (owner, location) = self.location(id);
-
-        (owner, location.map(|(zone, ..)| zone))
-    }
-
-    pub fn location(&self, id: InstanceID) -> (Player, Option<(Zone, usize)>) {
+    pub fn location(&self, id: InstanceID) -> CardLocation {
         match &self.instances[id.0] {
             InstanceOrPlayer::Instance(..) => {
                 let mut locations = (0u8..self
@@ -102,7 +96,10 @@ impl<S: State> GameState<S> {
                     .filter_map(|player| {
                         self.player_cards(player)
                             .location(id)
-                            .map(|location| (player, Some(location)))
+                            .map(|location| CardLocation {
+                                player,
+                                location: Some((location.0, Some(location.1))),
+                            })
                     });
 
                 if let Some(location) = locations.next() {
@@ -126,18 +123,21 @@ impl<S: State> GameState<S> {
 
                     assert!(parents.next().is_none());
 
-                    (
-                        self.owner(parent),
-                        Some((
+                    CardLocation {
+                        player: self.owner(parent),
+                        location: Some((
                             Zone::Attachment {
                                 parent: parent.into(),
                             },
-                            0,
+                            None,
                         )),
-                    )
+                    }
                 }
             }
-            InstanceOrPlayer::Player(owner) => (*owner, None),
+            InstanceOrPlayer::Player(owner) => CardLocation {
+                player: *owner,
+                location: None,
+            },
         }
     }
 

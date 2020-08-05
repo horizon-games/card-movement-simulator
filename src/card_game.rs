@@ -13,6 +13,9 @@ use {
     },
 };
 
+#[cfg(feature = "bindings")]
+use wasm_bindgen::prelude::wasm_bindgen;
+
 pub struct CardGame<S: State> {
     pub state: GameState<S>,
 
@@ -366,8 +369,11 @@ impl<S: State> CardGame<S> {
         match card {
             Card::ID(id) => match &self.instances[id.0] {
                 InstanceOrPlayer::Instance(instance) => {
-                    let (owner, zone) = self.zone(id);
-                    let zone = zone.expect(&format!("public {:?} has no zone", id));
+                    let CardLocation {
+                        player: owner,
+                        location,
+                    } = self.location(id);
+                    let location = location.expect(&format!("public {:?} has no zone", id));
 
                     let attachment = instance.attachment().map(|attachment| {
                         self.instances[attachment.0].instance_ref().expect(&format!(
@@ -379,7 +385,7 @@ impl<S: State> CardGame<S> {
                     f(CardInfo {
                         instance,
                         owner,
-                        zone,
+                        zone: location.0,
                         attachment,
                     })
                 }
@@ -427,8 +433,11 @@ impl<S: State> CardGame<S> {
                     Either::A(result) => result,
                     Either::B(id) => match &self.instances[id.0] {
                         InstanceOrPlayer::Instance(instance) => {
-                            let (owner, zone) = self.zone(id);
-                            let zone = zone.expect(&format!("public {:?} has no zone", id));
+                            let CardLocation {
+                                player: owner,
+                                location,
+                            } = self.location(id);
+                            let location = location.expect(&format!("public {:?} has no zone", id));
 
                             let attachment = instance.attachment().map(|attachment| {
                                 self.instances[attachment.0].instance_ref().expect(&format!(
@@ -440,7 +449,7 @@ impl<S: State> CardGame<S> {
                             f(CardInfo {
                                 instance,
                                 owner,
-                                zone,
+                                zone: location.0,
                                 attachment,
                             })
                         }
@@ -713,8 +722,11 @@ impl<S: State> CardGame<S> {
                 InstanceOrPlayer::Instance(instance) => {
                     // public ID to public instance
 
-                    let (owner, zone) = self.zone(id);
-                    let zone = zone.expect(&format!("public {:?} has no zone", id));
+                    let CardLocation {
+                        player: owner,
+                        location,
+                    } = self.location(id);
+                    let location = location.expect(&format!("public {:?} has no zone", id));
 
                     let attachment = instance.attachment().map(|attachment| {
                         self.instances[attachment.0].instance_ref().expect(&format!(
@@ -808,12 +820,12 @@ impl<S: State> CardGame<S> {
 
                     instance.state = instance.base.new_card_state();
 
-                    match zone {
+                    match location.0 {
                         Zone::Field => self.sort_field(owner),
                         Zone::Attachment {
                             parent: Card::ID(parent_id),
                         } => {
-                            if let Some(Zone::Field) = self.zone(parent_id).1 {
+                            if let Some((Zone::Field, ..)) = self.location(parent_id).location {
                                 self.sort_field(owner);
                             }
                         }
@@ -1263,8 +1275,11 @@ impl<S: State> CardGame<S> {
 
                 match &state.instances[id.0] {
                     InstanceOrPlayer::Instance(instance) => {
-                        let (owner, zone) = state.zone(id);
-                        let zone = zone.expect(&format!("public {:?} has no zone", id));
+                        let CardLocation {
+                            player: owner,
+                            location,
+                        } = state.location(id);
+                        let location = location.expect(&format!("public {:?} has no zone", id));
 
                         let attachment = instance.attachment.map(|attachment| {
                             state.instances[attachment.0]
@@ -1283,18 +1298,18 @@ impl<S: State> CardGame<S> {
                         f(CardInfoMut {
                             instance,
                             owner,
-                            zone,
+                            zone: location.0,
                             attachment: attachment.as_ref(),
                             random: &mut context.random().await,
                             log: &mut |event| context.log(event),
                         });
 
-                        match zone {
+                        match location.0 {
                             Zone::Field => self.sort_field(owner),
                             Zone::Attachment {
                                 parent: Card::ID(parent_id),
                             } => {
-                                if let Some(Zone::Field) = self.zone(parent_id).1 {
+                                if let Some((Zone::Field, ..)) = self.location(parent_id).location {
                                     self.sort_field(owner);
                                 }
                             }
@@ -1339,7 +1354,7 @@ impl<S: State> CardGame<S> {
         card: impl Into<Card>,
         to_player: Player,
         to_zone: Zone,
-    ) -> Result<(Player, Option<Zone>), error::MoveCardError> {
+    ) -> Result<CardLocation, error::MoveCardError> {
         let card = card.into();
         let to_bucket = match to_zone {
             Zone::Deck => Some(to_player),
@@ -1407,8 +1422,8 @@ impl<S: State> CardGame<S> {
 
                 Some(
                     self.location(id)
-                        .1
-                        .expect("Location for a public card must be public."),
+                        .location
+                        .expect("CardLocation for a public card must be public."),
                 )
             }
             Some(player) => {
@@ -1420,11 +1435,13 @@ impl<S: State> CardGame<S> {
                                 .location(id.unwrap_or_else(|| {
                                     secret.pointers[card.pointer().unwrap().index]
                                 }))
+                                .location
                                 .expect("The secret should know the zone.");
+
                             match location.0 {
                                 Zone::Limbo { public: false } => None,
                                 Zone::Attachment { .. } => None,
-                                zone => Some((zone, location.1)),
+                                _ => Some(location),
                             }
                         },
                         |_| true,
@@ -1503,7 +1520,10 @@ impl<S: State> CardGame<S> {
                     Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
                 }
 
-                return Ok((bucket_owner, location.map(|(zone, ..)| zone)));
+                return Ok(CardLocation {
+                    player: bucket_owner,
+                    location,
+                });
             }
         }
 
@@ -1527,7 +1547,9 @@ impl<S: State> CardGame<S> {
 
                     self.context.mutate_secret(owner, |secret, _, _| {
                         if let Some((Zone::Hand { public: false }, index)) = location {
-                            secret.hand.remove(index);
+                            secret
+                                .hand
+                                .remove(index.expect("no index for secret hand card"));
                         }
                     });
 
@@ -1607,7 +1629,9 @@ impl<S: State> CardGame<S> {
             });
         } else if let Some((Zone::Hand { public: true }, index)) = location {
             self.context.mutate_secret(owner, |secret, _, _| {
-                secret.hand.remove(index);
+                secret
+                    .hand
+                    .remove(index.expect("no index for public hand card"));
             });
         }
 
@@ -1721,9 +1745,8 @@ impl<S: State> CardGame<S> {
                     .expect("Card should have been attached to a public parent")
                     .attachment = None;
             }
-            Some(location) => {
-                self.player_cards_mut(owner)
-                    .remove_from(location.0, location.1);
+            Some((zone, index)) => {
+                self.player_cards_mut(owner).remove_from(zone, index);
             }
             None => (),
         }
@@ -1732,7 +1755,10 @@ impl<S: State> CardGame<S> {
             self.sort_field(to_player);
         }
 
-        Ok((owner, location.map(|(zone, ..)| zone)))
+        Ok(CardLocation {
+            player: owner,
+            location,
+        })
     }
 
     pub async fn move_cards(
@@ -1740,7 +1766,7 @@ impl<S: State> CardGame<S> {
         cards: Vec<Card>,
         to_player: Player,
         to_zone: Zone,
-    ) -> Vec<Result<(Player, Option<Zone>), error::MoveCardError>> {
+    ) -> Vec<Result<CardLocation, error::MoveCardError>> {
         // todo!(): betterize this implementation
 
         let mut results = Vec::with_capacity(cards.len());
@@ -2086,7 +2112,7 @@ impl<S: State> CardGame<S> {
         for id in real_instance_ids {
             match self.instances[id.0] {
                 InstanceOrPlayer::Player(player) => {
-                    if !secrets[usize::from(player)].location(id).is_some() {
+                    if !secrets[usize::from(player)].location(id).location.is_some() {
                         return Err(error::RevealOkError::Error {
                             err: format!(
                             "{:?} is in player {}'s secret bucket, but not in any of their zzones",
@@ -2217,8 +2243,7 @@ impl<S: State> CardGame<S> {
         &'a mut self,
         card: impl Into<Card>,
         parent: impl Into<Card>,
-    ) -> Pin<Box<dyn Future<Output = Result<(Player, Option<Zone>), error::MoveCardError>> + 'a>>
-    {
+    ) -> Pin<Box<dyn Future<Output = Result<CardLocation, error::MoveCardError>> + 'a>> {
         let card = card.into();
         let parent = parent.into();
 
@@ -2342,8 +2367,8 @@ impl<S: State> CardGame<S> {
 
                     Some(
                         self.location(id)
-                            .1
-                            .expect("Location for a public card must be public."),
+                            .location
+                            .expect("CardLocation for a public card must be public."),
                     )
                 }
                 Some(player) => {
@@ -2355,7 +2380,9 @@ impl<S: State> CardGame<S> {
                                     .location(card_id.unwrap_or_else(|| {
                                         secret.pointers[card.pointer().unwrap().index]
                                     }))
+                                    .location
                                     .expect("The secret should know the zone.");
+
                                 match location.0 {
                                     Zone::Limbo { public: false } => None,
                                     Zone::Attachment { .. } => None,
@@ -2530,7 +2557,11 @@ impl<S: State> CardGame<S> {
                     }
                 },
             }
-            Ok((owner, location.map(|(zone, ..)| zone)))
+
+            Ok(CardLocation {
+                player: owner,
+                location,
+            })
         })
     }
 
@@ -2702,6 +2733,25 @@ impl<S: State> SecretPointersInfo<'_, S> {
     pub fn new_pointer(&mut self, id: InstanceID) {
         self.pointers.push(id);
     }
+}
+
+#[cfg_attr(
+    feature = "bindings",
+    derive(typescript_definitions::TypescriptDefinition)
+)]
+pub struct MoveEvent {
+    pub from: CardLocation,
+    pub to: CardLocation,
+}
+
+#[cfg_attr(
+    feature = "bindings",
+    derive(typescript_definitions::TypescriptDefinition)
+)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct CardLocation {
+    pub player: Player,
+    pub location: Option<(Zone, Option<usize>)>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
