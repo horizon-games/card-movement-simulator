@@ -23,6 +23,7 @@ pub struct GameState<S: State> {
     #[serde(bound = "S: State")]
     pub(crate) instances: Vec<InstanceOrPlayer<S>>,
 
+    #[serde(rename = "playerCards")]
     player_cards: [PlayerCards; 2],
 
     #[serde(bound = "S: State")]
