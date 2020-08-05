@@ -1,6 +1,6 @@
 use {
     crate::{
-        error, BaseCard, Card, CardInfo, CardInfoMut, CardInstance, Event, InstanceID,
+        error, BaseCard, Card, CardInfo, CardInfoMut, CardInstance, Event, InstanceID, CardLocation,
         OpaquePointer, Player, State, Zone,
     },
     std::ops::{Deref, DerefMut},
@@ -94,60 +94,83 @@ impl<S: State> PlayerSecret<S> {
     }
 
     pub fn zone(&self, card: impl Into<Card>) -> Option<Zone> {
-        self.location(card).map(|(zone, ..)| zone)
+        self.location(card).location.map(|(zone, ..)| zone)
     }
 
-    pub fn location(&self, card: impl Into<Card>) -> Option<(Zone, usize)> {
-        self.id(card).and_then(|id| {
-            self.deck
-                .iter()
-                .position(|deck_id| *deck_id == id)
-                .map(|i| (Zone::Deck, i))
-                .or_else(|| {
-                    self.hand
-                        .iter()
-                        .position(|hand_id| *hand_id == Some(id))
-                        .map(|i| (Zone::Hand { public: false }, i))
-                })
-                .or_else(|| {
-                    self.dust
-                        .iter()
-                        .position(|dust_id| *dust_id == id)
-                        .map(|i| (Zone::Dust { public: false }, i))
-                })
-                .or_else(|| {
-                    self.limbo
-                        .iter()
-                        .position(|limbo_id| *limbo_id == id)
-                        .map(|i| (Zone::Limbo { public: false }, i))
-                })
-                .or_else(|| {
-                    self.card_selection
-                        .iter()
-                        .position(|card_selection_id| *card_selection_id == id)
-                        .map(|i| (Zone::CardSelection, i))
-                })
-                .or_else(|| {
-                    let mut parents = self.instances.values().filter_map(|instance| {
-                        if instance.attachment == Some(id) {
-                            Some(instance.id())
-                        } else {
-                            None
-                        }
-                    });
-
-                    parents.next().map(|parent| {
-                        assert!(parents.next().is_none());
-
-                        (
-                            Zone::Attachment {
-                                parent: parent.into(),
-                            },
-                            0,
-                        )
+    pub fn location(&self, card: impl Into<Card>) -> CardLocation {
+        self.id(card)
+            .and_then(|id| {
+                self.deck
+                    .iter()
+                    .position(|deck_id| *deck_id == id)
+                    .map(|i| CardLocation {
+                        player: self.player,
+                        location: Some((Zone::Deck, Some(i))),
                     })
-                })
-        })
+                    .or_else(|| {
+                        self.hand
+                            .iter()
+                            .position(|hand_id| *hand_id == Some(id))
+                            .map(|i| CardLocation {
+                                player: self.player,
+                                location: Some((Zone::Hand { public: false }, Some(i))),
+                            })
+                    })
+                    .or_else(|| {
+                        self.dust
+                            .iter()
+                            .position(|dust_id| *dust_id == id)
+                            .map(|i| CardLocation {
+                                player: self.player,
+                                location: Some((Zone::Dust { public: false }, Some(i))),
+                            })
+                    })
+                    .or_else(|| {
+                        self.limbo
+                            .iter()
+                            .position(|limbo_id| *limbo_id == id)
+                            .map(|i| CardLocation {
+                                player: self.player,
+                                location: Some((Zone::Limbo { public: false }, Some(i))),
+                            })
+                    })
+                    .or_else(|| {
+                        self.card_selection
+                            .iter()
+                            .position(|card_selection_id| *card_selection_id == id)
+                            .map(|i| CardLocation {
+                                player: self.player,
+                                location: Some((Zone::CardSelection, Some(i))),
+                            })
+                    })
+                    .or_else(|| {
+                        let mut parents = self.instances.values().filter_map(|instance| {
+                            if instance.attachment == Some(id) {
+                                Some(instance.id())
+                            } else {
+                                None
+                            }
+                        });
+
+                        parents.next().map(|parent| {
+                            assert!(parents.next().is_none());
+
+                            CardLocation {
+                                player: self.player,
+                                location: Some((
+                                    Zone::Attachment {
+                                        parent: parent.into(),
+                                    },
+                                    None,
+                                )),
+                            }
+                        })
+                    })
+            })
+            .unwrap_or_else(|| CardLocation {
+                player: self.player,
+                location: None,
+            })
     }
 
     pub fn reveal_from_card<T>(

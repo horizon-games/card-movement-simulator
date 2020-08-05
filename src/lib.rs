@@ -20,7 +20,7 @@ pub use {
     arcadeum::{crypto::Address, store::Event, Nonce, Player, ID},
     base_card::BaseCard,
     card::Card,
-    card_game::{CardGame, CardInfo, CardInfoMut},
+    card_game::{CardGame, CardInfo, CardInfoMut, CardLocation, MoveEvent},
     card_instance::CardInstance,
     card_state::CardState,
     game_state::GameState,
