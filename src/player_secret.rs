@@ -1,7 +1,7 @@
 use {
     crate::{
-        error, BaseCard, Card, CardInfo, CardInfoMut, CardInstance, Event, InstanceID, CardLocation,
-        OpaquePointer, Player, State, Zone,
+        error, BaseCard, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, Event,
+        InstanceID, OpaquePointer, Player, State, Zone,
     },
     std::ops::{Deref, DerefMut},
 };

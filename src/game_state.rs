@@ -1,6 +1,6 @@
 use {
     crate::{
-        Address, Card, CardGame, CardInstance, Context, InstanceID, CardLocation, OpaquePointer,
+        Address, Card, CardGame, CardInstance, CardLocation, Context, InstanceID, OpaquePointer,
         Player, PlayerCards, PlayerSecret, State, Zone,
     },
     std::{
