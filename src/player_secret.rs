@@ -250,24 +250,7 @@ impl<S: State> PlayerSecret<S> {
         Ok(())
     }
 
-    pub(crate) fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {
-        self.id(card)
-            .and_then(move |id| self.instances.get_mut(&id))
-    }
-
-    pub(crate) fn append_deck_to_pointers(&mut self) {
-        self.pointers.extend(&self.deck);
-    }
-
-    pub(crate) fn append_secret_hand_to_pointers(&mut self) {
-        self.pointers.extend(self.hand.iter().flatten());
-    }
-
-    pub(crate) fn append_card_selection_to_pointers(&mut self) {
-        self.pointers.extend(&self.card_selection);
-    }
-
-    pub(crate) fn attach_card(
+    pub fn attach_card(
         &mut self,
         card: impl Into<Card>,
         attachment: impl Into<Card>,
@@ -309,6 +292,23 @@ impl<S: State> PlayerSecret<S> {
         instance.attachment = Some(attachment);
 
         Ok(())
+    }
+
+    pub(crate) fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {
+        self.id(card)
+            .and_then(move |id| self.instances.get_mut(&id))
+    }
+
+    pub(crate) fn append_deck_to_pointers(&mut self) {
+        self.pointers.extend(&self.deck);
+    }
+
+    pub(crate) fn append_secret_hand_to_pointers(&mut self) {
+        self.pointers.extend(self.hand.iter().flatten());
+    }
+
+    pub(crate) fn append_card_selection_to_pointers(&mut self) {
+        self.pointers.extend(&self.card_selection);
     }
 
     pub(crate) fn dust_card(
