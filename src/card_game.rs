@@ -1848,6 +1848,14 @@ impl<S: State> CardGame<S> {
         cards
     }
 
+    pub async fn new_secret_cards_with_fakes(
+        &mut self,
+        player: Player,
+        f: impl Fn(SecretCardsWithFakesInfo<S>),
+    ) {
+        todo!();
+    }
+
     pub async fn new_secret_pointers(
         &mut self,
         player: Player,
@@ -2707,6 +2715,28 @@ impl<S: State> SecretCardsInfo<'_, S> {
         self.pointers.push(card);
 
         card
+    }
+}
+
+pub struct SecretCardsWithFakesInfo<'a, S: State>(SecretCardsInfo<'a, S>);
+
+impl<'a, S: State> Deref for SecretCardsWithFakesInfo<'a, S> {
+    type Target = SecretCardsInfo<'a, S>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<S: State> DerefMut for SecretCardsWithFakesInfo<'_, S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<S: State> SecretCardsInfo<'_, S> {
+    pub fn new_fake_card(&mut self) {
+        self.next_instance.as_mut().expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards_with_fakes` call").0 += 1;
     }
 }
 
