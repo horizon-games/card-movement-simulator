@@ -1,7 +1,8 @@
 use {
     crate::{
-        error, player_secret, BaseCard, Card, CardInstance, Context, Event, GameState, InstanceID,
-        InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
+        error, player_secret, BaseCard, Card, CardInstance, CardLocation, Context, Event,
+        GameState, InstanceID, InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret,
+        State, Zone,
     },
     rand::seq::IteratorRandom,
     std::{
@@ -2733,25 +2734,6 @@ impl<S: State> SecretPointersInfo<'_, S> {
     pub fn new_pointer(&mut self, id: InstanceID) {
         self.pointers.push(id);
     }
-}
-
-#[cfg_attr(
-    feature = "bindings",
-    derive(typescript_definitions::TypescriptDefinition)
-)]
-pub struct MoveEvent {
-    pub from: CardLocation,
-    pub to: CardLocation,
-}
-
-#[cfg_attr(
-    feature = "bindings",
-    derive(typescript_definitions::TypescriptDefinition)
-)]
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-pub struct CardLocation {
-    pub player: Player,
-    pub location: Option<(Zone, Option<usize>)>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]

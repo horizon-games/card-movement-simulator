@@ -5,7 +5,9 @@ mod bind;
 mod card;
 mod card_game;
 mod card_instance;
+mod card_location;
 mod card_state;
+mod event;
 mod game_state;
 mod instance_id;
 mod opaque_pointer;
@@ -20,9 +22,11 @@ pub use {
     arcadeum::{crypto::Address, store::Event, Nonce, Player, ID},
     base_card::BaseCard,
     card::Card,
-    card_game::{CardGame, CardInfo, CardInfoMut, CardLocation, MoveEvent},
+    card_game::{CardGame, CardInfo, CardInfoMut},
     card_instance::CardInstance,
+    card_location::CardLocation,
     card_state::CardState,
+    event::CMSEvent,
     game_state::GameState,
     instance_id::InstanceID,
     opaque_pointer::OpaquePointer,
