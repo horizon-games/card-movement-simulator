@@ -20,6 +20,7 @@ pub struct PlayerSecret<S: State> {
 
     #[serde(bound = "S: State")]
     pub(crate) instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
+    #[serde(rename = "nextInstance")]
     pub(crate) next_instance: Option<InstanceID>,
     pub(crate) pointers: Vec<InstanceID>,
 
@@ -27,6 +28,7 @@ pub struct PlayerSecret<S: State> {
     pub(crate) hand: Vec<Option<InstanceID>>,
     pub(crate) dust: Vec<InstanceID>,
     pub(crate) limbo: Vec<InstanceID>,
+    #[serde(rename = "cardSelection")]
     pub(crate) card_selection: Vec<InstanceID>,
 
     player: Player,
