@@ -16,6 +16,7 @@ pub struct PlayerCards {
     pub(crate) dust: Vec<InstanceID>,
     pub(crate) limbo: Vec<InstanceID>,
     pub(crate) casting: Vec<InstanceID>,
+    #[serde(rename = "cardSelection")]
     pub(crate) card_selection: usize,
 
     pub(crate) pointers: usize,
