@@ -1355,7 +1355,7 @@ impl<S: State> CardGame<S> {
         card: impl Into<Card>,
         to_player: Player,
         to_zone: Zone,
-    ) -> Result<CardLocation, error::MoveCardError> {
+    ) -> Result<(CardLocation, Option<InstanceID>), error::MoveCardError> {
         let card = card.into();
         let to_bucket = match to_zone {
             Zone::Deck => Some(to_player),
@@ -1521,10 +1521,13 @@ impl<S: State> CardGame<S> {
                     Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
                 }
 
-                return Ok(CardLocation {
-                    player: bucket_owner,
-                    location,
-                });
+                return Ok((
+                    CardLocation {
+                        player: bucket_owner,
+                        location,
+                    },
+                    id,
+                ));
             }
         }
 
@@ -1756,10 +1759,13 @@ impl<S: State> CardGame<S> {
             self.sort_field(to_player);
         }
 
-        Ok(CardLocation {
-            player: owner,
-            location,
-        })
+        Ok((
+            CardLocation {
+                player: owner,
+                location,
+            },
+            Some(id),
+        ))
     }
 
     pub async fn move_cards(
@@ -1767,7 +1773,7 @@ impl<S: State> CardGame<S> {
         cards: Vec<Card>,
         to_player: Player,
         to_zone: Zone,
-    ) -> Vec<Result<CardLocation, error::MoveCardError>> {
+    ) -> Vec<Result<(CardLocation, Option<InstanceID>), error::MoveCardError>> {
         // todo!(): betterize this implementation
 
         let mut results = Vec::with_capacity(cards.len());
@@ -2252,7 +2258,12 @@ impl<S: State> CardGame<S> {
         &'a mut self,
         card: impl Into<Card>,
         parent: impl Into<Card>,
-    ) -> Pin<Box<dyn Future<Output = Result<CardLocation, error::MoveCardError>> + 'a>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<(CardLocation, Option<InstanceID>), error::MoveCardError>>
+                + 'a,
+        >,
+    > {
         let card = card.into();
         let parent = parent.into();
 
@@ -2567,10 +2578,13 @@ impl<S: State> CardGame<S> {
                 },
             }
 
-            Ok(CardLocation {
-                player: owner,
-                location,
-            })
+            Ok((
+                CardLocation {
+                    player: owner,
+                    location,
+                },
+                card_id,
+            ))
         })
     }
 
