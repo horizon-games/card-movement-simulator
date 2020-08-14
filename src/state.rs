@@ -53,7 +53,7 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
         Ordering::Equal
     }
 
-    fn on_attach(parent: CardInfoMut<Self>) {}
+    fn on_attach(parent: &mut CardInstance<Self>) {}
 
-    fn on_detach(parent: CardInfoMut<Self>) {}
+    fn on_detach(parent: &mut CardInstance<Self>) {}
 }
