@@ -2361,18 +2361,15 @@ impl<S: State> CardGame<S> {
                     if Some(card_ptr_player) == card_bucket {
                         None
                     } else {
-                        Some(match card {
-                            Card::ID(id) => id,
-                            Card::Pointer(OpaquePointer { player, index }) => {
-                                self.context
-                                    .reveal_unique(
-                                        player,
-                                        move |secret| secret.pointers[index],
-                                        |_| true,
-                                    )
-                                    .await
-                            }
-                        })
+                        Some(
+                            self.context
+                                .reveal_unique(
+                                    card_ptr_player,
+                                    move |secret| secret.pointers[index],
+                                    |_| true,
+                                )
+                                .await,
+                        )
                     }
                 }
                 Card::ID(card_id) => Some(card_id),
