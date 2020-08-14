@@ -49,11 +49,14 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
         action: Self::Action,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>>;
 
+    /// Used to sort the field. This is called every time a card is added to the field, removed from the field, or a card on the field is modified.
     fn field_order(_a: CardInfo<Self>, _b: CardInfo<Self>) -> Ordering {
         Ordering::Equal
     }
 
+    /// A callback that lets you modify a parent card right after it gets a new attachment.
     fn on_attach(parent: CardInfoMut<Self>) {}
 
+    /// A callback that lets you modify a parent card right before it loses an attachment.
     fn on_detach(parent: CardInfoMut<Self>) {}
 }
