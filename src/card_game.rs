@@ -2534,12 +2534,14 @@ impl<S: State> CardGame<S> {
                         .expect("Parent pointer and card are both in some player's secret");
 
                     self.context
-                        .mutate_secret(parent_bucket_player, |secret, _, _| {
+                        .mutate_secret(parent_bucket_player, |secret, random, log| {
                             let card_id = card_id.unwrap_or_else(|| {
                                 secret.pointers[card.pointer().expect("").index]
                             });
                             let parent_id = secret.pointers[parent.pointer().expect("").index];
-                            secret.attach_card(parent_id, card_id).expect("");
+                            secret
+                                .attach_card(random, log, parent_id, card_id)
+                                .expect("");
                         });
                 }
                 Some(parent_id) => match parent_bucket {
@@ -2564,12 +2566,14 @@ impl<S: State> CardGame<S> {
                     }
                     Some(parent_bucket_player) => {
                         self.context
-                            .mutate_secret(parent_bucket_player, |secret, _, _| {
+                            .mutate_secret(parent_bucket_player, |secret, random, log| {
                                 let card_id = card_id.unwrap_or_else(|| {
                                     secret.pointers[card.pointer().expect("").index]
                                 });
 
-                                secret.attach_card(parent_id, card_id).expect("");
+                                secret
+                                    .attach_card(random, log, parent_id, card_id)
+                                    .expect("");
                             })
                     }
                 },
@@ -2726,6 +2730,21 @@ impl<S: State> SecretCardsInfo<'_, S> {
         self.pointers.push(card);
 
         card
+    }
+
+    pub(crate) fn dust_card(
+        &mut self,
+        card: impl Into<Card>,
+    ) -> Result<(), error::SecretMoveCardError> {
+        self.secret.dust_card(self.random, self.log, card)
+    }
+    pub fn attach_card(
+        &mut self,
+        card: impl Into<Card>,
+        attachment: impl Into<Card>,
+    ) -> Result<(), error::SecretMoveCardError> {
+        self.secret
+            .attach_card(self.random, self.log, card, attachment)
     }
 }
 
