@@ -42,7 +42,7 @@ impl<S: State> CardGame<S> {
         Self { state, context }
     }
 
-    pub fn new_card(&mut self, player: Player, base: S::BaseCard) -> InstanceID {
+    pub async fn new_card(&mut self, player: Player, base: S::BaseCard) -> InstanceID {
         let attachment = base.attachment().map(|attachment| {
             let id = InstanceID(self.instances.len());
             let state = attachment.new_card_state();
@@ -760,7 +760,7 @@ impl<S: State> CardGame<S> {
                         (None, Some(default)) => {
                             // attach base attachment
 
-                            let attachment = self.new_card(owner, default);
+                            let attachment = self.new_card(owner, default).await;
 
                             self.move_card(
                                 attachment,
@@ -800,7 +800,7 @@ impl<S: State> CardGame<S> {
 
                             // attach base attachment
 
-                            let attachment = self.new_card(owner, default);
+                            let attachment = self.new_card(owner, default).await;
 
                             self.move_card(
                                 attachment,

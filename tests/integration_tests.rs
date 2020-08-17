@@ -59,7 +59,7 @@ impl card_movement_simulator::State for State {
 
                     eprintln!("and then...");
 
-                    let card_id = live_game.new_card(from_player, base_card_type);
+                    let card_id = live_game.new_card(from_player, base_card_type).await;
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
 
@@ -103,7 +103,9 @@ impl card_movement_simulator::State for State {
                     to_zone,
                 } => {
                     let parent_owner = 0;
-                    let parent_id = live_game.new_card(parent_owner, BaseCard::WithAttachment);
+                    let parent_id = live_game
+                        .new_card(parent_owner, BaseCard::WithAttachment)
+                        .await;
 
                     live_game
                         .move_card(parent_id, 0, parent_zone)
@@ -155,7 +157,7 @@ impl card_movement_simulator::State for State {
                     card_zone,
                 } => {
                     let parent_owner = 0;
-                    let parent_id = live_game.new_card(parent_owner, parent_base_card);
+                    let parent_id = live_game.new_card(parent_owner, parent_base_card).await;
                     live_game
                         .move_card(parent_id, parent_owner, parent_zone)
                         .await
@@ -175,7 +177,7 @@ impl card_movement_simulator::State for State {
                         .reveal_from_card(parent_id, |info| info.attachment.map(|c| c.id()))
                         .await;
 
-                    let card_id = live_game.new_card(card_owner, BaseCard::Attachment);
+                    let card_id = live_game.new_card(card_owner, BaseCard::Attachment).await;
                     live_game
                         .move_card(card_id, card_owner, card_zone)
                         .await
@@ -236,13 +238,13 @@ impl card_movement_simulator::State for State {
                 Action::ReplacingAttachOnSecretCardDoesNotLeakInfo => {
                     // All assertions that these methods work correctly are made in the auto-generated Attach tests.
 
-                    let parent = live_game.new_card(0, BaseCard::WithAttachment);
+                    let parent = live_game.new_card(0, BaseCard::WithAttachment).await;
                     live_game
                         .move_card(parent, 0, Zone::Hand { public: false })
                         .await
                         .unwrap();
 
-                    let card = live_game.new_card(0, BaseCard::Attachment);
+                    let card = live_game.new_card(0, BaseCard::Attachment).await;
                     live_game
                         .move_card(
                             card,
@@ -256,7 +258,7 @@ impl card_movement_simulator::State for State {
                 }
 
                 Action::OpaquePointerAssociationDoesntHoldThroughDraw => {
-                    let card_id = live_game.new_card(0, BaseCard::Basic);
+                    let card_id = live_game.new_card(0, BaseCard::Basic).await;
                     assert_eq!(live_game.player_cards(0).deck(), 0);
                     live_game.move_card(card_id, 0, Zone::Deck).await.unwrap();
 
@@ -282,7 +284,7 @@ impl card_movement_simulator::State for State {
                     assert_eq!(card_id, drawn_id);
                 }
                 Action::InstanceFromIDSetup => {
-                    let card = live_game.new_card(0, BaseCard::WithAttachment);
+                    let card = live_game.new_card(0, BaseCard::WithAttachment).await;
                     live_game.move_card(card, 0, Zone::Field).await.unwrap();
 
                     // Public Attachment
