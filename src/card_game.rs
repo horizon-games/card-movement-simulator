@@ -2813,9 +2813,6 @@ impl<S: State> SecretCardsInfo<'_, S> {
             next_instance
         });
 
-        let attachment_clone =
-            attachment.map(|attach_id| self.instance(attach_id).unwrap().clone());
-
         next_instance.0 += 1;
 
         let card = next_instance;
@@ -2837,7 +2834,8 @@ impl<S: State> SecretCardsInfo<'_, S> {
 
         self.pointers.push(card);
 
-        if let Some(attachment) = attachment_clone {
+        if let Some(attach_id) = attachment {
+            let attachment = self.instance(attach_id).unwrap().clone();
             self.secret
                 .modify_card_internal(card, self.log, |parent, _| {
                     S::on_attach(parent, &attachment);
