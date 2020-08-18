@@ -1,7 +1,7 @@
 use {
     crate::{
-        Action, Address, BaseCard, CardGame, CardInfo, CardInfoMut, CardInstance, GameState, Nonce,
-        Player, Secret, ID,
+        Action, Address, BaseCard, CardGame, CardInfo, CardInstance, GameState, Nonce, Player,
+        Secret, ID,
     },
     std::{cmp::Ordering, fmt::Debug, future::Future, pin::Pin},
 };
@@ -55,8 +55,8 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
     }
 
     /// A callback that lets you modify a parent card right after it gets a new attachment.
-    fn on_attach(parent: CardInfoMut<Self>) {}
+    fn on_attach(_parent: &mut CardInstance<Self>, _new_attach: &CardInstance<Self>) {}
 
     /// A callback that lets you modify a parent card right before it loses an attachment.
-    fn on_detach(parent: CardInfoMut<Self>) {}
+    fn on_detach(_parent: &mut CardInstance<Self>, _old_attach: &CardInstance<Self>) {}
 }

@@ -1,7 +1,7 @@
 use {
     crate::{
-        error, BaseCard, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, Event,
-        InstanceID, OpaquePointer, Player, State, Zone,
+        error, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, Event, InstanceID,
+        OpaquePointer, Player, State, Zone,
     },
     std::ops::{Deref, DerefMut},
 };
@@ -212,7 +212,6 @@ impl<S: State> PlayerSecret<S> {
         f: impl FnOnce(CardInfoMut<S>),
     ) -> Result<(), error::SecretModifyCardError> {
         let card = card.into();
-
         let instance =
             self.instance(card)
                 .ok_or(error::SecretModifyCardError::MissingInstance {
@@ -236,17 +235,15 @@ impl<S: State> PlayerSecret<S> {
                 .clone()
         });
 
-        let instance = self
-            .instance_mut(card)
-            .expect(&format!("{:?} vanished", card));
-
-        f(CardInfoMut {
-            instance,
-            owner,
-            zone,
-            attachment: attachment.as_ref(),
-            random,
-            log,
+        self.modify_card_internal(card, log, move |instance, log| {
+            f(CardInfoMut {
+                instance,
+                owner,
+                zone,
+                attachment: attachment.as_ref(),
+                random,
+                log,
+            })
         });
 
         Ok(())
@@ -256,6 +253,7 @@ impl<S: State> PlayerSecret<S> {
         &mut self,
         card: impl Into<Card>,
         attachment: impl Into<Card>,
+        log: &mut dyn FnMut(&dyn Event),
     ) -> Result<(), error::SecretMoveCardError> {
         let card = card.into();
         let attachment = attachment.into();
@@ -277,7 +275,7 @@ impl<S: State> PlayerSecret<S> {
             })?;
 
         if let Some(attachment) = instance.attachment {
-            self.dust_card(attachment)?;
+            self.dust_card(attachment, log)?;
         }
 
         let attachment = match attachment {
@@ -285,13 +283,14 @@ impl<S: State> PlayerSecret<S> {
             Card::Pointer(OpaquePointer { index, .. }) => self.pointers[index],
         };
 
-        self.remove_id(attachment);
+        self.remove_id(log, attachment);
 
-        let instance = self
-            .instance_mut(card)
-            .expect(&format!("{:?} vanished", card));
+        let new_attach = self.instance(attachment).unwrap().clone();
 
-        instance.attachment = Some(attachment);
+        self.modify_card_internal(card, log, |parent, _| {
+            parent.attachment = Some(attachment);
+            S::on_attach(parent, &new_attach);
+        });
 
         Ok(())
     }
@@ -316,6 +315,7 @@ impl<S: State> PlayerSecret<S> {
     pub(crate) fn dust_card(
         &mut self,
         card: impl Into<Card>,
+        log: &mut dyn FnMut(&dyn Event),
     ) -> Result<(), error::SecretMoveCardError> {
         let card = card.into();
 
@@ -330,16 +330,34 @@ impl<S: State> PlayerSecret<S> {
             }
         };
 
-        self.remove_id(id);
+        self.remove_id(log, id);
 
         self.dust.push(id);
 
         Ok(())
     }
 
+    // Internal API only.
+    // Modifies a card, but using a &mut CardInstance instead of a CardInfoMut
+    pub(crate) fn modify_card_internal(
+        &mut self,
+        card: impl Into<Card>,
+        log: &mut dyn FnMut(&dyn Event),
+        f: impl FnOnce(&mut CardInstance<S>, &mut dyn FnMut(&dyn Event)),
+    ) {
+        let card = card.into();
+
+        let instance = self
+            .instance_mut(card)
+            .expect(&format!("{:?} vanished", card));
+
+        f(instance, log);
+        // TODO: implement logging!
+    }
+
     /// Remove an InstanceID from all zones in this secret.
     /// Internal API only.
-    pub(crate) fn remove_id(&mut self, id: InstanceID) {
+    pub(crate) fn remove_id(&mut self, log: &mut dyn FnMut(&dyn Event), id: InstanceID) {
         self.deck.retain(|deck_id| *deck_id != id);
         self.hand.retain(|hand_id| *hand_id != Some(id));
         self.dust.retain(|dust_id| *dust_id != id);
@@ -347,11 +365,17 @@ impl<S: State> PlayerSecret<S> {
         self.card_selection
             .retain(|card_selection_id| *card_selection_id != id);
 
-        self.instances.values_mut().for_each(|instance| {
-            if instance.attachment == Some(id) {
-                instance.attachment = None;
+        for parent_id in self.instances.keys().copied().collect::<Vec<_>>() {
+            if let Some(attach_id) = self.instance(parent_id).unwrap().attachment {
+                if attach_id == id {
+                    let attach_clone = self.instance(attach_id).unwrap().clone();
+                    self.modify_card_internal(parent_id, log, |parent, _| {
+                        S::on_detach(parent, &attach_clone);
+                        parent.attachment = None;
+                    });
+                }
             }
-        });
+        }
     }
 
     fn id(&self, card: impl Into<Card>) -> Option<InstanceID> {

@@ -59,7 +59,7 @@ impl card_movement_simulator::State for State {
 
                     eprintln!("and then...");
 
-                    let card_id = live_game.new_card(from_player, base_card_type);
+                    let card_id = live_game.new_card(from_player, base_card_type).await;
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
 
@@ -103,7 +103,9 @@ impl card_movement_simulator::State for State {
                     to_zone,
                 } => {
                     let parent_owner = 0;
-                    let parent_id = live_game.new_card(parent_owner, BaseCard::WithAttachment);
+                    let parent_id = live_game
+                        .new_card(parent_owner, BaseCard::WithAttachment)
+                        .await;
 
                     live_game
                         .move_card(parent_id, 0, parent_zone)
@@ -127,10 +129,27 @@ impl card_movement_simulator::State for State {
                     } else {
                         attachment_id.into()
                     };
+
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(parent_id, |info| { info.attachment_was_detached })
+                            .await,
+                        0
+                    );
+
                     live_game
                         .move_card(attachment, to_player, to_zone)
                         .await
                         .unwrap();
+
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(parent_id, |info| { info.attachment_was_detached })
+                            .await,
+                        1,
+                        "Did not detach!"
+                    );
+
                     assert!(
                         live_game
                             .reveal_from_card(attachment, move |info| info.owner == to_player)
@@ -155,7 +174,7 @@ impl card_movement_simulator::State for State {
                     card_zone,
                 } => {
                     let parent_owner = 0;
-                    let parent_id = live_game.new_card(parent_owner, parent_base_card);
+                    let parent_id = live_game.new_card(parent_owner, parent_base_card).await;
                     live_game
                         .move_card(parent_id, parent_owner, parent_zone)
                         .await
@@ -175,7 +194,17 @@ impl card_movement_simulator::State for State {
                         .reveal_from_card(parent_id, |info| info.attachment.map(|c| c.id()))
                         .await;
 
-                    let card_id = live_game.new_card(card_owner, BaseCard::Attachment);
+                    let started_with_attach = original_attachment.is_some();
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(parent_id, move |info| {
+                                info.attachment_was_attached
+                            })
+                            .await,
+                        if started_with_attach { 1 } else { 0 }
+                    );
+
+                    let card_id = live_game.new_card(card_owner, BaseCard::Attachment).await;
                     live_game
                         .move_card(card_id, card_owner, card_zone)
                         .await
@@ -196,6 +225,12 @@ impl card_movement_simulator::State for State {
                         .await
                         .unwrap();
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(parent_id, |info| { info.attachment_was_attached })
+                            .await,
+                        if started_with_attach { 2 } else { 1 }
+                    );
 
                     assert_eq!(
                         live_game
@@ -236,13 +271,13 @@ impl card_movement_simulator::State for State {
                 Action::ReplacingAttachOnSecretCardDoesNotLeakInfo => {
                     // All assertions that these methods work correctly are made in the auto-generated Attach tests.
 
-                    let parent = live_game.new_card(0, BaseCard::WithAttachment);
+                    let parent = live_game.new_card(0, BaseCard::WithAttachment).await;
                     live_game
                         .move_card(parent, 0, Zone::Hand { public: false })
                         .await
                         .unwrap();
 
-                    let card = live_game.new_card(0, BaseCard::Attachment);
+                    let card = live_game.new_card(0, BaseCard::Attachment).await;
                     live_game
                         .move_card(
                             card,
@@ -256,7 +291,7 @@ impl card_movement_simulator::State for State {
                 }
 
                 Action::OpaquePointerAssociationDoesntHoldThroughDraw => {
-                    let card_id = live_game.new_card(0, BaseCard::Basic);
+                    let card_id = live_game.new_card(0, BaseCard::Basic).await;
                     assert_eq!(live_game.player_cards(0).deck(), 0);
                     live_game.move_card(card_id, 0, Zone::Deck).await.unwrap();
 
@@ -282,7 +317,7 @@ impl card_movement_simulator::State for State {
                     assert_eq!(card_id, drawn_id);
                 }
                 Action::InstanceFromIDSetup => {
-                    let card = live_game.new_card(0, BaseCard::WithAttachment);
+                    let card = live_game.new_card(0, BaseCard::WithAttachment).await;
                     live_game.move_card(card, 0, Zone::Field).await.unwrap();
 
                     // Public Attachment
@@ -326,6 +361,12 @@ impl card_movement_simulator::State for State {
             }
         })
     }
+    fn on_attach(parent: &mut CardInstance<Self>, _new_attach: &CardInstance<Self>) {
+        parent.attachment_was_attached += 1;
+    }
+    fn on_detach(parent: &mut CardInstance<Self>, _old_attach: &CardInstance<Self>) {
+        parent.attachment_was_detached += 1;
+    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
@@ -350,12 +391,18 @@ impl card_movement_simulator::BaseCard for BaseCard {
     }
 
     fn new_card_state(&self) -> Self::CardState {
-        CardState
+        CardState {
+            attachment_was_detached: 0,
+            attachment_was_attached: 0,
+        }
     }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
-struct CardState;
+struct CardState {
+    attachment_was_detached: usize,
+    attachment_was_attached: usize,
+}
 
 impl card_movement_simulator::CardState for CardState {
     fn eq(&self, _other: &Self) -> bool {
@@ -424,6 +471,8 @@ fn replacing_attach_on_secret_card_does_not_leak_existence_of_current_attachment
     .unwrap()
     .apply(Some(0), &Action::ReplacingAttachOnSecretCardDoesNotLeakInfo)
     .unwrap();
+
+    println!("{:?}", reveals);
 
     assert_eq!(reveals.len(), 0, "No reveals need to be made when attaching a public card to a secret card, even if it already has an attachment.")
 }
