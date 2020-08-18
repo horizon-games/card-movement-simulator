@@ -1,8 +1,7 @@
 use {
     crate::{
-        error, player_secret, BaseCard, Card, CardInstance, CardLocation, Context, Event,
-        GameState, InstanceID, InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret,
-        State, Zone,
+        error, BaseCard, Card, CardInstance, CardLocation, Context, Event, GameState, InstanceID,
+        InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
     },
     rand::seq::IteratorRandom,
     std::{
@@ -1337,7 +1336,7 @@ impl<S: State> CardGame<S> {
                     }
                 }
             }
-            Card::Pointer(OpaquePointer { player, index }) => {
+            Card::Pointer(OpaquePointer { player, .. }) => {
                 self.context.mutate_secret(player, |secret, random, log| {
                     secret
                         .modify_card(card, random, log, |instance| f(instance))
@@ -1536,31 +1535,29 @@ impl<S: State> CardGame<S> {
         // Special case, secret -> secret for a single player
         if let Some(bucket_owner) = bucket {
             if to_bucket == bucket {
-                self.context
-                    .mutate_secret(bucket_owner, |secret, random, log| {
-                        let id =
-                            id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
-                        // Remove this card from its old zone in the secret.
-                        secret.remove_id(log, id);
+                self.context.mutate_secret(bucket_owner, |secret, _, log| {
+                    let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                    // Remove this card from its old zone in the secret.
+                    secret.remove_id(log, id);
 
-                        // Put the card in its new zone in the secret.
-                        match to_zone {
-                            Zone::Deck => secret.deck.push(id),
-                            Zone::Hand { public: false } => secret.hand.push(Some(id)),
-                            Zone::Hand { public: true } => unreachable!(),
-                            Zone::Field => unreachable!(),
-                            Zone::Graveyard => unreachable!(),
-                            Zone::Limbo { public: false } => secret.limbo.push(id),
-                            Zone::Limbo { public: true } => unreachable!(),
-                            Zone::CardSelection => secret.card_selection.push(id),
-                            Zone::Casting => unreachable!(),
-                            Zone::Dust { public: false } => secret.dust.push(id),
-                            Zone::Dust { public: true } => unreachable!(),
-                            Zone::Attachment { .. } => {
-                                unreachable!("Can't attach a spell with move_card.")
-                            }
+                    // Put the card in its new zone in the secret.
+                    match to_zone {
+                        Zone::Deck => secret.deck.push(id),
+                        Zone::Hand { public: false } => secret.hand.push(Some(id)),
+                        Zone::Hand { public: true } => unreachable!(),
+                        Zone::Field => unreachable!(),
+                        Zone::Graveyard => unreachable!(),
+                        Zone::Limbo { public: false } => secret.limbo.push(id),
+                        Zone::Limbo { public: true } => unreachable!(),
+                        Zone::CardSelection => secret.card_selection.push(id),
+                        Zone::Casting => unreachable!(),
+                        Zone::Dust { public: false } => secret.dust.push(id),
+                        Zone::Dust { public: true } => unreachable!(),
+                        Zone::Attachment { .. } => {
+                            unreachable!("Can't attach a spell with move_card.")
                         }
-                    });
+                    }
+                });
 
                 if let Some((zone, index)) = location {
                     self.player_cards_mut(bucket_owner).remove_from(zone, index);
@@ -1691,38 +1688,36 @@ impl<S: State> CardGame<S> {
                     )
                     .await;
 
-                self.context
-                    .mutate_secret(player, move |secret, random, log| {
-                        let id =
-                            id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
-                        // find what collection id is in and remove it
-                        secret.deck.retain(|i| *i != id);
-                        secret.hand.retain(|i| *i != Some(id));
-                        secret.limbo.retain(|i| *i != id);
-                        secret.card_selection.retain(|i| *i != id);
-                        secret.dust.retain(|i| *i != id);
+                self.context.mutate_secret(player, move |secret, _, log| {
+                    let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                    // find what collection id is in and remove it
+                    secret.deck.retain(|i| *i != id);
+                    secret.hand.retain(|i| *i != Some(id));
+                    secret.limbo.retain(|i| *i != id);
+                    secret.card_selection.retain(|i| *i != id);
+                    secret.dust.retain(|i| *i != id);
 
-                        let parent_id = secret
-                            .instances
-                            .values()
-                            .find(|c| c.attachment == Some(id))
-                            .map(|c| c.id);
-                        // We're removing the attachment from a card in the secret
-                        if let Some(parent_id) = parent_id {
-                            let attach_clone = secret.instance(id).unwrap().clone();
-                            secret.modify_card_internal(parent_id, log, |parent, _| {
-                                S::on_detach(parent, &attach_clone);
-                                parent.attachment = None;
-                            });
-                        }
-                        // We're removing a card with an attachment from the secret
-                        if let Some(attachment_id) = secret.instance(id).unwrap().attachment {
-                            secret.instances.remove(&attachment_id);
-                        }
+                    let parent_id = secret
+                        .instances
+                        .values()
+                        .find(|c| c.attachment == Some(id))
+                        .map(|c| c.id);
+                    // We're removing the attachment from a card in the secret
+                    if let Some(parent_id) = parent_id {
+                        let attach_clone = secret.instance(id).unwrap().clone();
+                        secret.modify_card_internal(parent_id, log, |parent, _| {
+                            S::on_detach(parent, &attach_clone);
+                            parent.attachment = None;
+                        });
+                    }
+                    // We're removing a card with an attachment from the secret
+                    if let Some(attachment_id) = secret.instance(id).unwrap().attachment {
+                        secret.instances.remove(&attachment_id);
+                    }
 
-                        // Finally, remove the card from the secret's instances.
-                        secret.instances.remove(&id);
-                    });
+                    // Finally, remove the card from the secret's instances.
+                    secret.instances.remove(&id);
+                });
                 (instance, attachment_instance)
             }
         };
@@ -1734,11 +1729,10 @@ impl<S: State> CardGame<S> {
 
         // If this card came from a secret
         if let Some(bucket_owner) = bucket {
-            self.context
-                .mutate_secret(bucket_owner, |secret, random, log| {
-                    // Take its ID out of any zones in that secret.
-                    secret.remove_id(log, id);
-                });
+            self.context.mutate_secret(bucket_owner, |secret, _, log| {
+                // Take its ID out of any zones in that secret.
+                secret.remove_id(log, id);
+            });
         } else if let Some((Zone::Hand { public: true }, index)) = location {
             self.context.mutate_secret(owner, |secret, _, _| {
                 secret
@@ -2524,7 +2518,7 @@ impl<S: State> CardGame<S> {
                 self.player_cards_mut(owner).remove_from(zone, index);
             }
 
-            self.context.mutate_secret(owner, |secret, random, log| {
+            self.context.mutate_secret(owner, |secret, _, log| {
                 // Either we know the ID, or it's in this secret!
                 let id = card_id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                 secret.remove_id(log, id);
@@ -2642,7 +2636,7 @@ impl<S: State> CardGame<S> {
                         .expect("Parent pointer and card are both in some player's secret");
 
                     self.context
-                        .mutate_secret(parent_bucket_player, |secret, random, log| {
+                        .mutate_secret(parent_bucket_player, |secret, _, log| {
                             let card_id = card_id
                                 .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                             let parent_id = secret.pointers[parent.pointer().unwrap().index];
@@ -2679,7 +2673,7 @@ impl<S: State> CardGame<S> {
                     }
                     Some(parent_bucket_player) => {
                         self.context
-                            .mutate_secret(parent_bucket_player, |secret, random, log| {
+                            .mutate_secret(parent_bucket_player, |secret, _, log| {
                                 let card_id = card_id.unwrap_or_else(|| {
                                     secret.pointers[card.pointer().unwrap().index]
                                 });
