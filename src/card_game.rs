@@ -2646,7 +2646,7 @@ impl<S: State> CardGame<S> {
                             let card_id = card_id
                                 .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                             let parent_id = secret.pointers[parent.pointer().unwrap().index];
-                            secret.attach_card(random, log, parent_id, card_id).unwrap();
+                            secret.attach_card(parent_id, card_id, log).unwrap();
                         });
                 }
                 Some(parent_id) => match parent_bucket {
@@ -2684,7 +2684,7 @@ impl<S: State> CardGame<S> {
                                     secret.pointers[card.pointer().unwrap().index]
                                 });
 
-                                secret.attach_card(random, log, parent_id, card_id).unwrap();
+                                secret.attach_card(parent_id, card_id, log).unwrap();
                             })
                     }
                 },
@@ -2857,15 +2857,14 @@ impl<S: State> SecretCardsInfo<'_, S> {
         &mut self,
         card: impl Into<Card>,
     ) -> Result<(), error::SecretMoveCardError> {
-        self.secret.dust_card(self.random, self.log, card)
+        self.secret.dust_card(card, self.log)
     }
     pub fn attach_card(
         &mut self,
         card: impl Into<Card>,
         attachment: impl Into<Card>,
     ) -> Result<(), error::SecretMoveCardError> {
-        self.secret
-            .attach_card(self.random, self.log, card, attachment)
+        self.secret.attach_card(card, attachment, self.log)
     }
     pub fn modify_card(
         &mut self,
