@@ -251,10 +251,9 @@ impl<S: State> PlayerSecret<S> {
 
     pub fn attach_card(
         &mut self,
-        random: &mut dyn rand::RngCore,
-        log: &mut dyn FnMut(&dyn Event),
         card: impl Into<Card>,
         attachment: impl Into<Card>,
+        log: &mut dyn FnMut(&dyn Event),
     ) -> Result<(), error::SecretMoveCardError> {
         let card = card.into();
         let attachment = attachment.into();
@@ -276,7 +275,7 @@ impl<S: State> PlayerSecret<S> {
             })?;
 
         if let Some(attachment) = instance.attachment {
-            self.dust_card(random, log, attachment)?;
+            self.dust_card(attachment, log)?;
         }
 
         let attachment = match attachment {
@@ -315,9 +314,8 @@ impl<S: State> PlayerSecret<S> {
 
     pub(crate) fn dust_card(
         &mut self,
-        random: &mut dyn rand::RngCore,
-        log: &mut dyn FnMut(&dyn Event),
         card: impl Into<Card>,
+        log: &mut dyn FnMut(&dyn Event),
     ) -> Result<(), error::SecretMoveCardError> {
         let card = card.into();
 
