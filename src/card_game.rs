@@ -1,7 +1,7 @@
 use {
     crate::{
-        error, BaseCard, Card, CardInstance, CardLocation, Context, Event, GameState, InstanceID,
-        InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
+        error, BaseCard, Card, CardInstance, CardLocation, CardState, Context, Event, GameState,
+        InstanceID, InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
     },
     rand::seq::IteratorRandom,
     std::{
@@ -947,74 +947,81 @@ impl<S: State> CardGame<S> {
                         ))
                     });
 
-        let next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+                    let next_instance = secret.next_instance.expect(
+                        "`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call",
+                    );
 
-                        match (attachment, instance.base.attachment()) {
-                            (None, None) => {
-                                // do nothing
-                            }
-                            (Some(current), None) => {
-                                // dust current attachment
-
-                                let current_id = current.id();
-
-                                secret.dust_card(current_id).expect(
-                                    "current_id is in this secret, and is not already dust.",
-                                );
-                            }
-                            (None, Some(default)) => {
-                                // attach base attachment
-
-                                let state = default.new_card_state();
-
-                                let attachment = CardInstance {
-                                    id: next_instance,
-                                    base: default,
-                                    attachment: None,
-                                    state,
-                                };
-
-                                secret.instances.insert(next_instance, attachment);
-
-                                secret
-                                    .attach_card(id, next_instance)
-                                    .expect("Both id and next_instance are in this secret.");
-                            }
-                            (Some(current), Some(default)) if current.base == default => {
-                                // reset current attachment
-                                let attachment_base_state = current.base.new_card_state();
-                                let current_id = current.id();
-                                secret.instance_mut(current_id).unwrap().state =
-                                    attachment_base_state;
-                            }
-                            (Some(current), Some(default)) => {
-                                // dust current attachment
-                                let current_id = current.id();
-                                secret.dust_card(current_id).expect(
-                                    "current_id is in this secret, and is not already dust.",
-                                );
-
-                                // Attach base attachment
-                                let state = default.new_card_state();
-
-                                let attachment = CardInstance {
-                                    id: next_instance,
-                                    base: default,
-                                    attachment: None,
-                                    state,
-                                };
-
-                                secret.instances.insert(next_instance, attachment);
-
-                                secret
-                                    .attach_card(id, next_instance)
-                                    .expect("Both id and next_instance are in this secret.");
-                            }
+                    match (attachment, instance.base.attachment()) {
+                        (None, None) => {
+                            // do nothing
                         }
+                        (Some(current), None) => {
+                            // dust current attachment
 
-                        // unconditionally increment instance ID to avoid leaking attachment information
+                            let current_id = current.id();
 
-                        secret.next_instance.as_mut().expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call").0 += 1;
+                            secret
+                                .dust_card(current_id)
+                                .expect("current_id is in this secret, and is not already dust.");
+                        }
+                        (None, Some(default)) => {
+                            // attach base attachment
+
+                            let state = default.new_card_state();
+
+                            let attachment = CardInstance {
+                                id: next_instance,
+                                base: default,
+                                attachment: None,
+                                state,
+                            };
+
+                            secret.instances.insert(next_instance, attachment);
+
+                            secret
+                                .attach_card(id, next_instance)
+                                .expect("Both id and next_instance are in this secret.");
+                        }
+                        (Some(current), Some(default)) if current.base == default => {
+                            // reset current attachment
+                            let attachment_base_state = current.base.new_card_state();
+                            let current_id = current.id();
+                            secret.instance_mut(current_id).unwrap().state = attachment_base_state;
+                        }
+                        (Some(current), Some(default)) => {
+                            // dust current attachment
+                            let current_id = current.id();
+                            secret
+                                .dust_card(current_id)
+                                .expect("current_id is in this secret, and is not already dust.");
+
+                            // Attach base attachment
+                            let state = default.new_card_state();
+
+                            let attachment = CardInstance {
+                                id: next_instance,
+                                base: default,
+                                attachment: None,
+                                state,
+                            };
+
+                            secret.instances.insert(next_instance, attachment);
+
+                            secret
+                                .attach_card(id, next_instance)
+                                .expect("Both id and next_instance are in this secret.");
+                        }
+                    }
+
+                    // unconditionally increment instance ID to avoid leaking attachment information
+
+                    secret
+                        .next_instance
+                        .as_mut()
+                        .expect(
+                            "`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call",
+                        )
+                        .0 += 1;
 
                     let instance = secret
                         .instance_mut(id)
@@ -1053,75 +1060,118 @@ impl<S: State> CardGame<S> {
             match card {
                 Card::ID(id) => match &self.instances[id.0] {
                     InstanceOrPlayer::Instance(instance) => {
-                        let mut copy = instance.clone();
-
-                        copy.attachment = if deep {
+                        let owner = self.owner(id);
+                        let base = instance.base.clone();
+                        let state = instance.state.copy_card();
+                        let attachment = if deep {
                             if let Some(attachment) = instance.attachment {
                                 Some(
                                     self.copy_card(attachment, deep)
                                         .await
                                         .id()
-                                        .expect("public card attachment copy is not public"),
+                                        .expect("public card attachment copy must be public"),
                                 )
                             } else {
                                 None
                             }
                         } else {
-                            None
+                            if let Some(attachment) = base.attachment() {
+                                Some(self.new_card(owner, attachment).await)
+                            } else {
+                                None
+                            }
                         };
 
+                        let copy_id = InstanceID(self.instances.len());
+                        let copy = CardInstance {
+                            id: copy_id,
+                            base,
+                            state,
+                            attachment: None,
+                        };
                         self.instances.push(InstanceOrPlayer::Instance(copy));
 
-                        let copy = InstanceID(self.instances.len() - 1);
-                        let owner = self.owner(id);
+                        self.player_cards_mut(owner).limbo.push(copy_id);
 
-                        self.player_cards_mut(owner).limbo.push(copy);
-
-                        copy.into()
+                        if let Some(attachment) = attachment {
+                            self.move_card(
+                                attachment,
+                                owner,
+                                Zone::Attachment {
+                                    parent: copy_id.into(),
+                                },
+                            )
+                            .await
+                            .unwrap();
+                        }
+                        copy_id.into()
                     }
                     InstanceOrPlayer::Player(owner) => {
-                        let owner = {
-                            let copy = *owner;
-                            drop(owner);
-                            copy
-                        };
-
+                        let owner = *owner;
                         self.new_secret_cards(owner, |mut secret| {
-                            let mut next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
-
+                            let (copy_id, attach_id) = {
+                                let mut next_instance = secret.next_instance.expect(
+                                    "`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call",
+                                );
+                                let attach_id = next_instance;
+                                next_instance.0 += 1;
+                                let copy_id = next_instance;
+                                next_instance.0 += 1;
+                                secret.next_instance = Some(next_instance);
+                                (copy_id, attach_id)
+                            };
                             let instance = &secret.instances[&id];
 
-                            let mut copy = instance.clone();
+                            let base = instance.base.clone();
+                            let state = instance.state.copy_card();
 
-                            copy.attachment = if deep {
+                            let attachment = if deep {
                                 if let Some(attachment) = instance.attachment {
-                                    let attachment = secret.instances[&attachment].clone();
-                                    assert!(attachment.attachment.is_none());
+                                    let old_attach = &secret.instances[&attachment];
+                                    assert!(old_attach.attachment.is_none(), "Attachments can't have attachments.");
+                                    let attachment = CardInstance {
+                                        id: attach_id,
+                                        base: old_attach.base().clone(),
+                                        attachment: None,
+                                        state: old_attach.state.copy_card(),
+                                    };
 
-                                    secret.instances.insert(next_instance, attachment);
-
-                                    Some(next_instance)
+                                    secret.instances.insert(attach_id, attachment);
+                                    secret.limbo.push(attach_id);
+                                    Some(attach_id)
                                 } else {
                                     None
                                 }
                             } else {
-                                None
+                                if let Some(attach_base) = base.attachment() {
+                                    let attachment = CardInstance {
+                                        id: attach_id,
+                                        base: attach_base.clone(),
+                                        attachment: None,
+                                        state: attach_base.new_card_state(),
+                                    };
+
+                                    secret.instances.insert(attach_id, attachment);
+                                    secret.limbo.push(attach_id);
+                                    Some(attach_id)
+                                } else {
+                                    None
+                                }
                             };
-
-                            next_instance.0 += 1;
-
-                            secret.instances.insert(next_instance, copy);
-
-                            let copy = next_instance;
-
-                            next_instance.0 += 1;
-
-                            secret.next_instance = Some(next_instance);
-
-                            secret.limbo.push(copy);
-
-                            secret.pointers.push(copy);
-                        }).await[0]
+                            let copy = CardInstance {
+                                id: copy_id,
+                                base,
+                                state,
+                                attachment: None
+                            };
+                            secret.instances.insert(copy_id, copy);
+                            secret.limbo.push(copy_id);
+                            secret.pointers.push(copy_id);
+                            if let Some(attachment) = attachment {
+                                secret.attach_card(copy_id, attachment).unwrap();
+                            }
+                        })
+                        .await[0]
                     }
                 },
                 Card::Pointer(OpaquePointer { player, index }) => {
@@ -1155,42 +1205,71 @@ impl<S: State> CardGame<S> {
                             let instances = self.instances.clone();
 
                             self.new_secret_cards(player, |mut secret| {
-                                let mut next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+                                let (copy_id, attach_id) = {
+                                    let mut next_instance = secret
+                                        .next_instance
+                                        .expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+
+                                    let copy_id = next_instance;
+                                    next_instance.0 += 1;
+                                    let attach_id = next_instance;
+                                    next_instance.0 += 1;
+                                    secret.next_instance = Some(next_instance);
+                                    (copy_id, attach_id)
+                                };
 
                                 let id = secret.pointers[index];
 
                                 let instance = instances[id.0].instance_ref().or_else(|| secret.instances.get(&id)).expect("instance is neither public nor in this secret");
 
-                                let mut copy = instance.clone();
+                                let base = instance.base.clone();
+                                let state = instance.state.copy_card();
 
-                                copy.attachment = if deep {
+                                let attachment = if deep {
                                     if let Some(attachment) = instance.attachment {
-                                        let attachment = secret.instances[&attachment].clone();
-                                        assert!(attachment.attachment.is_none());
+                                let old_attach = instances[attachment.0].instance_ref().or_else(|| secret.instance(attachment)).unwrap();
+                                        assert!(old_attach.attachment.is_none());
+                                        let attachment = CardInstance {
+                                            id: attach_id,
+                                            base: old_attach.base().clone(),
+                                            attachment: None,
+                                            state: old_attach.state.copy_card(),
+                                        };
 
-                                        secret.instances.insert(next_instance, attachment);
-
-                                        Some(next_instance)
+                                        secret.instances.insert(attach_id, attachment);
+                                        secret.limbo.push(attach_id);
+                                        Some(attach_id)
                                     } else {
                                         None
                                     }
                                 } else {
-                                    None
+                                    if let Some(attach_base) = base.attachment() {
+                                        let attachment = CardInstance {
+                                            id: attach_id,
+                                            base: attach_base.clone(),
+                                            attachment: None,
+                                            state: attach_base.new_card_state(),
+                                        };
+
+                                        secret.instances.insert(attach_id, attachment);
+                                        secret.limbo.push(attach_id);
+                                        Some(attach_id)
+                                    } else {
+                                        None
+                                    }
                                 };
-
-                                next_instance.0 += 1;
-
-                                secret.instances.insert(next_instance, copy);
-
-                                let copy = next_instance;
-
-                                next_instance.0 += 1;
-
-                                secret.next_instance = Some(next_instance);
-
-                                secret.limbo.push(copy);
-
-                                secret.pointers.push(copy);
+                                let copy = CardInstance {
+                                    id: copy_id,
+                                    base,
+                                    state,
+                                    attachment: None
+                                };
+                                secret.instances.insert(copy_id, copy);
+                                secret.limbo.push(copy_id);
+                                secret.pointers.push(copy_id);
+                                if let Some(attachment) = attachment {
+                                    secret.attach_card(copy_id, attachment).unwrap();
+                                }
                             }).await[0]
                         }
                         Some(id) => {
@@ -1199,41 +1278,71 @@ impl<S: State> CardGame<S> {
                                 .expect("instance is not in another player's secret");
 
                             self.new_secret_cards(owner, |mut secret| {
-                                let mut next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
+                                let (copy_id, attach_id) = {
+                                        let mut next_instance = secret
+                                            .next_instance
+                                        .expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
 
-                                let instance = &secret.instances[&id];
+                                        let copy_id = next_instance;
+                                        next_instance.0 += 1;
+                                        let attach_id = next_instance;
+                                        next_instance.0 += 1;
+                                        secret.next_instance = Some(next_instance);
+                                        (copy_id, attach_id)
+                                    };
 
-                                let mut copy = instance.clone();
+                                    let instance = &secret.instances[&id];
+                                    let base = instance.base.clone();
+                                    let state = instance.state.copy_card();
 
-                                copy.attachment = if deep {
-                                    if let Some(attachment) = instance.attachment {
-                                        let attachment = secret.instances[&attachment].clone();
-                                        assert!(attachment.attachment.is_none());
+                                    let attachment = if deep {
+                                        if let Some(attachment) = instance.attachment {
+                                            let old_attach = &secret.instances[&attachment];
+                                            assert!(old_attach.attachment.is_none());
+                                            let attachment = CardInstance {
+                                                id: attach_id,
+                                                base: old_attach.base().clone(),
+                                                attachment: None,
+                                                state: old_attach.state.copy_card(),
+                                            };
 
-                                        secret.instances.insert(next_instance, attachment);
-
-                                        Some(next_instance)
+                                            secret.instances.insert(attach_id, attachment);
+                                            secret.limbo.push(attach_id);
+                                            Some(attach_id)
+                                        } else {
+                                            None
+                                        }
                                     } else {
-                                        None
+                                        if let Some(attach_base) = base.attachment() {
+                                            let attachment = CardInstance {
+                                                id: attach_id,
+                                                base: attach_base.clone(),
+                                                attachment: None,
+                                                state: attach_base.new_card_state(),
+                                            };
+
+                                            secret.instances.insert(attach_id, attachment);
+                                            secret.limbo.push(attach_id);
+                                            Some(attach_id)
+                                        } else {
+                                            None
+                                        }
+                                    };
+
+                                    let copy = CardInstance {
+                                        id: copy_id,
+                                        base,
+                                        state,
+                                        attachment: None
+                                    };
+                                    secret.instances.insert(copy_id, copy);
+                                    secret.limbo.push(copy_id);
+                                    secret.pointers.push(copy_id);
+                                    if let Some(attachment) = attachment {
+                                        secret.attach_card(copy_id, attachment).unwrap();
+                                        assert!(secret.instance(copy_id).unwrap().attachment.is_some());
                                     }
-                                } else {
-                                    None
-                                };
-
-                                next_instance.0 += 1;
-
-                                secret.instances.insert(next_instance, copy);
-
-                                let copy = next_instance;
-
-                                next_instance.0 += 1;
-
-                                secret.next_instance = Some(next_instance);
-
-                                secret.limbo.push(copy);
-                            }).await;
-
-                            InstanceID(self.instances.len() - 1).into()
+                                }).await[0]
                         }
                     }
                 }
