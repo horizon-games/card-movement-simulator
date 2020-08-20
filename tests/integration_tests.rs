@@ -358,6 +358,65 @@ impl card_movement_simulator::State for State {
 
                     assert_eq!(live_game.instances(), 6);
                 }
+                Action::CopyCard {
+                    card_ptr_bucket,
+                    base_card_type,
+                    card_zone,
+                    deep,
+                } => {
+                    let owner = 0;
+                    let card_id = live_game.new_card(owner, base_card_type).await;
+
+                    live_game
+                        .move_card(card_id, owner, card_zone)
+                        .await
+                        .unwrap();
+
+                    let card: Card = if let Some(ptr_owner) = card_ptr_bucket {
+                        live_game
+                            .new_secret_pointers(ptr_owner, |mut secret| {
+                                secret.new_pointer(card_id);
+                            })
+                            .await[0]
+                    } else {
+                        card_id.into()
+                    };
+
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
+
+                    let copy = live_game.copy_card(card, deep).await;
+
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
+
+                    let (copy_id, was_attach_cloned) = live_game
+                        .reveal_from_card(copy, |c| {
+                            dbg!(&c.instance);
+                            (c.id(), c.attachment.map(|a| a.was_cloned))
+                        })
+                        .await;
+
+                    let should_have_attach = match base_card_type {
+                        BaseCard::WithAttachment => true,
+                        _ => false,
+                    };
+
+                    match (deep, should_have_attach, was_attach_cloned) {
+                        (false, true, Some(false))
+                        | (false, false, None)
+                        | (true, true, Some(true))
+                        | (true, false, None) => {
+                            // ok!
+                        }
+                        _ => {
+                            panic!("Failed to copy attach correctly. Card type is {:?},  deep: {:?}, should_have_attach: {:?}, was_attach_cloned: {:?}", base_card_type, deep, should_have_attach, was_attach_cloned);
+                        }
+                    }
+
+                    assert_ne!(
+                        card_id, copy_id,
+                        "Copy ID must be different from parent ID!"
+                    );
+                }
             }
         })
     }
@@ -394,6 +453,7 @@ impl card_movement_simulator::BaseCard for BaseCard {
         CardState {
             attachment_was_detached: 0,
             attachment_was_attached: 0,
+            was_cloned: false,
         }
     }
 }
@@ -402,11 +462,17 @@ impl card_movement_simulator::BaseCard for BaseCard {
 struct CardState {
     attachment_was_detached: usize,
     attachment_was_attached: usize,
+    was_cloned: bool,
 }
 
 impl card_movement_simulator::CardState for CardState {
     fn eq(&self, _other: &Self) -> bool {
         true
+    }
+    fn copy_card(&self) -> CardState {
+        let mut copy = self.clone();
+        copy.was_cloned = true;
+        copy
     }
 }
 
@@ -433,6 +499,12 @@ enum Action {
         card_ptr_bucket: Option<Player>,   // 3
         card_owner: Player,                // 2
         card_zone: Zone,                   // 11
+    },
+    CopyCard {
+        card_ptr_bucket: Option<Player>, // 3
+        card_zone: Zone,                 // 11
+        base_card_type: BaseCard,        // 2
+        deep: bool,                      // 2
     },
     ReplacingAttachOnSecretCardDoesNotLeakInfo,
     OpaquePointerAssociationDoesntHoldThroughDraw,
