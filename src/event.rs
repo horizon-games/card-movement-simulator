@@ -1,4 +1,4 @@
-use crate::{CardInstance, CardLocation, OpaquePointer, State};
+use crate::{CardInstance, CardLocation, OpaquePointer, Player, State};
 
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -36,5 +36,9 @@ pub enum CardEvent<S: State> {
         instance: Option<CardInstance<S>>,
         from: CardLocation,
         to: CardLocation,
+    },
+    SortField {
+        player: Player,
+        permutation: Vec<usize>,
     },
 }
