@@ -24,7 +24,7 @@ pub use {
     card::Card,
     card_game::{CardGame, CardInfo, CardInfoMut},
     card_instance::CardInstance,
-    card_location::CardLocation,
+    card_location::{CardLocation, ExactCardLocation},
     card_state::CardState,
     event::CardEvent,
     game_state::GameState,

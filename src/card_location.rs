@@ -12,3 +12,12 @@ pub struct CardLocation {
     pub player: Player,
     pub location: Option<(Zone, Option<usize>)>,
 }
+
+#[cfg_attr(
+    feature = "bindings",
+    derive(typescript_definitions::TypescriptDefinition)
+)]
+pub struct ExactCardLocation {
+    pub player: Player,
+    pub location: (Zone, usize),
+}
