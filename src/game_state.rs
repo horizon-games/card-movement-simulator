@@ -119,7 +119,7 @@ impl<S: State> GameState<S> {
 
                     let parent = parents
                         .next()
-                        .expect(&format!("{:?} has no owner or public parent", id));
+                        .unwrap_or_else(|| panic!("{:?} has no owner or public parent", id));
 
                     assert!(parents.next().is_none());
 

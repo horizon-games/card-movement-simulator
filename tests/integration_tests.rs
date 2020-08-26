@@ -21,7 +21,7 @@ impl card_movement_simulator::State for State {
     type BaseCard = BaseCard;
 
     fn version() -> &'static [u8] {
-        "Test".as_bytes()
+        b"Test"
     }
 
     fn verify(
@@ -221,7 +221,7 @@ impl card_movement_simulator::State for State {
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
                     live_game
-                        .move_card(card, 0, Zone::Attachment { parent: parent })
+                        .move_card(card, 0, Zone::Attachment { parent })
                         .await
                         .unwrap();
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
@@ -395,10 +395,7 @@ impl card_movement_simulator::State for State {
                         })
                         .await;
 
-                    let should_have_attach = match base_card_type {
-                        BaseCard::WithAttachment => true,
-                        _ => false,
-                    };
+                    let should_have_attach = matches!(base_card_type, BaseCard::WithAttachment);
 
                     match (deep, should_have_attach, was_attach_cloned) {
                         (false, true, Some(false))

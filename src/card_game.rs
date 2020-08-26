@@ -101,10 +101,14 @@ impl<S: State> CardGame<S> {
             Some(id) => id.into(),
             None => {
                 self.context.mutate_secret(player, |secret, _, _| {
-                    secret.pointers.push(secret.hand()[index].expect(&format!(
-                        "player {} hand {} is neither public nor secret",
-                        player, index
-                    )));
+                    secret
+                        .pointers
+                        .push(secret.hand()[index].unwrap_or_else(|| {
+                            panic!(
+                                "player {} hand {} is neither public nor secret",
+                                player, index
+                            )
+                        }));
                 });
 
                 let player_cards = self.player_cards_mut(player);
@@ -380,13 +384,15 @@ impl<S: State> CardGame<S> {
                         player: owner,
                         location,
                     } = self.location(id);
-                    let location = location.expect(&format!("public {:?} has no zone", id));
+                    let location =
+                        location.unwrap_or_else(|| panic!("public {:?} has no zone", id));
 
                     let attachment = instance.attachment().map(|attachment| {
-                        self.instances[attachment.0].instance_ref().expect(&format!(
-                            "public {:?} attachment {:?} not public",
-                            id, attachment
-                        ))
+                        self.instances[attachment.0]
+                            .instance_ref()
+                            .unwrap_or_else(|| {
+                                panic!("public {:?} attachment {:?} not public", id, attachment)
+                            })
                     });
 
                     f(CardInfo {
@@ -397,19 +403,15 @@ impl<S: State> CardGame<S> {
                     })
                 }
                 InstanceOrPlayer::Player(owner) => {
-                    let owner = {
-                        let copy = *owner;
-                        drop(owner);
-                        copy
-                    };
+                    let owner = *owner;
 
                     self.context
                         .reveal_unique(
                             owner,
                             move |secret| {
-                                secret
-                                    .reveal_from_card(id, f.clone())
-                                    .expect(&format!("{:?} not in player {:?} secret", id, owner))
+                                secret.reveal_from_card(id, f.clone()).unwrap_or_else(|| {
+                                    panic!("{:?} not in player {:?} secret", id, owner)
+                                })
                             },
                             |_| true,
                         )
@@ -444,13 +446,18 @@ impl<S: State> CardGame<S> {
                                 player: owner,
                                 location,
                             } = self.location(id);
-                            let location = location.expect(&format!("public {:?} has no zone", id));
+                            let location =
+                                location.unwrap_or_else(|| panic!("public {:?} has no zone", id));
 
                             let attachment = instance.attachment().map(|attachment| {
-                                self.instances[attachment.0].instance_ref().expect(&format!(
-                                    "public {:?} attachment {:?} not public",
-                                    id, attachment
-                                ))
+                                self.instances[attachment.0]
+                                    .instance_ref()
+                                    .unwrap_or_else(|| {
+                                        panic!(
+                                            "public {:?} attachment {:?} not public",
+                                            id, attachment
+                                        )
+                                    })
                             });
 
                             f(CardInfo {
@@ -461,20 +468,15 @@ impl<S: State> CardGame<S> {
                             })
                         }
                         InstanceOrPlayer::Player(owner) => {
-                            let owner = {
-                                let copy = *owner;
-                                drop(owner);
-                                copy
-                            };
+                            let owner = *owner;
 
                             self.context
                                 .reveal_unique(
                                     owner,
                                     move |secret| {
-                                        secret.reveal_from_card(id, f.clone()).expect(&format!(
-                                            "{:?} not in player {:?} secret",
-                                            id, owner
-                                        ))
+                                        secret.reveal_from_card(id, f.clone()).unwrap_or_else(
+                                            || panic!("{:?} not in player {:?} secret", id, owner),
+                                        )
                                     },
                                     |_| true,
                                 )
@@ -733,13 +735,15 @@ impl<S: State> CardGame<S> {
                         player: owner,
                         location,
                     } = self.location(id);
-                    let location = location.expect(&format!("public {:?} has no zone", id));
+                    let location =
+                        location.unwrap_or_else(|| panic!("public {:?} has no zone", id));
 
                     let attachment = instance.attachment().map(|attachment| {
-                        self.instances[attachment.0].instance_ref().expect(&format!(
-                            "public {:?} attachment {:?} not public",
-                            id, attachment
-                        ))
+                        self.instances[attachment.0]
+                            .instance_ref()
+                            .unwrap_or_else(|| {
+                                panic!("public {:?} attachment {:?} not public", id, attachment)
+                            })
                     });
 
                     match (
@@ -758,10 +762,12 @@ impl<S: State> CardGame<S> {
 
                             self.move_card(attachment, owner, Zone::Dust { public: true })
                                 .await
-                                .expect(&format!(
-                                    "unable to move attachment {:?} to public dust",
-                                    attachment
-                                ));
+                                .unwrap_or_else(|_| {
+                                    panic!(
+                                        "unable to move attachment {:?} to public dust",
+                                        attachment
+                                    )
+                                });
                         }
                         (None, Some(default)) => {
                             // attach base attachment
@@ -774,10 +780,9 @@ impl<S: State> CardGame<S> {
                                 Zone::Attachment { parent: id.into() },
                             )
                             .await
-                            .expect(&format!(
-                                "unable to attach public limbo {:?} to {:?}",
-                                attachment, id
-                            ));
+                            .unwrap_or_else(|_| {
+                                panic!("unable to attach public limbo {:?} to {:?}", attachment, id)
+                            });
                         }
                         (Some(current), Some(default)) if *current == default => {
                             // reset current attachment
@@ -799,10 +804,12 @@ impl<S: State> CardGame<S> {
 
                             self.move_card(attachment, owner, Zone::Dust { public: true })
                                 .await
-                                .expect(&format!(
-                                    "unable to move attachment {:?} to public dust",
-                                    attachment
-                                ));
+                                .unwrap_or_else(|_| {
+                                    panic!(
+                                        "unable to move attachment {:?} to public dust",
+                                        attachment
+                                    )
+                                });
 
                             // attach base attachment
 
@@ -814,10 +821,9 @@ impl<S: State> CardGame<S> {
                                 Zone::Attachment { parent: id.into() },
                             )
                             .await
-                            .expect(&format!(
-                                "unable to attach public limbo {:?} to {:?}",
-                                attachment, id
-                            ));
+                            .unwrap_or_else(|_| {
+                                panic!("unable to attach public limbo {:?} to {:?}", attachment, id)
+                            });
                         }
                     }
 
@@ -842,22 +848,15 @@ impl<S: State> CardGame<S> {
                 InstanceOrPlayer::Player(owner) => {
                     // public ID to secret instance
 
-                    let owner = {
-                        let copy = *owner;
-                        drop(owner);
-                        copy
-                    };
+                    let owner = *owner;
 
                     self.new_secret_cards(owner, |mut secret| {
                         let instance = secret
                             .instance(id)
-                            .expect(&format!("player {} secret {:?} not in secret", owner, id));
+                            .unwrap_or_else(|| panic!("player {} secret {:?} not in secret", owner, id));
 
                         let attachment = instance.attachment().map(|attachment| {
-                            secret.instance(attachment).expect(&format!(
-                                "player {} secret {:?} attachment {:?} not secret",
-                                owner, id, attachment
-                            ))
+                            secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", owner, id, attachment))
                         });
 
                         let next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
@@ -938,13 +937,10 @@ impl<S: State> CardGame<S> {
 
                     let instance = secret
                         .instance(id)
-                        .expect(&format!("player {} secret {:?} not in secret", player, id));
+                        .unwrap_or_else(|| panic!("player {} secret {:?} not in secret", player, id));
 
                     let attachment = instance.attachment().map(|attachment| {
-                        secret.instance(attachment).expect(&format!(
-                            "player {} secret {:?} attachment {:?} not secret",
-                            player, id, attachment
-                        ))
+                        secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", player, id, attachment))
                     });
 
                     let next_instance = secret.next_instance.expect(
@@ -1074,12 +1070,10 @@ impl<S: State> CardGame<S> {
                             } else {
                                 None
                             }
+                        } else if let Some(attachment) = base.attachment() {
+                            Some(self.new_card(owner, attachment).await)
                         } else {
-                            if let Some(attachment) = base.attachment() {
-                                Some(self.new_card(owner, attachment).await)
-                            } else {
-                                None
-                            }
+                            None
                         };
 
                         let copy_id = InstanceID(self.instances.len());
@@ -1142,21 +1136,19 @@ impl<S: State> CardGame<S> {
                                 } else {
                                     None
                                 }
-                            } else {
-                                if let Some(attach_base) = base.attachment() {
-                                    let attachment = CardInstance {
-                                        id: attach_id,
-                                        base: attach_base.clone(),
-                                        attachment: None,
-                                        state: attach_base.new_card_state(),
-                                    };
+                            } else if let Some(attach_base) = base.attachment() {
+                                let attachment = CardInstance {
+                                    id: attach_id,
+                                    base: attach_base.clone(),
+                                    attachment: None,
+                                    state: attach_base.new_card_state(),
+                                };
 
-                                    secret.instances.insert(attach_id, attachment);
-                                    secret.limbo.push(attach_id);
-                                    Some(attach_id)
-                                } else {
-                                    None
-                                }
+                                secret.instances.insert(attach_id, attachment);
+                                secret.limbo.push(attach_id);
+                                Some(attach_id)
+                            } else {
+                                None
                             };
                             let copy = CardInstance {
                                 id: copy_id,
@@ -1242,21 +1234,19 @@ impl<S: State> CardGame<S> {
                                     } else {
                                         None
                                     }
-                                } else {
-                                    if let Some(attach_base) = base.attachment() {
-                                        let attachment = CardInstance {
-                                            id: attach_id,
-                                            base: attach_base.clone(),
-                                            attachment: None,
-                                            state: attach_base.new_card_state(),
-                                        };
+                                } else if let Some(attach_base) = base.attachment() {
+                                    let attachment = CardInstance {
+                                        id: attach_id,
+                                        base: attach_base.clone(),
+                                        attachment: None,
+                                        state: attach_base.new_card_state(),
+                                    };
 
-                                        secret.instances.insert(attach_id, attachment);
-                                        secret.limbo.push(attach_id);
-                                        Some(attach_id)
-                                    } else {
-                                        None
-                                    }
+                                    secret.instances.insert(attach_id, attachment);
+                                    secret.limbo.push(attach_id);
+                                    Some(attach_id)
+                                } else {
+                                    None
                                 };
                                 let copy = CardInstance {
                                     id: copy_id,
@@ -1312,21 +1302,19 @@ impl<S: State> CardGame<S> {
                                         } else {
                                             None
                                         }
-                                    } else {
-                                        if let Some(attach_base) = base.attachment() {
-                                            let attachment = CardInstance {
-                                                id: attach_id,
-                                                base: attach_base.clone(),
-                                                attachment: None,
-                                                state: attach_base.new_card_state(),
-                                            };
+                                    } else if let Some(attach_base) = base.attachment() {
+                                        let attachment = CardInstance {
+                                            id: attach_id,
+                                            base: attach_base.clone(),
+                                            attachment: None,
+                                            state: attach_base.new_card_state(),
+                                        };
 
-                                            secret.instances.insert(attach_id, attachment);
-                                            secret.limbo.push(attach_id);
-                                            Some(attach_id)
-                                        } else {
-                                            None
-                                        }
+                                        secret.instances.insert(attach_id, attachment);
+                                        secret.limbo.push(attach_id);
+                                        Some(attach_id)
+                                    } else {
+                                        None
                                     };
 
                                     let copy = CardInstance {
@@ -1396,21 +1384,21 @@ impl<S: State> CardGame<S> {
                             player: owner,
                             location,
                         } = state.location(id);
-                        let location = location.expect(&format!("public {:?} has no zone", id));
+                        let location =
+                            location.unwrap_or_else(|| panic!("public {:?} has no zone", id));
 
                         let attachment = instance.attachment.map(|attachment| {
                             state.instances[attachment.0]
                                 .instance_ref()
-                                .expect(&format!(
-                                    "public {:?} attachment {:?} not public",
-                                    id, attachment
-                                ))
+                                .unwrap_or_else(|| {
+                                    panic!("public {:?} attachment {:?} not public", id, attachment)
+                                })
                                 .clone()
                         });
 
                         let instance = state.instances[id.0]
                             .instance_mut()
-                            .expect(&format!("{:?} vanished", id));
+                            .unwrap_or_else(|| panic!("{:?} vanished", id));
 
                         f(CardInfoMut {
                             instance,
@@ -1437,10 +1425,9 @@ impl<S: State> CardGame<S> {
                         self.context.mutate_secret(*owner, |secret, random, log| {
                             secret
                                 .modify_card(card, random, log, |instance| f(instance))
-                                .expect(&format!(
-                                    "player {} secret {:?} not in secret",
-                                    owner, card
-                                ));
+                                .unwrap_or_else(|_| {
+                                    panic!("player {} secret {:?} not in secret", owner, card)
+                                });
                         });
                     }
                 }
@@ -1449,10 +1436,9 @@ impl<S: State> CardGame<S> {
                 self.context.mutate_secret(player, |secret, random, log| {
                     secret
                         .modify_card(card, random, log, |instance| f(instance))
-                        .expect(&format!(
-                            "player {} secret {:?} not in secret",
-                            player, card
-                        ));
+                        .unwrap_or_else(|_| {
+                            panic!("player {} secret {:?} not in secret", player, card)
+                        });
                 });
             }
         }
@@ -1497,11 +1483,12 @@ impl<S: State> CardGame<S> {
                             player: owner,
                             location,
                         } = state.location(id);
-                        let location = location.expect(&format!("public {:?} has no zone", id));
+                        let location =
+                            location.unwrap_or_else(|| panic!("public {:?} has no zone", id));
 
                         let instance = state.instances[id.0]
                             .instance_mut()
-                            .expect(&format!("{:?} vanished", id));
+                            .unwrap_or_else(|| panic!("{:?} vanished", id));
 
                         f(instance, &mut |event| context.log(event));
 
@@ -2338,7 +2325,7 @@ impl<S: State> CardGame<S> {
         for id in real_instance_ids {
             match self.instances[id.0] {
                 InstanceOrPlayer::Player(player) => {
-                    if !secrets[usize::from(player)].location(id).location.is_some() {
+                    if secrets[usize::from(player)].location(id).location.is_none() {
                         return Err(error::RevealOkError::Error {
                             err: format!(
                             "{:?} is in player {}'s secret bucket, but not in any of their zzones",
@@ -2530,10 +2517,9 @@ impl<S: State> CardGame<S> {
                     if let Some(attachment) = attachment {
                         self.move_card(attachment, owner, Zone::Dust { public: true })
                             .await
-                            .expect(&format!(
-                                "unable to move attachment {:?} to public dust",
-                                attachment
-                            ));
+                            .unwrap_or_else(|_| {
+                                panic!("unable to move attachment {:?} to public dust", attachment)
+                            });
                     }
 
                     Some(id)

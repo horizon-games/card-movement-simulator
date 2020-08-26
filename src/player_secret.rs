@@ -183,16 +183,17 @@ impl<S: State> PlayerSecret<S> {
         let card = card.into();
 
         self.instance(card).map(|instance| {
-            let zone = self.zone(card).expect(&format!(
-                "player {} secret {:?} has no zone",
-                self.player, card
-            ));
+            let zone = self
+                .zone(card)
+                .unwrap_or_else(|| panic!("player {} secret {:?} has no zone", self.player, card));
 
             let attachment = instance.attachment.map(|attachment| {
-                self.instance(attachment).expect(&format!(
-                    "player {} secret {:?} attachment {:?} not secret",
-                    self.player, card, attachment
-                ))
+                self.instance(attachment).unwrap_or_else(|| {
+                    panic!(
+                        "player {} secret {:?} attachment {:?} not secret",
+                        self.player, card, attachment
+                    )
+                })
             });
 
             f(CardInfo {
@@ -221,17 +222,18 @@ impl<S: State> PlayerSecret<S> {
 
         let owner = self.player;
 
-        let zone = self.zone(card).expect(&format!(
-            "player {} secret {:?} has no zone",
-            self.player, card
-        ));
+        let zone = self
+            .zone(card)
+            .unwrap_or_else(|| panic!("player {} secret {:?} has no zone", self.player, card));
 
         let attachment = instance.attachment().map(|attachment| {
             self.instance(attachment)
-                .expect(&format!(
-                    "player {} secret {:?} attachment {:?} not secret",
-                    self.player, card, attachment
-                ))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "player {} secret {:?} attachment {:?} not secret",
+                        self.player, card, attachment
+                    )
+                })
                 .clone()
         });
 
@@ -349,7 +351,7 @@ impl<S: State> PlayerSecret<S> {
 
         let instance = self
             .instance_mut(card)
-            .expect(&format!("{:?} vanished", card));
+            .unwrap_or_else(|| panic!("{:?} vanished", card));
 
         f(instance, log);
         // TODO: implement logging!
