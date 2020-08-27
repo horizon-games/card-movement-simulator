@@ -22,15 +22,9 @@ pub enum CardEvent<S: State> {
         location: CardLocation,
     },
     #[serde(bound = "S: State")]
-    ResetCard {
-        instance: CardInstance<S>,
-        location: CardLocation,
-    },
+    ResetCard { instance: CardInstance<S> },
     #[serde(bound = "S: State")]
-    ModifyCard {
-        instance: CardInstance<S>,
-        location: CardLocation,
-    },
+    ModifyCard { instance: CardInstance<S> },
     #[serde(bound = "S: State")]
     MoveCard {
         instance: Option<CardInstance<S>>,
