@@ -1,7 +1,8 @@
 use {
     crate::{
-        error, BaseCard, Card, CardInstance, CardLocation, CardState, Context, Event, GameState,
-        InstanceID, InstanceOrPlayer, OpaquePointer, Player, PlayerSecret, Secret, State, Zone,
+        error, event::CardEvent, BaseCard, Card, CardInstance, CardLocation, CardState, Context,
+        Event, ExactCardLocation, GameState, InstanceID, InstanceOrPlayer, OpaquePointer, Player,
+        PlayerSecret, Secret, State, Zone,
     },
     rand::seq::IteratorRandom,
     std::{
@@ -42,40 +43,53 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn new_card(&mut self, player: Player, base: S::BaseCard) -> InstanceID {
-        let attachment = base.attachment().map(|attachment| {
-            let id = InstanceID(self.instances.len());
-            let state = attachment.new_card_state();
-            let instance = CardInstance {
-                id,
-                base: attachment,
+        let id = InstanceID(self.instances.len());
+        let state = base.new_card_state();
+        let instance: CardInstance<S> = CardInstance {
+            id,
+            base: base.clone(),
+            attachment: None,
+            state,
+        };
+
+        self.instances
+            .push(InstanceOrPlayer::from(instance.clone()));
+
+        self.player_cards_mut(player).limbo.push(id);
+        let limbo_index = self.player_cards(player).limbo.len() - 1;
+        self.context.log(&CardEvent::NewCard {
+            instance,
+            location: ExactCardLocation {
+                player,
+                location: (Zone::Limbo { public: true }, limbo_index),
+            },
+        });
+
+        if let Some(attach_base) = base.attachment() {
+            let attach_id = InstanceID(self.instances.len());
+            let state = attach_base.new_card_state();
+            let instance: CardInstance<S> = CardInstance {
+                id: attach_id,
+                base: attach_base,
                 attachment: None,
                 state,
             };
 
-            self.instances.push(InstanceOrPlayer::from(instance));
+            self.instances
+                .push(InstanceOrPlayer::from(instance.clone()));
+            self.player_cards_mut(player).limbo.push(attach_id);
 
-            id
-        });
+            self.context.log(&CardEvent::NewCard {
+                instance,
+                location: ExactCardLocation {
+                    player,
+                    location: (Zone::Limbo { public: true }, limbo_index), // attach got pushed to limbo 2nd, so its index is +1.
+                },
+            });
 
-        let id = InstanceID(self.instances.len());
-        let state = base.new_card_state();
-        let instance = CardInstance {
-            id,
-            base,
-            attachment,
-            state,
-        };
-
-        self.instances.push(InstanceOrPlayer::from(instance));
-
-        self.player_cards_mut(player).limbo.push(id);
-
-        if let Some(attach_id) = attachment {
-            let attach_clone = self.instances[attach_id.0].instance_ref().unwrap().clone();
-            self.modify_card_internal(id.into(), |parent, _| {
-                S::on_attach(parent, &attach_clone);
-            })
-            .await;
+            self.move_card(attach_id, player, Zone::Attachment { parent: id.into() })
+                .await
+                .unwrap();
         }
         id
     }

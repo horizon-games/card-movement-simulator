@@ -1,4 +1,4 @@
-use crate::{CardInstance, CardLocation, OpaquePointer, Player, State};
+use crate::{CardInstance, CardLocation, ExactCardLocation, OpaquePointer, Player, State};
 
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -7,19 +7,17 @@ use wasm_bindgen::prelude::wasm_bindgen;
     feature = "bindings",
     derive(typescript_definitions::TypescriptDefinition)
 )]
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "payload")]
 pub enum CardEvent<S: State> {
     #[serde(bound = "S: State")]
     NewCard {
         instance: CardInstance<S>,
-        location: CardLocation,
-        #[serde(rename = "isAttachment")]
-        is_attachment: bool,
+        location: ExactCardLocation,
     },
     NewPointer {
         pointer: OpaquePointer,
-        location: CardLocation,
+        location: ExactCardLocation,
     },
     #[serde(bound = "S: State")]
     ResetCard { instance: CardInstance<S> },

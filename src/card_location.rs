@@ -17,6 +17,7 @@ pub struct CardLocation {
     feature = "bindings",
     derive(typescript_definitions::TypescriptDefinition)
 )]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 pub struct ExactCardLocation {
     pub player: Player,
     pub location: (Zone, usize),
