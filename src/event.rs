@@ -10,11 +10,14 @@ use wasm_bindgen::prelude::wasm_bindgen;
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "payload")]
 pub enum CardEvent<S: State> {
+    /// Emitted when a card is created in public state.
     #[serde(bound = "S: State")]
     NewCard {
         instance: CardInstance<S>,
         location: ExactCardLocation,
     },
+
+    /// Emitted when an OpaquePointer to an exact location is created.
     NewPointer {
         pointer: OpaquePointer,
         location: ExactCardLocation,
@@ -29,6 +32,8 @@ pub enum CardEvent<S: State> {
         from: CardLocation,
         to: CardLocation,
     },
+
+    /// Emitted when the field is re-ordered.
     SortField {
         player: Player,
         permutation: Vec<usize>,
