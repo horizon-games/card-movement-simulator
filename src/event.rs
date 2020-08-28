@@ -1,4 +1,4 @@
-use crate::{CardInstance, CardLocation, ExactCardLocation, OpaquePointer, Player, State};
+use crate::{CardInstance, ExactCardLocation, OpaquePointer, Player, State};
 
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -29,8 +29,8 @@ pub enum CardEvent<S: State> {
     #[serde(bound = "S: State")]
     MoveCard {
         instance: Option<CardInstance<S>>,
-        from: CardLocation,
-        to: CardLocation,
+        from: ExactCardLocation,
+        to: ExactCardLocation,
     },
 
     /// Emitted when the field is re-ordered.
