@@ -103,11 +103,20 @@ impl<S: State> CardGame<S> {
 
         player_cards.pointers += 1;
 
-        OpaquePointer {
+        let pointer = OpaquePointer {
             player,
             index: player_cards.pointers - 1,
-        }
-        .into()
+        };
+
+        self.context.log(&CardEvent::<S>::NewPointer {
+            pointer,
+            location: ExactCardLocation {
+                player,
+                location: (Zone::Deck, index),
+            },
+        });
+
+        pointer.into()
     }
 
     pub fn hand_card(&mut self, player: Player, index: usize) -> Card {
@@ -129,11 +138,19 @@ impl<S: State> CardGame<S> {
 
                 player_cards.pointers += 1;
 
-                OpaquePointer {
+                let pointer = OpaquePointer {
                     player,
                     index: player_cards.pointers - 1,
-                }
-                .into()
+                };
+                self.context.log(&CardEvent::<S>::NewPointer {
+                    pointer,
+                    location: ExactCardLocation {
+                        player,
+                        location: (Zone::Hand { public: false }, index),
+                    },
+                });
+
+                pointer.into()
             }
         }
     }
@@ -159,11 +176,20 @@ impl<S: State> CardGame<S> {
 
         player_cards.pointers += 1;
 
-        OpaquePointer {
+        let pointer = OpaquePointer {
             player,
             index: player_cards.pointers - 1,
-        }
-        .into()
+        };
+
+        self.context.log(&CardEvent::<S>::NewPointer {
+            pointer,
+            location: ExactCardLocation {
+                player,
+                location: (Zone::Dust { public: false }, index),
+            },
+        });
+
+        pointer.into()
     }
 
     pub fn public_limbo_card(&self, player: Player, index: usize) -> InstanceID {
@@ -179,11 +205,20 @@ impl<S: State> CardGame<S> {
 
         player_cards.pointers += 1;
 
-        OpaquePointer {
+        let pointer = OpaquePointer {
             player,
             index: player_cards.pointers - 1,
-        }
-        .into()
+        };
+
+        self.context.log(&CardEvent::<S>::NewPointer {
+            pointer,
+            location: ExactCardLocation {
+                player,
+                location: (Zone::Limbo { public: false }, index),
+            },
+        });
+
+        pointer.into()
     }
 
     pub fn casting_card(&self, player: Player, index: usize) -> InstanceID {
@@ -199,11 +234,20 @@ impl<S: State> CardGame<S> {
 
         player_cards.pointers += 1;
 
-        OpaquePointer {
+        let pointer = OpaquePointer {
             player,
             index: player_cards.pointers - 1,
-        }
-        .into()
+        };
+
+        self.context.log(&CardEvent::<S>::NewPointer {
+            pointer,
+            location: ExactCardLocation {
+                player,
+                location: (Zone::CardSelection, index),
+            },
+        });
+
+        pointer.into()
     }
 
     pub fn deck_cards(&mut self, player: Player) -> Vec<Card> {
