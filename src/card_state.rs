@@ -5,5 +5,7 @@ pub trait CardState: serde::Serialize + serde::de::DeserializeOwned + Clone + De
 
     /// This is called to create a copy of this card.
     /// It should return a valid state for this card as if it was standalone - no attachments.
-    fn copy_card(&self) -> Self;
+    fn copy_card(&self) -> Self {
+        self.clone()
+    }
 }
