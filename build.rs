@@ -21,7 +21,6 @@ fn main() -> std::io::Result<()> {
         "Zone::Dust { public: true }",
         "Zone::Dust { public: false }",
     ];
-
     // Generate tests for moving from/to all ones excluding attachments.
     for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
         // Option<Player>
@@ -42,29 +41,31 @@ fn main() -> std::io::Result<()> {
                             ));
                             generated_tests.push_str(&format!(
                                 "
-                            #[test]
-                            fn test_{stripped_name}() {{
-                              Tester::new(
-                                  GameState::<State>::default(),
-                                  [
-                                      PlayerSecret::new(0, Default::default()),
-                                      PlayerSecret::new(1, Default::default()),
-                                  ],
-                                  Default::default(),
-                              )
-                              .unwrap()
-                              .apply(Some(0), &Action::Move {{
-                                  card_ptr_bucket: {card_ptr_bucket},
-                                  base_card_type: {base_card_type},
-                                  from_player: {from_player},
-                                  to_player: {to_player},
-                                  from_zone: {from_zone},
-                                  to_zone: {to_zone},
-                              }})
-                              .unwrap();
-                            }}
+                                #[test]
+                                fn test_{stripped_name}() {{
+                                  Tester::new(
+                                      GameState::<State>::default(),
+                                      [
+                                          PlayerSecret::new(0, Default::default()),
+                                          PlayerSecret::new(1, Default::default()),
+                                      ],
+                                      Default::default(),
+                                      |_, _, _| {{}},
+                                      |_, _| {{}},
+                                  )
+                                  .unwrap()
+                                  .apply(Some(0), &Action::Move {{
+                                      card_ptr_bucket: {card_ptr_bucket},
+                                      base_card_type: {base_card_type},
+                                      from_player: {from_player},
+                                      to_player: {to_player},
+                                      from_zone: {from_zone},
+                                      to_zone: {to_zone},
+                                  }})
+                                  .unwrap();
+                                }}
 
-                            ",
+                                ",
                                 stripped_name = stripped_name,
                                 card_ptr_bucket = card_ptr_bucket,
                                 base_card_type = base_card_type,
@@ -97,27 +98,29 @@ fn main() -> std::io::Result<()> {
                     ));
                     generated_tests.push_str(&format!(
                         "
-                        #[test]
-                        fn test_{stripped_name}() {{
-                          Tester::new(
-                              GameState::<State>::default(),
-                              [
-                                  PlayerSecret::new(0, Default::default()),
-                                  PlayerSecret::new(1, Default::default()),
-                              ],
-                              Default::default(),
-                          )
-                          .unwrap()
-                          .apply(Some(0), &Action::Detach {{
-                              parent_zone: {parent_zone},
-                              attachment_ptr_bucket: {attachment_ptr_bucket},
-                              to_player: {to_player},
-                              to_zone: {to_zone},
-                          }})
-                          .unwrap();
-                        }}
+                            #[test]
+                            fn test_{stripped_name}() {{
+                              Tester::new(
+                                  GameState::<State>::default(),
+                                  [
+                                      PlayerSecret::new(0, Default::default()),
+                                      PlayerSecret::new(1, Default::default()),
+                                  ],
+                                  Default::default(),
+                                  |_, _, _| {{}},
+                                  |_, _| {{}},
+                              )
+                              .unwrap()
+                              .apply(Some(0), &Action::Detach {{
+                                  parent_zone: {parent_zone},
+                                  attachment_ptr_bucket: {attachment_ptr_bucket},
+                                  to_player: {to_player},
+                                  to_zone: {to_zone},
+                              }})
+                              .unwrap();
+                            }}
 
-                        ",
+                            ",
                         stripped_name = stripped_name,
                         parent_zone = parent_zone,
                         attachment_ptr_bucket = attachment_ptr_bucket,
@@ -155,29 +158,31 @@ fn main() -> std::io::Result<()> {
                             ));
                             generated_tests.push_str(&format!(
                                 "
-                        #[test]
-                        fn test_{stripped_name}() {{
-                          Tester::new(
-                              GameState::<State>::default(),
-                              [
-                                  PlayerSecret::new(0, Default::default()),
-                                  PlayerSecret::new(1, Default::default()),
-                              ],
-                              Default::default(),
-                          )
-                          .unwrap()
-                          .apply(Some(0), &Action::Attach {{
-                              parent_base_card: {parent_base_card},
-                              parent_ptr_bucket: {parent_ptr_bucket},
-                              parent_zone: {parent_zone},
-                              card_ptr_bucket: {card_ptr_bucket},
-                              card_owner: {card_owner},
-                              card_zone: {card_zone},
-                          }})
-                          .unwrap();
-                        }}
+                            #[test]
+                            fn test_{stripped_name}() {{
+                              Tester::new(
+                                  GameState::<State>::default(),
+                                  [
+                                      PlayerSecret::new(0, Default::default()),
+                                      PlayerSecret::new(1, Default::default()),
+                                  ],
+                                  Default::default(),
+                                  |_, _, _| {{}},
+                                  |_, _| {{}},
+                              )
+                              .unwrap()
+                              .apply(Some(0), &Action::Attach {{
+                                  parent_base_card: {parent_base_card},
+                                  parent_ptr_bucket: {parent_ptr_bucket},
+                                  parent_zone: {parent_zone},
+                                  card_ptr_bucket: {card_ptr_bucket},
+                                  card_owner: {card_owner},
+                                  card_zone: {card_zone},
+                              }})
+                              .unwrap();
+                            }}
 
-                        ",
+                            ",
                                 stripped_name = stripped_name,
                                 parent_base_card = parent_base_card,
                                 parent_ptr_bucket = parent_ptr_bucket,
@@ -219,6 +224,8 @@ fn main() -> std::io::Result<()> {
                                   PlayerSecret::new(1, Default::default()),
                               ],
                               Default::default(),
+                              |_, _, _| {{}},
+                              |_, _| {{}},
                           )
                           .unwrap()
                           .apply(Some(0), &Action::CopyCard {{

@@ -536,6 +536,8 @@ fn replacing_attach_on_secret_card_does_not_leak_existence_of_current_attachment
             PlayerSecret::new(1, Default::default()),
         ],
         Default::default(),
+        |_, _, _| {},
+        |_, _| {},
     )
     .unwrap()
     .apply(Some(0), &Action::ReplacingAttachOnSecretCardDoesNotLeakInfo)
@@ -555,6 +557,8 @@ fn opaque_pointer_association_does_not_hold_through_draw() {
             PlayerSecret::new(1, Default::default()),
         ],
         Default::default(),
+        |_, _, _| {},
+        |_, _| {},
     )
     .unwrap()
     .apply(
@@ -573,6 +577,8 @@ fn public_instance_from_id() {
             PlayerSecret::new(1, Default::default()),
         ],
         Default::default(),
+        |_, _, _| {},
+        |_, _| {},
     )
     .unwrap();
 
@@ -595,6 +601,8 @@ fn secret_instance_from_id() {
             PlayerSecret::new(1, Default::default()),
         ],
         Default::default(),
+        |_, _, _| {},
+        |_, _| {},
     )
     .unwrap();
 
@@ -619,6 +627,8 @@ fn opponent_instance_from_id() {
             PlayerSecret::new(1, Default::default()),
         ],
         Default::default(),
+        |_, _, _| {},
+        |_, _| {},
     )
     .unwrap();
 
