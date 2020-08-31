@@ -22,6 +22,7 @@ pub enum CardEvent<S: State> {
         pointer: OpaquePointer,
         location: ExactCardLocation,
     },
+
     #[serde(bound = "S: State")]
     ResetCard { instance: CardInstance<S> },
     #[serde(bound = "S: State")]

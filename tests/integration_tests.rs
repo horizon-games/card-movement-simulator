@@ -1,9 +1,9 @@
 use {
     arcadeum::store::Tester,
     card_movement_simulator::{
-        Card, CardGame, CardInstance, GameState, InstanceID, Player, PlayerSecret, Zone,
+        Card, CardEvent, CardGame, CardInstance, GameState, InstanceID, Player, PlayerSecret, Zone,
     },
-    std::{convert::TryInto, future::Future, pin::Pin},
+    std::{cell::RefCell, convert::TryInto, future::Future, pin::Pin, rc::Rc},
 };
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
@@ -644,4 +644,50 @@ fn opponent_instance_from_id() {
         .is_none());
 }
 
-include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));
+#[test]
+fn new_pointers_log() {
+    let owner_logs: Rc<RefCell<Vec<CardEvent<State>>>> = Rc::new(RefCell::new(vec![]));
+    let player_logs: Rc<RefCell<[Vec<CardEvent<State>>; 2]>> =
+        Rc::new(RefCell::new([vec![], vec![]]));
+
+    let owner_logs_clone = owner_logs.clone();
+    let player_logs_clone = player_logs.clone();
+    let mut tester = Tester::new(
+        GameState::<State>::default(),
+        [
+            PlayerSecret::new(0, Default::default()),
+            PlayerSecret::new(1, Default::default()),
+        ],
+        Default::default(),
+        |_, _, _| {},
+        move |player, message: &(dyn card_movement_simulator::Event + 'static)| {
+            let message = std::any::Any::downcast_ref::<CardEvent<State>>(message)
+                .unwrap()
+                .clone();
+            match player {
+                None => owner_logs_clone.try_borrow_mut().unwrap().push(message),
+                Some(p) => player_logs_clone.try_borrow_mut().unwrap()[p as usize].push(message),
+            }
+        },
+    )
+    .unwrap();
+
+    tester
+        .apply(
+            Some(0),
+            &Action::CopyCard {
+                card_ptr_bucket: None,
+                card_zone: Zone::CardSelection,
+                base_card_type: BaseCard::Basic,
+                deep: false,
+            },
+        )
+        .unwrap();
+
+    let owner_logs = owner_logs.try_borrow().unwrap();
+    let player_logs = player_logs.try_borrow().unwrap();
+    dbg!(owner_logs);
+    panic!("e");
+}
+
+// include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));
