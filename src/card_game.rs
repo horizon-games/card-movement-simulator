@@ -142,6 +142,7 @@ impl<S: State> CardGame<S> {
                     player,
                     index: player_cards.pointers - 1,
                 };
+
                 self.context.log(&CardEvent::<S>::NewPointer {
                     pointer,
                     location: ExactCardLocation {
@@ -259,9 +260,22 @@ impl<S: State> CardGame<S> {
 
         player_cards.pointers += player_cards.deck();
 
-        (player_cards.pointers - player_cards.deck()..player_cards.pointers)
-            .map(|index| OpaquePointer { player, index }.into())
-            .collect()
+        let pointers: Vec<OpaquePointer> = (player_cards.pointers - player_cards.deck()
+            ..player_cards.pointers)
+            .map(|index| OpaquePointer { player, index })
+            .collect();
+
+        for (index, pointer) in pointers.iter().enumerate() {
+            self.context.log(&CardEvent::<S>::NewPointer {
+                pointer: *pointer,
+                location: ExactCardLocation {
+                    player,
+                    location: (Zone::Deck, index),
+                },
+            });
+        }
+
+        pointers.into_iter().map(Into::into).collect()
     }
 
     pub fn hand_cards(&mut self, player: Player) -> Vec<Card> {
@@ -269,16 +283,38 @@ impl<S: State> CardGame<S> {
             secret.append_secret_hand_to_pointers();
         });
 
-        let player_cards = self.player_cards_mut(player);
+        let secret_hand_indices: Vec<usize> = self
+            .player_cards(player)
+            .hand()
+            .iter()
+            .enumerate()
+            .filter(|(_, id)| id.is_none())
+            .map(|(hand_index, _)| hand_index)
+            .collect();
 
-        let secret_hand = player_cards.hand().iter().filter(|id| id.is_none()).count();
+        let num_secret_cards = secret_hand_indices.len();
 
-        player_cards.pointers += secret_hand;
+        self.player_cards_mut(player).pointers += num_secret_cards;
 
-        let mut secret_hand = (player_cards.pointers - secret_hand..player_cards.pointers)
+        for (pointer_index, hand_index) in secret_hand_indices.into_iter().enumerate() {
+            self.context.log(&CardEvent::<S>::NewPointer {
+                pointer: OpaquePointer {
+                    player,
+                    index: pointer_index,
+                },
+                location: ExactCardLocation {
+                    player,
+                    location: (Zone::Hand { public: false }, hand_index),
+                },
+            });
+        }
+
+        let mut secret_hand = (self.player_cards(player).pointers - num_secret_cards
+            ..self.player_cards(player).pointers)
             .map(|index| OpaquePointer { player, index });
 
-        let hand = player_cards
+        let hand = self
+            .player_cards(player)
             .hand()
             .iter()
             .map(|id| {
