@@ -1,5 +1,5 @@
 use {
-    arcadeum::store::Tester,
+    arcadeum::store::{EventDowncasting, Tester},
     card_movement_simulator::{
         Card, CardEvent, CardGame, CardInstance, GameState, InstanceID, Player, PlayerSecret, Zone,
     },
@@ -661,12 +661,15 @@ fn new_pointers_log() {
         Default::default(),
         |_, _, _| {},
         move |player, message: &(dyn card_movement_simulator::Event + 'static)| {
-            let message = std::any::Any::downcast_ref::<CardEvent<State>>(message)
-                .unwrap()
-                .clone();
+            let message = message.downcast::<CardEvent<State>>().unwrap();
             match player {
-                None => owner_logs_clone.try_borrow_mut().unwrap().push(message),
-                Some(p) => player_logs_clone.try_borrow_mut().unwrap()[p as usize].push(message),
+                None => owner_logs_clone
+                    .try_borrow_mut()
+                    .unwrap()
+                    .push(message.clone()),
+                Some(p) => {
+                    player_logs_clone.try_borrow_mut().unwrap()[p as usize].push(message.clone())
+                }
             }
         },
     )
