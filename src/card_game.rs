@@ -381,11 +381,27 @@ impl<S: State> CardGame<S> {
             secret.append_card_selection_to_pointers();
         });
 
-        let player_cards = self.player_cards_mut(player);
+        let num_hand_selection = self.player_cards(player).card_selection();
 
-        player_cards.pointers += player_cards.card_selection();
+        self.player_cards_mut(player).pointers += num_hand_selection;
 
-        (player_cards.pointers - player_cards.card_selection()..player_cards.pointers)
+        let start_ptr =
+            self.player_cards(player).pointers - self.player_cards(player).card_selection();
+        let end_ptr = self.player_cards(player).pointers;
+
+        for (zone_index, pointer_index) in (start_ptr..end_ptr).enumerate() {
+            self.context.log(Box::new(CardEvent::<S>::NewPointer {
+                pointer: OpaquePointer {
+                    player,
+                    index: pointer_index,
+                },
+                location: ExactCardLocation {
+                    player,
+                    location: (Zone::CardSelection, zone_index),
+                },
+            }));
+        }
+        (start_ptr..end_ptr)
             .map(|index| OpaquePointer { player, index }.into())
             .collect()
     }

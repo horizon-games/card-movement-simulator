@@ -3,7 +3,6 @@ use crate::{CardInstance, ExactCardLocation, OpaquePointer, Player, State};
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[cfg_attr(feature = "card-event-eq", derive(PartialEq))]
 #[cfg_attr(
     feature = "bindings",
     derive(typescript_definitions::TypescriptDefinition)
@@ -19,6 +18,7 @@ pub enum CardEvent<S: State> {
     },
 
     /// Emitted when an OpaquePointer to an exact location is created.
+    /// *not* emitted when new cards (and their associated pointers) are created in secret state.
     NewPointer {
         pointer: OpaquePointer,
         location: ExactCardLocation,
@@ -40,4 +40,20 @@ pub enum CardEvent<S: State> {
         player: Player,
         permutation: Vec<usize>,
     },
+}
+
+#[cfg(feature = "card-event-eq")]
+impl<S: State> PartialEq for CardEvent<S> {
+    fn eq(&self, other: &CardEvent<S>) -> bool {
+        match (self, other) {
+            (
+                Self::NewCard { instance, location },
+                Self::NewCard {
+                    instance: other_instance,
+                    location: other_location,
+                },
+            ) if instance == other_instance && location == other_location => true,
+            _ => false,
+        }
+    }
 }

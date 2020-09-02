@@ -1,7 +1,8 @@
 use {
     arcadeum::store::Tester,
     card_movement_simulator::{
-        Card, CardEvent, CardGame, CardInstance, GameState, InstanceID, Player, PlayerSecret, Zone,
+        Card, CardEvent, CardGame, CardInstance, ExactCardLocation, GameState, InstanceID, Player,
+        PlayerSecret, Zone,
     },
     std::{cell::RefCell, convert::TryInto, future::Future, pin::Pin, rc::Rc},
 };
@@ -645,7 +646,7 @@ fn opponent_instance_from_id() {
 }
 
 #[test]
-fn new_pointers_log() {
+fn copy_card_log() {
     let owner_logs: Rc<RefCell<Vec<CardEvent<State>>>> = Rc::new(RefCell::new(vec![]));
     let player_logs: Rc<RefCell<[Vec<CardEvent<State>>; 2]>> =
         Rc::new(RefCell::new([vec![], vec![]]));
@@ -684,19 +685,21 @@ fn new_pointers_log() {
 
     let owner_logs = owner_logs.try_borrow().unwrap().clone();
     let player_logs = player_logs.try_borrow().unwrap().clone();
-    dbg!(owner_logs);
-    let v: Vec<card_movement_simulator::CardEvent<State>> = vec![];
-    // owner_logs == v
-    let ev: card_movement_simulator::CardEvent<State> = CardEvent::SortField {
-        player: 0,
-        permutation: vec![],
-    };
-    let ev2: card_movement_simulator::CardEvent<State> = CardEvent::SortField {
-        player: 0,
-        permutation: vec![],
-    };
-    ev == ev2
-    // assert_eq!(owner_logs, v);
+    assert_eq!(
+        owner_logs,
+        vec![CardEvent::NewCard {
+            instance: CardInstance::from_raw(
+                InstanceID::from_raw(0),
+                BaseCard::Basic,
+                None,
+                card_movement_simulator::BaseCard::new_card_state(&BaseCard::Basic)
+            ),
+            location: ExactCardLocation {
+                player: 0,
+                location: (Zone::Limbo { public: true }, 0)
+            }
+        }]
+    );
 }
 
 // include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));

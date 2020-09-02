@@ -41,11 +41,29 @@ impl<S: State> DerefMut for CardInstance<S> {
 impl<S: State> PartialEq for CardInstance<S> {
     fn eq(&self, other: &Self) -> bool {
         use crate::card_state::CardState;
-        self.state.eq(&other.state)
+        self.id == other.id
+            && self.base == other.base
+            && self.attachment == other.attachment
+            && self.state.eq(&other.state)
     }
 }
 
 impl<S: State> CardInstance<S> {
+    #[doc(hidden)]
+    /// Internal-only API.
+    pub fn from_raw(
+        id: InstanceID,
+        base: S::BaseCard,
+        attachment: Option<InstanceID>,
+        state: <S::BaseCard as BaseCard>::CardState,
+    ) -> Self {
+        Self {
+            id,
+            base,
+            attachment,
+            state,
+        }
+    }
     pub fn id(&self) -> InstanceID {
         self.id
     }
