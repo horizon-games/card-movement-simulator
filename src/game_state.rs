@@ -4,6 +4,7 @@ use {
         Player, PlayerCards, PlayerSecret, State, Zone,
     },
     std::{
+        any::Any,
         convert::TryInto,
         future::Future,
         ops::{Deref, DerefMut},
@@ -153,6 +154,7 @@ impl<S: State> arcadeum::store::State for GameState<S> {
     type Nonce = S::Nonce;
     type Action = S::Action;
     type Secret = PlayerSecret<S>;
+    type Event = Box<dyn Any>;
 
     fn version() -> &'static [u8] {
         S::version()

@@ -1,7 +1,7 @@
 use {
     crate::{
         error, event::CardEvent, BaseCard, Card, CardInstance, CardLocation, CardState, Context,
-        Event, ExactCardLocation, GameState, InstanceID, InstanceOrPlayer, OpaquePointer, Player,
+        ExactCardLocation, GameState, InstanceID, InstanceOrPlayer, OpaquePointer, Player,
         PlayerSecret, Secret, State, Zone,
     },
     rand::seq::IteratorRandom,
@@ -57,13 +57,13 @@ impl<S: State> CardGame<S> {
 
         self.player_cards_mut(player).limbo.push(id);
         let limbo_index = self.player_cards(player).limbo.len() - 1;
-        self.context.log(&CardEvent::NewCard {
+        self.context.log(Box::new(CardEvent::NewCard {
             instance,
             location: ExactCardLocation {
                 player,
                 location: (Zone::Limbo { public: true }, limbo_index),
             },
-        });
+        }));
 
         if let Some(attach_base) = base.attachment() {
             let attach_id = InstanceID(self.instances.len());
@@ -79,13 +79,13 @@ impl<S: State> CardGame<S> {
                 .push(InstanceOrPlayer::from(instance.clone()));
             self.player_cards_mut(player).limbo.push(attach_id);
 
-            self.context.log(&CardEvent::NewCard {
+            self.context.log(Box::new(CardEvent::NewCard {
                 instance,
                 location: ExactCardLocation {
                     player,
                     location: (Zone::Limbo { public: true }, limbo_index), // attach got pushed to limbo 2nd, so its index is +1.
                 },
-            });
+            }));
 
             self.move_card(attach_id, player, Zone::Attachment { parent: id.into() })
                 .await
@@ -108,13 +108,13 @@ impl<S: State> CardGame<S> {
             index: player_cards.pointers - 1,
         };
 
-        self.context.log(&CardEvent::<S>::NewPointer {
+        self.context.log(Box::new(CardEvent::<S>::NewPointer {
             pointer,
             location: ExactCardLocation {
                 player,
                 location: (Zone::Deck, index),
             },
-        });
+        }));
 
         pointer.into()
     }
@@ -143,13 +143,13 @@ impl<S: State> CardGame<S> {
                     index: player_cards.pointers - 1,
                 };
 
-                self.context.log(&CardEvent::<S>::NewPointer {
+                self.context.log(Box::new(CardEvent::<S>::NewPointer {
                     pointer,
                     location: ExactCardLocation {
                         player,
                         location: (Zone::Hand { public: false }, index),
                     },
-                });
+                }));
 
                 pointer.into()
             }
@@ -182,13 +182,13 @@ impl<S: State> CardGame<S> {
             index: player_cards.pointers - 1,
         };
 
-        self.context.log(&CardEvent::<S>::NewPointer {
+        self.context.log(Box::new(CardEvent::<S>::NewPointer {
             pointer,
             location: ExactCardLocation {
                 player,
                 location: (Zone::Dust { public: false }, index),
             },
-        });
+        }));
 
         pointer.into()
     }
@@ -211,13 +211,13 @@ impl<S: State> CardGame<S> {
             index: player_cards.pointers - 1,
         };
 
-        self.context.log(&CardEvent::<S>::NewPointer {
+        self.context.log(Box::new(CardEvent::<S>::NewPointer {
             pointer,
             location: ExactCardLocation {
                 player,
                 location: (Zone::Limbo { public: false }, index),
             },
-        });
+        }));
 
         pointer.into()
     }
@@ -240,13 +240,13 @@ impl<S: State> CardGame<S> {
             index: player_cards.pointers - 1,
         };
 
-        self.context.log(&CardEvent::<S>::NewPointer {
+        self.context.log(Box::new(CardEvent::<S>::NewPointer {
             pointer,
             location: ExactCardLocation {
                 player,
                 location: (Zone::CardSelection, index),
             },
-        });
+        }));
 
         pointer.into()
     }
@@ -266,13 +266,13 @@ impl<S: State> CardGame<S> {
             .collect();
 
         for (index, pointer) in pointers.iter().enumerate() {
-            self.context.log(&CardEvent::<S>::NewPointer {
+            self.context.log(Box::new(CardEvent::<S>::NewPointer {
                 pointer: *pointer,
                 location: ExactCardLocation {
                     player,
                     location: (Zone::Deck, index),
                 },
-            });
+            }));
         }
 
         pointers.into_iter().map(Into::into).collect()
@@ -297,7 +297,7 @@ impl<S: State> CardGame<S> {
         self.player_cards_mut(player).pointers += num_secret_cards;
 
         for (pointer_index, hand_index) in secret_hand_indices.into_iter().enumerate() {
-            self.context.log(&CardEvent::<S>::NewPointer {
+            self.context.log(Box::new(CardEvent::<S>::NewPointer {
                 pointer: OpaquePointer {
                     player,
                     index: pointer_index,
@@ -306,7 +306,7 @@ impl<S: State> CardGame<S> {
                     player,
                     location: (Zone::Hand { public: false }, hand_index),
                 },
-            });
+            }));
         }
 
         let mut secret_hand = (self.player_cards(player).pointers - num_secret_cards
@@ -1544,7 +1544,10 @@ impl<S: State> CardGame<S> {
     pub(crate) async fn modify_card_internal(
         &mut self,
         card: Card,
-        f: impl Fn(&mut CardInstance<S>, &mut dyn FnMut(&dyn Event)),
+        f: impl Fn(
+            &mut CardInstance<S>,
+            &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
+        ),
     ) {
         // TODO: implement logging internally!
         let card = if let Card::Pointer(OpaquePointer { player, index }) = card {
@@ -2945,7 +2948,7 @@ pub struct CardInfoMut<'a, S: State> {
     pub zone: Zone,
     pub attachment: Option<&'a CardInstance<S>>,
     pub random: &'a mut dyn rand::RngCore,
-    pub log: &'a mut dyn FnMut(&dyn Event),
+    pub log: &'a mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
 }
 
 impl<S: State> Deref for CardInfoMut<'_, S> {
@@ -2965,7 +2968,7 @@ impl<S: State> DerefMut for CardInfoMut<'_, S> {
 pub struct SecretCardsInfo<'a, S: State> {
     pub secret: &'a mut PlayerSecret<S>,
     pub random: &'a mut dyn rand::RngCore,
-    pub log: &'a mut dyn FnMut(&dyn Event),
+    pub log: &'a mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
 }
 
 impl<S: State> Deref for SecretCardsInfo<'_, S> {
@@ -3081,7 +3084,7 @@ impl<S: State> SecretCardsInfo<'_, S> {
 pub struct SecretPointersInfo<'a, S: State> {
     pub secret: &'a mut PlayerSecret<S>,
     pub random: &'a mut dyn rand::RngCore,
-    pub log: &'a mut dyn FnMut(&dyn Event),
+    pub log: &'a mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
 }
 
 impl<S: State> Deref for SecretPointersInfo<'_, S> {

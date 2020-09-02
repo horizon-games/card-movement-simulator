@@ -19,7 +19,7 @@ mod zone;
 pub mod error;
 
 pub use {
-    arcadeum::{crypto::Address, store::Event, Nonce, Player, ID},
+    arcadeum::{crypto::Address, Nonce, Player, ID},
     base_card::BaseCard,
     card::Card,
     card_game::{CardGame, CardInfo, CardInfoMut},

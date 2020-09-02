@@ -1,6 +1,6 @@
 use {
     crate::{
-        error, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, Event, InstanceID,
+        error, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, GameState, InstanceID,
         OpaquePointer, Player, State, Zone,
     },
     std::ops::{Deref, DerefMut},
@@ -209,7 +209,7 @@ impl<S: State> PlayerSecret<S> {
         &mut self,
         card: impl Into<Card>,
         random: &mut dyn rand::RngCore,
-        log: &mut dyn FnMut(&dyn Event),
+        log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
         f: impl FnOnce(CardInfoMut<S>),
     ) -> Result<(), error::SecretModifyCardError> {
         let card = card.into();
@@ -255,7 +255,7 @@ impl<S: State> PlayerSecret<S> {
         &mut self,
         card: impl Into<Card>,
         attachment: impl Into<Card>,
-        log: &mut dyn FnMut(&dyn Event),
+        log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
     ) -> Result<(), error::SecretMoveCardError> {
         let card = card.into();
         let attachment = attachment.into();
@@ -317,7 +317,7 @@ impl<S: State> PlayerSecret<S> {
     pub(crate) fn dust_card(
         &mut self,
         card: impl Into<Card>,
-        log: &mut dyn FnMut(&dyn Event),
+        log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
     ) -> Result<(), error::SecretMoveCardError> {
         let card = card.into();
 
@@ -344,8 +344,11 @@ impl<S: State> PlayerSecret<S> {
     pub(crate) fn modify_card_internal(
         &mut self,
         card: impl Into<Card>,
-        log: &mut dyn FnMut(&dyn Event),
-        f: impl FnOnce(&mut CardInstance<S>, &mut dyn FnMut(&dyn Event)),
+        log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
+        f: impl FnOnce(
+            &mut CardInstance<S>,
+            &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
+        ),
     ) {
         let card = card.into();
 
@@ -359,7 +362,11 @@ impl<S: State> PlayerSecret<S> {
 
     /// Remove an InstanceID from all zones in this secret.
     /// Internal API only.
-    pub(crate) fn remove_id(&mut self, log: &mut dyn FnMut(&dyn Event), id: InstanceID) {
+    pub(crate) fn remove_id(
+        &mut self,
+        log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
+        id: InstanceID,
+    ) {
         self.deck.retain(|deck_id| *deck_id != id);
         self.hand.retain(|hand_id| *hand_id != Some(id));
         self.dust.retain(|dust_id| *dust_id != id);
