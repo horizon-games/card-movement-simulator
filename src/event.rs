@@ -10,7 +10,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "payload")]
 pub enum CardEvent<S: State> {
-    /// Emitted when a card is created in public state.
+    /// Emitted when a card is created in public state, or a card moves from secret to public state.
     #[serde(bound = "S: State")]
     NewCard {
         instance: CardInstance<S>,
