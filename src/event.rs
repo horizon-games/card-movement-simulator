@@ -3,6 +3,7 @@ use crate::{CardInstance, ExactCardLocation, OpaquePointer, Player, State};
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
+#[cfg_attr(feature = "card-event-eq", derive(PartialEq))]
 #[cfg_attr(
     feature = "bindings",
     derive(typescript_definitions::TypescriptDefinition)

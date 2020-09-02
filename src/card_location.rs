@@ -22,3 +22,12 @@ pub struct ExactCardLocation {
     pub player: Player,
     pub location: (Zone, usize),
 }
+
+#[cfg(feature = "card-event-eq")]
+impl PartialEq for ExactCardLocation {
+    fn eq(&self, other: &ExactCardLocation) -> bool {
+        self.player == other.player
+            && self.location.0.eq(other.location.0).unwrap()
+            && self.location.1 == other.location.1
+    }
+}

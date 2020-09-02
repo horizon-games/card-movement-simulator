@@ -682,10 +682,21 @@ fn new_pointers_log() {
         )
         .unwrap();
 
-    let owner_logs = owner_logs.try_borrow().unwrap();
-    let player_logs = player_logs.try_borrow().unwrap();
+    let owner_logs = owner_logs.try_borrow().unwrap().clone();
+    let player_logs = player_logs.try_borrow().unwrap().clone();
     dbg!(owner_logs);
-    panic!("e");
+    let v: Vec<card_movement_simulator::CardEvent<State>> = vec![];
+    // owner_logs == v
+    let ev: card_movement_simulator::CardEvent<State> = CardEvent::SortField {
+        player: 0,
+        permutation: vec![],
+    };
+    let ev2: card_movement_simulator::CardEvent<State> = CardEvent::SortField {
+        player: 0,
+        permutation: vec![],
+    };
+    ev == ev2
+    // assert_eq!(owner_logs, v);
 }
 
 // include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));
