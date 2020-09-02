@@ -1,10 +1,9 @@
 use {
     crate::{
-        Address, Card, CardGame, CardInstance, CardLocation, Context, InstanceID, OpaquePointer,
-        Player, PlayerCards, PlayerSecret, State, Zone,
+        Address, Card, CardGame, CardInstance, CardLocation, Context, Event, InstanceID,
+        OpaquePointer, Player, PlayerCards, PlayerSecret, State, Zone,
     },
     std::{
-        any::Any,
         convert::TryInto,
         future::Future,
         ops::{Deref, DerefMut},
@@ -153,8 +152,8 @@ impl<S: State> arcadeum::store::State for GameState<S> {
     type ID = S::ID;
     type Nonce = S::Nonce;
     type Action = S::Action;
+    type Event = Event<S>;
     type Secret = PlayerSecret<S>;
-    type Event = Box<dyn Any>;
 
     fn version() -> &'static [u8] {
         S::version()

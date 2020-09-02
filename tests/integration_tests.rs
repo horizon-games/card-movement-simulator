@@ -1,7 +1,7 @@
 use {
     arcadeum::store::Tester,
     card_movement_simulator::{
-        Card, CardEvent, CardGame, CardInstance, ExactCardLocation, GameState, InstanceID, Player,
+        Card, CardGame, CardInstance, Event, ExactCardLocation, GameState, InstanceID, Player,
         PlayerSecret, Zone,
     },
     std::{cell::RefCell, convert::TryInto, future::Future, pin::Pin, rc::Rc},
@@ -16,6 +16,8 @@ impl card_movement_simulator::State for State {
     type Nonce = u32;
 
     type Action = Action;
+
+    type Event = ();
 
     type Secret = Secret;
 
@@ -647,9 +649,8 @@ fn opponent_instance_from_id() {
 
 #[test]
 fn copy_card_log() {
-    let owner_logs: Rc<RefCell<Vec<CardEvent<State>>>> = Rc::new(RefCell::new(vec![]));
-    let player_logs: Rc<RefCell<[Vec<CardEvent<State>>; 2]>> =
-        Rc::new(RefCell::new([vec![], vec![]]));
+    let owner_logs: Rc<RefCell<Vec<Event<State>>>> = Rc::new(RefCell::new(vec![]));
+    let player_logs: Rc<RefCell<[Vec<Event<State>>; 2]>> = Rc::new(RefCell::new([vec![], vec![]]));
 
     let owner_logs_clone = owner_logs.clone();
     let player_logs_clone = player_logs.clone();
@@ -661,12 +662,9 @@ fn copy_card_log() {
         ],
         Default::default(),
         |_, _, _| {},
-        move |player, message| {
-            let message = message.downcast::<CardEvent<State>>().unwrap();
-            match player {
-                None => owner_logs_clone.try_borrow_mut().unwrap().push(*message),
-                Some(p) => player_logs_clone.try_borrow_mut().unwrap()[p as usize].push(*message),
-            }
+        move |player, message| match player {
+            None => owner_logs_clone.try_borrow_mut().unwrap().push(message),
+            Some(p) => player_logs_clone.try_borrow_mut().unwrap()[p as usize].push(message),
         },
     )
     .unwrap();
@@ -687,7 +685,7 @@ fn copy_card_log() {
     let player_logs = player_logs.try_borrow().unwrap().clone();
     assert_eq!(
         owner_logs,
-        vec![CardEvent::NewCard {
+        vec![Event::NewCard {
             instance: CardInstance::from_raw(
                 InstanceID::from_raw(0),
                 BaseCard::Basic,

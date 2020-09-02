@@ -34,4 +34,4 @@ arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", feat
 default = []
 bindings = ["typescript-definitions", "wasm-bindgen"]
 reveal-backtrace = []
-card-event-eq = []
+event-eq = []

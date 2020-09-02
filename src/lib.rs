@@ -26,7 +26,7 @@ pub use {
     card_instance::CardInstance,
     card_location::{CardLocation, ExactCardLocation},
     card_state::CardState,
-    event::CardEvent,
+    event::Event,
     game_state::GameState,
     instance_id::InstanceID,
     opaque_pointer::OpaquePointer,

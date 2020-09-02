@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 )]
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "payload")]
-pub enum CardEvent<S: State> {
+pub enum Event<S: State> {
     /// Emitted when a card is created in public state, or a card moves from secret to public state.
     #[serde(bound = "S: State")]
     NewCard {
@@ -40,11 +40,14 @@ pub enum CardEvent<S: State> {
         player: Player,
         permutation: Vec<usize>,
     },
+
+    /// Game-specific event
+    GameEvent { event: S::Event },
 }
 
-#[cfg(feature = "card-event-eq")]
-impl<S: State> PartialEq for CardEvent<S> {
-    fn eq(&self, other: &CardEvent<S>) -> bool {
+#[cfg(feature = "event-eq")]
+impl<S: State> PartialEq for Event<S> {
+    fn eq(&self, other: &Event<S>) -> bool {
         match (self, other) {
             (
                 Self::NewCard { instance, location },

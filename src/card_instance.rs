@@ -37,7 +37,7 @@ impl<S: State> DerefMut for CardInstance<S> {
     }
 }
 
-#[cfg(feature = "card-event-eq")]
+#[cfg(feature = "event-eq")]
 impl<S: State> PartialEq for CardInstance<S> {
     fn eq(&self, other: &Self) -> bool {
         use crate::card_state::CardState;
