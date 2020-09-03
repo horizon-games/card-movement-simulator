@@ -33,6 +33,11 @@ pub enum Event<S: State> {
     /// Emitted when the field is re-ordered.
     SortField {
         player: Player,
+
+        /// The permutation from the old field order to the new one.
+        /// Each item in the array is the index of where that card *used to be*.
+        /// e.g. For reordering `[a, b, c, d]` -> `[a, c, d, b]`,
+        // the permutation is: `[0, 2, 3, 1]`.
         permutation: Vec<usize>,
     },
 
