@@ -22,10 +22,11 @@ pub enum Event<S: State> {
     ModifyCard { instance: CardInstance<S> },
 
     /// Emitted when a card moves zones.
-    /// The instance field will be Some(..) if the card is in public state or in the client's secret state.
     #[serde(bound = "S: State")]
     MoveCard {
-        instance: Option<CardInstance<S>>,
+        /// Will be Some(..) if the card is in public state or in the client's secret state.
+        /// If the card has an attachment, it'll be provided in this tuple.
+        instance: Option<(CardInstance<S>, Option<CardInstance<S>>)>,
         from: CardLocation,
         to: ExactCardLocation,
     },
