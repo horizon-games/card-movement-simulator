@@ -2944,6 +2944,23 @@ impl<S: State> CardGame<S> {
             S::field_order(a, b)
         });
 
+        // Emit an event!
+        let original_field = &self.player_cards(player).field;
+        let permutation = field
+            .iter()
+            .map(|id| {
+                original_field
+                    .iter()
+                    .position(|id_in_old| id_in_old == id)
+                    .unwrap()
+            })
+            .collect();
+        self.context.log(Event::SortField {
+            player,
+            permutation,
+        });
+
+        // Finally, actually update the field order in state.
         self.player_cards_mut(player).field = field;
     }
 }
