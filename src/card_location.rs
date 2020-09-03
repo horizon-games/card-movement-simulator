@@ -13,6 +13,20 @@ pub struct CardLocation {
     pub location: Option<(Zone, Option<usize>)>,
 }
 
+#[cfg(feature = "event-eq")]
+impl PartialEq for CardLocation {
+    fn eq(&self, other: &CardLocation) -> bool {
+        self.player == other.player
+            && match (self.location, other.location) {
+                (Some((zone, index)), Some((other_zone, other_index))) => {
+                    zone.eq(other_zone).unwrap_or(false) && index == other_index
+                }
+                (None, None) => true,
+                _ => false,
+            }
+    }
+}
+
 #[cfg_attr(
     feature = "bindings",
     derive(typescript_definitions::TypescriptDefinition)

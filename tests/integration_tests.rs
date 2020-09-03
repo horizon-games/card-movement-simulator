@@ -1,8 +1,7 @@
 use {
     arcadeum::store::Tester,
     card_movement_simulator::{
-        Card, CardGame, CardInstance, Event, ExactCardLocation, GameState, InstanceID, Player,
-        PlayerSecret, Zone,
+        Card, CardGame, CardInstance, Event, GameState, InstanceID, Player, PlayerSecret, Zone,
     },
     std::{cell::RefCell, convert::TryInto, future::Future, pin::Pin, rc::Rc},
 };
@@ -683,21 +682,7 @@ fn copy_card_log() {
 
     let owner_logs = owner_logs.try_borrow().unwrap().clone();
     let player_logs = player_logs.try_borrow().unwrap().clone();
-    assert_eq!(
-        owner_logs,
-        vec![Event::NewCard {
-            instance: CardInstance::from_raw(
-                InstanceID::from_raw(0),
-                BaseCard::Basic,
-                None,
-                card_movement_simulator::BaseCard::new_card_state(&BaseCard::Basic)
-            ),
-            location: ExactCardLocation {
-                player: 0,
-                location: (Zone::Limbo { public: true }, 0)
-            }
-        }]
-    );
+    assert_eq!(owner_logs, vec![]);
 }
 
 // include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));

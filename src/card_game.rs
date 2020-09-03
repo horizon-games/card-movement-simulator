@@ -56,14 +56,6 @@ impl<S: State> CardGame<S> {
             .push(InstanceOrPlayer::from(instance.clone()));
 
         self.player_cards_mut(player).limbo.push(id);
-        let limbo_index = self.player_cards(player).limbo.len() - 1;
-        self.context.log(Event::NewCard {
-            instance,
-            location: ExactCardLocation {
-                player,
-                location: (Zone::Limbo { public: true }, limbo_index),
-            },
-        });
 
         if let Some(attach_base) = base.attachment() {
             let attach_id = InstanceID(self.instances.len());
@@ -78,14 +70,6 @@ impl<S: State> CardGame<S> {
             self.instances
                 .push(InstanceOrPlayer::from(instance.clone()));
             self.player_cards_mut(player).limbo.push(attach_id);
-
-            self.context.log(Event::NewCard {
-                instance,
-                location: ExactCardLocation {
-                    player,
-                    location: (Zone::Limbo { public: true }, limbo_index), // attach got pushed to limbo 2nd, so its index is +1.
-                },
-            });
 
             self.move_card(attach_id, player, Zone::Attachment { parent: id.into() })
                 .await
