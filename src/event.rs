@@ -17,6 +17,7 @@ pub enum Event<S: State> {
         location: ExactCardLocation,
     },
 
+    /// Emitted when a card in public state or in the client's secret state changes.
     #[serde(bound = "S: State")]
     ModifyCard { instance: CardInstance<S> },
 
@@ -35,7 +36,7 @@ pub enum Event<S: State> {
         permutation: Vec<usize>,
     },
 
-    /// Game-specific event
+    /// Game-specific event.
     GameEvent { event: S::Event },
 }
 

@@ -1,7 +1,7 @@
 use {
     crate::{
-        error, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, GameState, InstanceID,
-        OpaquePointer, Player, State, Zone,
+        error, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, Event, GameState,
+        InstanceID, OpaquePointer, Player, State, Zone,
     },
     std::ops::{Deref, DerefMut},
 };
@@ -356,8 +356,19 @@ impl<S: State> PlayerSecret<S> {
             .instance_mut(card)
             .unwrap_or_else(|| panic!("{:?} vanished", card));
 
+        let before = instance.clone();
+
         f(instance, log);
-        // TODO: implement logging!
+
+        let after = self
+            .instance(card)
+            .unwrap_or_else(|| panic!("{:?} vanished", card));
+
+        if !before.eq(after) {
+            log(Event::ModifyCard {
+                instance: after.clone(),
+            })
+        }
     }
 
     /// Remove an InstanceID from all zones in this secret.

@@ -1445,7 +1445,6 @@ impl<S: State> CardGame<S> {
     }
 
     pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) {
-        // TODO: implement logging internally!
         let card = card.into();
 
         let card = if let Card::Pointer(OpaquePointer { player, index }) = card {
@@ -1494,6 +1493,8 @@ impl<S: State> CardGame<S> {
                             .instance_mut()
                             .unwrap_or_else(|| panic!("{:?} vanished", id));
 
+                        let before = instance.clone();
+
                         f(CardInfoMut {
                             instance,
                             owner,
@@ -1502,6 +1503,16 @@ impl<S: State> CardGame<S> {
                             random: &mut context.random().await,
                             log: &mut |event| context.log(event),
                         });
+
+                        let after = state.instances[id.0]
+                            .instance_ref()
+                            .unwrap_or_else(|| panic!("{:?} vanished", id));
+
+                        if !before.eq(after) {
+                            context.log(Event::ModifyCard {
+                                instance: after.clone(),
+                            })
+                        }
 
                         match location.0 {
                             Zone::Field => self.sort_field(owner),
@@ -1549,7 +1560,6 @@ impl<S: State> CardGame<S> {
             &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
         ),
     ) {
-        // TODO: implement logging internally!
         let card = if let Card::Pointer(OpaquePointer { player, index }) = card {
             self.context
                 .reveal_unique(
@@ -1587,8 +1597,19 @@ impl<S: State> CardGame<S> {
                             .instance_mut()
                             .unwrap_or_else(|| panic!("{:?} vanished", id));
 
+                        let before = instance.clone();
+
                         f(instance, &mut |event| context.log(event));
 
+                        let after = state.instances[id.0]
+                            .instance_ref()
+                            .unwrap_or_else(|| panic!("{:?} vanished", id));
+
+                        if !before.eq(after) {
+                            context.log(Event::ModifyCard {
+                                instance: after.clone(),
+                            })
+                        }
                         match location.0 {
                             Zone::Field => self.sort_field(owner),
                             Zone::Attachment {
