@@ -646,14 +646,17 @@ fn opponent_instance_from_id() {
         .is_none());
 }
 
-#[test]
-fn copy_card_log() {
+fn make_tester() -> (
+    Tester<GameState<State>>,
+    Rc<RefCell<Vec<Event<State>>>>,
+    Rc<RefCell<[Vec<Event<State>>; 2]>>,
+) {
     let owner_logs: Rc<RefCell<Vec<Event<State>>>> = Rc::new(RefCell::new(vec![]));
     let player_logs: Rc<RefCell<[Vec<Event<State>>; 2]>> = Rc::new(RefCell::new([vec![], vec![]]));
 
     let owner_logs_clone = owner_logs.clone();
     let player_logs_clone = player_logs.clone();
-    let mut tester = Tester::new(
+    let tester = Tester::new(
         GameState::<State>::default(),
         [
             PlayerSecret::new(0, Default::default()),
@@ -668,21 +671,7 @@ fn copy_card_log() {
     )
     .unwrap();
 
-    tester
-        .apply(
-            Some(0),
-            &Action::CopyCard {
-                card_ptr_bucket: None,
-                card_zone: Zone::CardSelection,
-                base_card_type: BaseCard::Basic,
-                deep: false,
-            },
-        )
-        .unwrap();
-
-    let owner_logs = owner_logs.try_borrow().unwrap().clone();
-    let player_logs = player_logs.try_borrow().unwrap().clone();
-    assert_eq!(owner_logs, vec![]);
+    (tester, owner_logs, player_logs)
 }
 
-// include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));
+include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));

@@ -43,26 +43,27 @@ fn main() -> std::io::Result<()> {
                                 "
                                 #[test]
                                 fn test_{stripped_name}() {{
-                                  Tester::new(
-                                      GameState::<State>::default(),
-                                      [
-                                          PlayerSecret::new(0, Default::default()),
-                                          PlayerSecret::new(1, Default::default()),
-                                      ],
-                                      Default::default(),
-                                      |_, _, _| {{}},
-                                      |_, _| {{}},
-                                  )
-                                  .unwrap()
-                                  .apply(Some(0), &Action::Move {{
-                                      card_ptr_bucket: {card_ptr_bucket},
-                                      base_card_type: {base_card_type},
-                                      from_player: {from_player},
-                                      to_player: {to_player},
-                                      from_zone: {from_zone},
-                                      to_zone: {to_zone},
-                                  }})
-                                  .unwrap();
+                                    let (mut tester, _owner_logs, player_logs) = make_tester();
+                                    tester
+                                        .apply(Some(0), &Action::Move {{
+                                            card_ptr_bucket: {card_ptr_bucket},
+                                            base_card_type: {base_card_type},
+                                            from_player: {from_player},
+                                            to_player: {to_player},
+                                            from_zone: {from_zone},
+                                            to_zone: {to_zone},
+                                        }})
+                                        .unwrap();
+                                    let expected_p0_logs = {{
+                                        let mut logs = vec![];
+                                        if ({to_zone}).is_field() {{
+                                            logs.push(Event::SortField {{
+                                                player: {to_player}, permutation: vec![0]
+                                            }});
+                                        }}
+                                        logs
+                                    }};
+                                    assert_eq!(player_logs.try_borrow_mut().unwrap()[1].clone(), expected_p0_logs);
                                 }}
 
                                 ",
