@@ -1,7 +1,7 @@
 use {
     crate::{
-        error, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, Event, GameState,
-        InstanceID, OpaquePointer, Player, State, Zone,
+        error, Card, CardInfo, CardInfoMut, CardInstance, CardLocation, Event, ExactCardLocation,
+        GameState, InstanceID, OpaquePointer, Player, State, Zone,
     },
     std::ops::{Deref, DerefMut},
 };
@@ -276,6 +276,8 @@ impl<S: State> PlayerSecret<S> {
                 player: self.player,
             })?;
 
+        let parent_id = instance.id;
+
         if let Some(attachment) = instance.attachment {
             self.dust_card(attachment, log)?;
         }
@@ -285,12 +287,30 @@ impl<S: State> PlayerSecret<S> {
             Card::Pointer(OpaquePointer { index, .. }) => self.pointers[index],
         };
 
+        let from = self.location(attachment);
+
         self.remove_id(log, attachment);
 
         let new_attach = self.instance(attachment).unwrap().clone();
+        let player = self.player;
 
-        self.modify_card_internal(card, log, |parent, _| {
+        self.modify_card_internal(card, log, |parent, log| {
             parent.attachment = Some(attachment);
+            // Log the card moving to public zone.
+            log(Event::MoveCard {
+                // we're moving an attach, so it can never have an attach.
+                instance: Some((new_attach.clone(), None)),
+                from,
+                to: ExactCardLocation {
+                    player,
+                    location: (
+                        Zone::Attachment {
+                            parent: parent_id.into(),
+                        },
+                        0,
+                    ),
+                },
+            });
             S::on_attach(parent, &new_attach);
         });
 
@@ -332,9 +352,26 @@ impl<S: State> PlayerSecret<S> {
             }
         };
 
+        let from = self.location(id);
+
         self.remove_id(log, id);
 
         self.dust.push(id);
+
+        let instance = self.instance(id).unwrap();
+        let attach = instance
+            .attachment
+            .map(|attach_id| self.instance(attach_id).unwrap().clone());
+
+        // Emit dust event.
+        log(Event::MoveCard {
+            instance: Some((instance.clone(), attach)),
+            from,
+            to: ExactCardLocation {
+                player: self.player,
+                location: (Zone::Dust { public: false }, self.dust.len() - 1),
+            },
+        });
 
         Ok(())
     }

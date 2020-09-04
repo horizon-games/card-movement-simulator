@@ -2855,6 +2855,22 @@ impl<S: State> CardGame<S> {
                             let parent_id = secret.pointers[parent.pointer().unwrap().index];
                             secret.attach_card(parent_id, card_id, log).unwrap();
                         });
+
+                    // secret.attach_card only logs for *that* player, so we need to log for the other player.
+                    self.context
+                        .mutate_secret(1 - parent_bucket_player, |_, _, log| {
+                            log(Event::MoveCard {
+                                instance: None, // todo is this None correct?
+                                from: CardLocation {
+                                    player: owner,
+                                    location,
+                                },
+                                to: ExactCardLocation {
+                                    player: parent_bucket_player,
+                                    location: (Zone::Attachment { parent }, 0),
+                                },
+                            })
+                        });
                 }
                 Some(parent_id) => match parent_bucket {
                     None => {
@@ -2878,8 +2894,29 @@ impl<S: State> CardGame<S> {
                             .instance_ref()
                             .expect("New instance exists!")
                             .clone();
-                        self.modify_card_internal(parent_id.into(), move |parent, _| {
+                        let parent_owner = self.owner(parent_id);
+                        self.modify_card_internal(parent_id.into(), move |parent, log| {
                             parent.attachment = Some(card_id);
+
+                            // Log the card moving to public zone.
+                            log(Event::MoveCard {
+                                // we're moving an attach, so it can never have an attach.
+                                instance: Some((new_attach.clone(), None)),
+                                from: CardLocation {
+                                    player: owner,
+                                    location,
+                                },
+                                to: ExactCardLocation {
+                                    player: parent_owner,
+                                    location: (
+                                        Zone::Attachment {
+                                            parent: parent_id.into(),
+                                        },
+                                        0,
+                                    ),
+                                },
+                            });
+
                             S::on_attach(parent, &new_attach);
                         })
                         .await;
@@ -2892,7 +2929,28 @@ impl<S: State> CardGame<S> {
                                 });
 
                                 secret.attach_card(parent_id, card_id, log).unwrap();
-                            })
+                            });
+
+                        // secret.attach_card only logs for *that* player, so we need to log for the other player.
+                        self.context
+                            .mutate_secret(1 - parent_bucket_player, |_, _, log| {
+                                log(Event::MoveCard {
+                                    instance: None, // todo is this None correct?
+                                    from: CardLocation {
+                                        player: owner,
+                                        location,
+                                    },
+                                    to: ExactCardLocation {
+                                        player: parent_bucket_player,
+                                        location: (
+                                            Zone::Attachment {
+                                                parent: parent_id.into(),
+                                            },
+                                            0,
+                                        ),
+                                    },
+                                })
+                            });
                     }
                 },
             }
