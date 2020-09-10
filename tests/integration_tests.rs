@@ -1,10 +1,10 @@
-use {
-    arcadeum::store::Tester,
+use pretty_assertions::{assert_eq, assert_ne};
+use arcadeum::store::Tester;
+    use 
     card_movement_simulator::{
         Card, CardGame, CardInstance, Event, GameState, InstanceID, Player, PlayerSecret, Zone,
-    },
-    std::{cell::RefCell, convert::TryInto, future::Future, pin::Pin, rc::Rc},
-};
+    };
+    use std::{cell::RefCell, convert::TryInto, future::Future, pin::Pin, rc::Rc};
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
 struct State;

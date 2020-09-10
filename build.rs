@@ -54,16 +54,28 @@ fn main() -> std::io::Result<()> {
                                             to_zone: {to_zone},
                                         }})
                                         .unwrap();
-                                    let expected_p0_logs = {{
-                                        let mut logs = vec![];
-                                        if ({to_zone}).is_field() {{
-                                            logs.push(Event::SortField {{
-                                                player: {to_player}, permutation: vec![0]
-                                            }});
-                                        }}
-                                        logs
-                                    }};
-                                    assert_eq!(player_logs.try_borrow_mut().unwrap()[1].clone(), expected_p0_logs);
+                                    println!(\"{{:#?}}\", player_logs.try_borrow_mut().unwrap()[0].clone());
+                                    let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
+
+                                    actual_player_logs.next().unwrap(); // skip the initial MoveCard to from zone
+                                    if {base_card_type} == BaseCard::WithAttachment {{
+                                        // if it came with an attach, we'll see a ModifyCard.
+                                        let modify_event = actual_player_logs.next().unwrap();
+                                        println!(\"{{:#?}}\", modify_event);
+                                        assert!(matches!(modify_event, Event::ModifyCard {{
+                                            ..
+                                        }}));
+                                    }}
+
+                                    let move_event = actual_player_logs.next().unwrap();
+                                    assert!(matches!(move_event, Event::MoveCard{{..}}));
+
+                                    if ({to_zone}).is_field() {{
+                                        let sort_event = actual_player_logs.next().unwrap();
+                                        assert_eq!(sort_event, Event::SortField {{
+                                            player: {to_player}, permutation: vec![0]
+                                        }});
+                                    }}
                                 }}
 
                                 ",
@@ -81,175 +93,175 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
+    /*
+        // Generate tests for detaching into all zones.
+        // Detach {
+        //     parent_ptr_bucket: Zone,
+        //     attachment_ptr_bucket: Option<Player>,
+        //     to_player: Player,
+        //     to_zone: Zone,
+        // },
+        for parent_zone in &zones {
+            for attachment_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+                for to_player in 0..2 {
+                    for to_zone in &zones {
+                        let stripped_name = identifier_ify_string(&format!(
+                            "detach_parent_in_{}_attachment_ptr_{}_to_{}_{}",
+                            parent_zone, attachment_ptr_bucket, to_player, to_zone
+                        ));
+                        generated_tests.push_str(&format!(
+                            "
+                                #[test]
+                                fn test_{stripped_name}() {{
+                                  Tester::new(
+                                      GameState::<State>::default(),
+                                      [
+                                          PlayerSecret::new(0, Default::default()),
+                                          PlayerSecret::new(1, Default::default()),
+                                      ],
+                                      Default::default(),
+                                      |_, _, _| {{}},
+                                      |_, _| {{}},
+                                  )
+                                  .unwrap()
+                                  .apply(Some(0), &Action::Detach {{
+                                      parent_zone: {parent_zone},
+                                      attachment_ptr_bucket: {attachment_ptr_bucket},
+                                      to_player: {to_player},
+                                      to_zone: {to_zone},
+                                  }})
+                                  .unwrap();
+                                }}
 
-    // Generate tests for detaching into all zones.
-    // Detach {
-    //     parent_ptr_bucket: Zone,
-    //     attachment_ptr_bucket: Option<Player>,
-    //     to_player: Player,
-    //     to_zone: Zone,
-    // },
-    for parent_zone in &zones {
-        for attachment_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
-            for to_player in 0..2 {
-                for to_zone in &zones {
-                    let stripped_name = identifier_ify_string(&format!(
-                        "detach_parent_in_{}_attachment_ptr_{}_to_{}_{}",
-                        parent_zone, attachment_ptr_bucket, to_player, to_zone
-                    ));
-                    generated_tests.push_str(&format!(
-                        "
-                            #[test]
-                            fn test_{stripped_name}() {{
-                              Tester::new(
-                                  GameState::<State>::default(),
-                                  [
-                                      PlayerSecret::new(0, Default::default()),
-                                      PlayerSecret::new(1, Default::default()),
-                                  ],
-                                  Default::default(),
-                                  |_, _, _| {{}},
-                                  |_, _| {{}},
-                              )
-                              .unwrap()
-                              .apply(Some(0), &Action::Detach {{
-                                  parent_zone: {parent_zone},
-                                  attachment_ptr_bucket: {attachment_ptr_bucket},
-                                  to_player: {to_player},
-                                  to_zone: {to_zone},
-                              }})
-                              .unwrap();
-                            }}
-
-                            ",
-                        stripped_name = stripped_name,
-                        parent_zone = parent_zone,
-                        attachment_ptr_bucket = attachment_ptr_bucket,
-                        to_player = to_player,
-                        to_zone = to_zone,
-                    ))
+                                ",
+                            stripped_name = stripped_name,
+                            parent_zone = parent_zone,
+                            attachment_ptr_bucket = attachment_ptr_bucket,
+                            to_player = to_player,
+                            to_zone = to_zone,
+                        ))
+                    }
                 }
             }
         }
-    }
 
-    // Generate tests for attaching from all zones.
-    // Attach {
-    //     parent_base_card: BaseCard,
-    //     parent_ptr_bucket: Option<Player>,
-    //     parent_zone: Zone,
-    //     card_ptr_bucket: Option<Player>,
-    //     card_owner: Player,
-    //     card_zone: Zone,
-    // },
-    for parent_base_card in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
-        for parent_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
-            for parent_zone in &zones {
-                for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
-                    for card_owner in 0..2 {
-                        for card_zone in &zones {
-                            let stripped_name = identifier_ify_string(&format!(
-                                "attach_to_{}_parent_ptr_{}_in_{}_card_ptr_{}_of_{}_in_{}",
-                                parent_base_card,
-                                parent_ptr_bucket,
-                                parent_zone,
-                                card_ptr_bucket,
-                                card_owner,
-                                card_zone,
-                            ));
-                            generated_tests.push_str(&format!(
-                                "
-                            #[test]
-                            fn test_{stripped_name}() {{
-                              Tester::new(
-                                  GameState::<State>::default(),
-                                  [
-                                      PlayerSecret::new(0, Default::default()),
-                                      PlayerSecret::new(1, Default::default()),
-                                  ],
-                                  Default::default(),
-                                  |_, _, _| {{}},
-                                  |_, _| {{}},
-                              )
-                              .unwrap()
-                              .apply(Some(0), &Action::Attach {{
-                                  parent_base_card: {parent_base_card},
-                                  parent_ptr_bucket: {parent_ptr_bucket},
-                                  parent_zone: {parent_zone},
-                                  card_ptr_bucket: {card_ptr_bucket},
-                                  card_owner: {card_owner},
-                                  card_zone: {card_zone},
-                              }})
-                              .unwrap();
-                            }}
+        // Generate tests for attaching from all zones.
+        // Attach {
+        //     parent_base_card: BaseCard,
+        //     parent_ptr_bucket: Option<Player>,
+        //     parent_zone: Zone,
+        //     card_ptr_bucket: Option<Player>,
+        //     card_owner: Player,
+        //     card_zone: Zone,
+        // },
+        for parent_base_card in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
+            for parent_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+                for parent_zone in &zones {
+                    for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+                        for card_owner in 0..2 {
+                            for card_zone in &zones {
+                                let stripped_name = identifier_ify_string(&format!(
+                                    "attach_to_{}_parent_ptr_{}_in_{}_card_ptr_{}_of_{}_in_{}",
+                                    parent_base_card,
+                                    parent_ptr_bucket,
+                                    parent_zone,
+                                    card_ptr_bucket,
+                                    card_owner,
+                                    card_zone,
+                                ));
+                                generated_tests.push_str(&format!(
+                                    "
+                                #[test]
+                                fn test_{stripped_name}() {{
+                                  Tester::new(
+                                      GameState::<State>::default(),
+                                      [
+                                          PlayerSecret::new(0, Default::default()),
+                                          PlayerSecret::new(1, Default::default()),
+                                      ],
+                                      Default::default(),
+                                      |_, _, _| {{}},
+                                      |_, _| {{}},
+                                  )
+                                  .unwrap()
+                                  .apply(Some(0), &Action::Attach {{
+                                      parent_base_card: {parent_base_card},
+                                      parent_ptr_bucket: {parent_ptr_bucket},
+                                      parent_zone: {parent_zone},
+                                      card_ptr_bucket: {card_ptr_bucket},
+                                      card_owner: {card_owner},
+                                      card_zone: {card_zone},
+                                  }})
+                                  .unwrap();
+                                }}
 
-                            ",
-                                stripped_name = stripped_name,
-                                parent_base_card = parent_base_card,
-                                parent_ptr_bucket = parent_ptr_bucket,
-                                parent_zone = parent_zone,
-                                card_ptr_bucket = card_ptr_bucket,
-                                card_owner = card_owner,
-                                card_zone = card_zone,
-                            ))
+                                ",
+                                    stripped_name = stripped_name,
+                                    parent_base_card = parent_base_card,
+                                    parent_ptr_bucket = parent_ptr_bucket,
+                                    parent_zone = parent_zone,
+                                    card_ptr_bucket = card_ptr_bucket,
+                                    card_owner = card_owner,
+                                    card_zone = card_zone,
+                                ))
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    // Generate tests for copying cards.
-    // CopyCard {
-    //     card_ptr_bucket: Option<Player>, // 3
-    //     base_card_type: BaseCard,        // 2
-    //     deep: bool,                      // 2
-    //     card_zone: Zone,
-    // },
-    for base_card_type in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
-        for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
-            for card_zone in &zones {
-                for deep in &[false, true] {
-                    let stripped_name = identifier_ify_string(&format!(
-                        "copy_card_ptr_{}_card_{}_zone_{}_deep_{}",
-                        card_ptr_bucket, base_card_type, card_zone, deep,
-                    ));
-                    generated_tests.push_str(&format!(
-                        "
-                        #[test]
-                        fn test_{stripped_name}() {{
-                          Tester::new(
-                              GameState::<State>::default(),
-                              [
-                                  PlayerSecret::new(0, Default::default()),
-                                  PlayerSecret::new(1, Default::default()),
-                              ],
-                              Default::default(),
-                              |_, _, _| {{}},
-                              |_, _| {{}},
-                          )
-                          .unwrap()
-                          .apply(Some(0), &Action::CopyCard {{
-                              card_ptr_bucket: {card_ptr_bucket},
-                              base_card_type: {base_card_type},
-                                card_zone: {card_zone},
-                              deep: {deep},
-                          }})
-                          .unwrap();
-                        }}
+        // Generate tests for copying cards.
+        // CopyCard {
+        //     card_ptr_bucket: Option<Player>, // 3
+        //     base_card_type: BaseCard,        // 2
+        //     deep: bool,                      // 2
+        //     card_zone: Zone,
+        // },
+        for base_card_type in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
+            for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+                for card_zone in &zones {
+                    for deep in &[false, true] {
+                        let stripped_name = identifier_ify_string(&format!(
+                            "copy_card_ptr_{}_card_{}_zone_{}_deep_{}",
+                            card_ptr_bucket, base_card_type, card_zone, deep,
+                        ));
+                        generated_tests.push_str(&format!(
+                            "
+                            #[test]
+                            fn test_{stripped_name}() {{
+                              Tester::new(
+                                  GameState::<State>::default(),
+                                  [
+                                      PlayerSecret::new(0, Default::default()),
+                                      PlayerSecret::new(1, Default::default()),
+                                  ],
+                                  Default::default(),
+                                  |_, _, _| {{}},
+                                  |_, _| {{}},
+                              )
+                              .unwrap()
+                              .apply(Some(0), &Action::CopyCard {{
+                                  card_ptr_bucket: {card_ptr_bucket},
+                                  base_card_type: {base_card_type},
+                                    card_zone: {card_zone},
+                                  deep: {deep},
+                              }})
+                              .unwrap();
+                            }}
 
-                        ",
-                        stripped_name = stripped_name,
-                        card_ptr_bucket = card_ptr_bucket,
-                        base_card_type = base_card_type,
-                        card_zone = card_zone,
-                        deep = deep,
-                    ))
+                            ",
+                            stripped_name = stripped_name,
+                            card_ptr_bucket = card_ptr_bucket,
+                            base_card_type = base_card_type,
+                            card_zone = card_zone,
+                            deep = deep,
+                        ))
+                    }
                 }
             }
         }
-    }
-
+    */
     // create file
 
     let test_file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("generated_tests.rs");

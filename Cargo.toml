@@ -29,6 +29,7 @@ arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", feat
   "tester",
   "version"
 ] }
+pretty_assertions = "0.6"
 
 [features]
 default = []
