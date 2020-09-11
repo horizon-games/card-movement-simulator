@@ -54,12 +54,21 @@ fn main() -> std::io::Result<()> {
                                             to_zone: {to_zone},
                                         }})
                                         .unwrap();
-                                    println!(\"{{:#?}}\", player_logs.try_borrow_mut().unwrap()[0].clone());
+                                    println!(\"{{:#?}}c\", player_logs.try_borrow_mut().unwrap()[0].clone());
                                     let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
 
-                                    actual_player_logs.next().unwrap(); // skip the initial MoveCard to from zone
                                     if {base_card_type} == BaseCard::WithAttachment {{
-                                        // if it came with an attach, we'll see a ModifyCard.
+                                        // MoveCard to attach it.
+                                        let attach_event = actual_player_logs.next().unwrap();
+                                        assert!(matches!(attach_event, Event::MoveCard {{
+                                            to: ExactCardLocation {{
+                                                location: (Zone::Attachment{{..}}, _),
+                                                ..
+                                            }},
+                                            ..
+                                        }}));
+
+                                        // ModifyCard of parent from attach callback.
                                         let modify_event = actual_player_logs.next().unwrap();
                                         println!(\"{{:#?}}\", modify_event);
                                         assert!(matches!(modify_event, Event::ModifyCard {{
