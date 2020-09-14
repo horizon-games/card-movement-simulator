@@ -76,8 +76,11 @@ fn main() -> std::io::Result<()> {
                                         }}));
                                     }}
 
-                                    let move_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                    assert!(matches!(move_event, Event::MoveCard{{..}}));
+                                    let move_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                    assert!(matches!(move_to_start_zone_event, Event::MoveCard{{..}}));
+
+                                    let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                    assert!(matches!(move_to_end_zone_event, Event::MoveCard{{..}}));
 
                                     if ({to_zone}).is_field() {{
                                         let sort_event = actual_player_logs.next().unwrap();
