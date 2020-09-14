@@ -54,29 +54,29 @@ fn main() -> std::io::Result<()> {
                                             to_zone: {to_zone},
                                         }})
                                         .unwrap();
-                                    println!(\"{{:#?}}c\", player_logs.try_borrow_mut().unwrap()[0].clone());
+                                    println!(\"All logs:\n{{:#?}}c\", player_logs.try_borrow_mut().unwrap()[0].clone());
                                     let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
 
                                     if {base_card_type} == BaseCard::WithAttachment {{
                                         // MoveCard to attach it.
-                                        let attach_event = actual_player_logs.next().unwrap();
+                                        let attach_event = actual_player_logs.next().expect(\"Expected attach event, got None.\");
                                         assert!(matches!(attach_event, Event::MoveCard {{
                                             to: ExactCardLocation {{
                                                 location: (Zone::Attachment{{..}}, _),
                                                 ..
                                             }},
                                             ..
-                                        }}));
+                                        }}), \"Base card has attachment, so expected attach event.\nGot {{:#?}}.\", attach_event);
 
                                         // ModifyCard of parent from attach callback.
-                                        let modify_event = actual_player_logs.next().unwrap();
+                                        let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
                                         println!(\"{{:#?}}\", modify_event);
                                         assert!(matches!(modify_event, Event::ModifyCard {{
                                             ..
                                         }}));
                                     }}
 
-                                    let move_event = actual_player_logs.next().unwrap();
+                                    let move_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
                                     assert!(matches!(move_event, Event::MoveCard{{..}}));
 
                                     if ({to_zone}).is_field() {{

@@ -1669,7 +1669,6 @@ impl<S: State> CardGame<S> {
                 return self.attach_card(card, parent).await;
             }
         };
-
         // We always need to know who owns the card instance itself.
 
         // Either this card is in Public state (None) or a player's secret (Some(player)).
@@ -1941,7 +1940,7 @@ impl<S: State> CardGame<S> {
             .or_else(|| instance.as_ref().map(|v| v.id))
             .expect("Either we know ID or we've revealed the instance.");
 
-        // If this card came from a secret
+        // If this card came from a secret, we know it's leaving that secret. SX -> SX case handled above.
         if let Some(bucket_owner) = bucket {
             self.context.mutate_secret(bucket_owner, |secret, _, log| {
                 // Take its ID out of any zones in that secret.
@@ -2012,7 +2011,7 @@ impl<S: State> CardGame<S> {
             Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
         }
 
-        if let Some(instance) = instance {
+        if let Some(instance) = instance.clone() {
             // we have a new instance, need to put it somewhere.
             let id = instance.id;
 
@@ -2031,7 +2030,7 @@ impl<S: State> CardGame<S> {
             }
 
             // If we have an attachment_instance, we also need to put it somewhere the same way.
-            if let Some(attachment_instance) = attachment_instance {
+            if let Some(attachment_instance) = attachment_instance.clone() {
                 let attachment_id = attachment_instance.id;
 
                 match to_bucket {
@@ -2070,6 +2069,18 @@ impl<S: State> CardGame<S> {
             }
             None => (),
         }
+
+        self.context.log(Event::MoveCard {
+            instance: instance.map(|i| (i, attachment_instance)),
+            from: CardLocation {
+                player: owner,
+                location,
+            },
+            to: ExactCardLocation {
+                player: to_player,
+                location: (to_zone, 0),
+            },
+        });
 
         if to_zone.is_field() {
             self.sort_field(to_player);
