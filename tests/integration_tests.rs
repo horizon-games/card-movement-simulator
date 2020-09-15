@@ -89,11 +89,10 @@ impl card_movement_simulator::State for State {
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
 
-                    eprintln!(
+                    println!(
                         "Moving card {:?} into its \"to\" zone: player {}'s {:?}",
                         card, to_player, to_zone,
                     );
-
                     live_game.move_card(card, to_player, to_zone).await.unwrap();
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));

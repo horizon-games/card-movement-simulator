@@ -7,7 +7,6 @@ use inflections::case::to_snake_case;
 
 fn main() -> std::io::Result<()> {
     let mut generated_tests = String::new();
-
     let zones = [
         "Zone::Deck",
         "Zone::Hand { public: true }",
@@ -39,8 +38,8 @@ fn main() -> std::io::Result<()> {
                                 to_player,
                                 to_zone
                             ));
-                            generated_tests.push_str(&format!(
-                                "
+
+                            let mut test = format!("
                                 #[test]
                                 fn test_{stripped_name}() {{
                                     let (mut tester, _owner_logs, player_logs) = make_tester();
@@ -54,42 +53,14 @@ fn main() -> std::io::Result<()> {
                                             to_zone: {to_zone},
                                         }})
                                         .unwrap();
-                                    println!(\"All logs:\n{{:#?}}c\", player_logs.try_borrow_mut().unwrap()[0].clone());
+                                    
+                                    println!(\"\n\nAll Logs:\");
+                                    for card in player_logs.try_borrow_mut().unwrap()[0].clone() {{
+                                        println!(\"{{}}\", card);
+                                    }}
+                                    println!(\"\n\");
+
                                     let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
-
-                                    if {base_card_type} == BaseCard::WithAttachment {{
-                                        // MoveCard to attach it.
-                                        let attach_event = actual_player_logs.next().expect(\"Expected attach event, got None.\");
-                                        assert!(matches!(attach_event, Event::MoveCard {{
-                                            to: ExactCardLocation {{
-                                                location: (Zone::Attachment{{..}}, _),
-                                                ..
-                                            }},
-                                            ..
-                                        }}), \"Base card has attachment, so expected attach event.\nGot {{:#?}}.\", attach_event);
-
-                                        // ModifyCard of parent from attach callback.
-                                        let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
-                                        println!(\"{{:#?}}\", modify_event);
-                                        assert!(matches!(modify_event, Event::ModifyCard {{
-                                            ..
-                                        }}));
-                                    }}
-
-                                    let move_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                    assert!(matches!(move_to_start_zone_event, Event::MoveCard{{..}}));
-
-                                    let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                    assert!(matches!(move_to_end_zone_event, Event::MoveCard{{..}}));
-
-                                    if ({to_zone}).is_field() {{
-                                        let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, Event::SortField {{
-                                            player: {to_player}, permutation: vec![0]
-                                        }});
-                                    }}
-                                }}
-
                                 ",
                                 stripped_name = stripped_name,
                                 card_ptr_bucket = card_ptr_bucket,
@@ -98,13 +69,74 @@ fn main() -> std::io::Result<()> {
                                 from_zone = from_zone,
                                 to_player = to_player,
                                 to_zone = to_zone,
-                            ))
+                            );
+
+                            // If our BaseCard has an attachment, we'll see a MoveCard to attach it upon creation.
+                            if base_card_type == &"BaseCard::WithAttachment" {
+                                test += "
+                                        let attach_event = actual_player_logs.next().expect(\"Expected attach event, got None.\");
+                                        assert!(matches!(attach_event, Event::MoveCard {
+                                            to: ExactCardLocation {
+                                                location: (Zone::Attachment{parent: Card::ID(_)}, _),
+                                                ..
+                                            },
+                                            instance: Some(_),
+                                            ..
+                                        }), \"Base card has attachment, so expected attach event.\nGot {:#?}.\", attach_event);
+
+                                        // ModifyCard of parent from attach callback.
+                                        let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
+                                        assert!(matches!(modify_event, Event::ModifyCard {
+                                            ..
+                                        }));
+                                        "
+                            };
+
+                            test += "
+                                    let move_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                    assert!(matches!(move_to_start_zone_event, Event::MoveCard{..}));
+                                    ";
+
+                            // If we move to the field, it gets re-ordered.
+                            if from_zone == &"Zone::Field" {
+                                test += &format!(
+                                    "
+                                        let sort_event = actual_player_logs.next().unwrap();
+                                        assert_eq!(sort_event, Event::SortField {{
+                                            player: {from_player}, permutation: vec![0]
+                                        }});
+                                    ",
+                                    from_player = from_player
+                                )
+                            }
+
+                            // Event should fire if we moved to a different zone.
+                            test += "
+                                    let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                    assert!(matches!(move_to_end_zone_event, Event::MoveCard{..}));
+                                    ";
+
+                            // If we move to the field, it gets re-ordered.
+                            if to_zone == &"Zone::Field" {
+                                test += &format!(
+                                    "
+                                        let sort_event = actual_player_logs.next().unwrap();
+                                        assert_eq!(sort_event, Event::SortField {{
+                                            player: {to_player}, permutation: vec![0]
+                                        }});
+                                    ",
+                                    to_player = to_player
+                                )
+                            }
+                            test += "\n}\n\n";
+                            generated_tests.push_str(&test);
                         }
                     }
                 }
             }
         }
     }
+
     /*
         // Generate tests for detaching into all zones.
         // Detach {

@@ -27,6 +27,25 @@ impl PartialEq for CardLocation {
     }
 }
 
+impl std::fmt::Display for CardLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Player {}'s {}",
+            self.player,
+            if let Some((zone, index)) = self.location {
+                if let Some(index) = index {
+                    format!("#{} card in {}", index, zone)
+                } else {
+                    format!("{}", zone)
+                }
+            } else {
+                "secret location".to_string()
+            }
+        )
+    }
+}
+
 #[cfg_attr(
     feature = "bindings",
     derive(typescript_definitions::TypescriptDefinition)
@@ -43,5 +62,15 @@ impl PartialEq for ExactCardLocation {
         self.player == other.player
             && self.location.0.eq(other.location.0).unwrap()
             && self.location.1 == other.location.1
+    }
+}
+
+impl std::fmt::Display for ExactCardLocation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Card #{} in Player {}'s {}",
+            self.location.1, self.player, self.location.0
+        )
     }
 }

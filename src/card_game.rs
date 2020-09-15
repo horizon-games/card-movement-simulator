@@ -1750,6 +1750,7 @@ impl<S: State> CardGame<S> {
             if to_bucket == bucket {
                 self.context.mutate_secret(bucket_owner, |secret, _, log| {
                     let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                    let old_location = secret.location(id);
                     // Remove this card from its old zone in the secret.
                     secret.remove_id(log, id);
 
@@ -1770,6 +1771,21 @@ impl<S: State> CardGame<S> {
                             unreachable!("Can't attach a spell with move_card.")
                         }
                     }
+
+                    let instance = secret.instance(id).unwrap();
+                    log(Event::MoveCard {
+                        instance: Some((
+                            instance.clone(),
+                            instance
+                                .attachment
+                                .map(|a_id| secret.instance(a_id).unwrap().clone()),
+                        )),
+                        from: old_location,
+                        to: ExactCardLocation {
+                            player: secret.player(),
+                            location: (to_zone, 0), // todo index,
+                        },
+                    })
                 });
 
                 if let Some((zone, index)) = location {
@@ -1814,6 +1830,22 @@ impl<S: State> CardGame<S> {
                     }
                     Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
                 }
+
+                // Bucket owner has already seen the log, so do it for only the other player
+                self.context
+                    .mutate_secret(1 - bucket_owner, |secret, _, log| {
+                        log(Event::MoveCard {
+                            instance: None,
+                            from: CardLocation {
+                                player: secret.player(),
+                                location,
+                            },
+                            to: ExactCardLocation {
+                                player: secret.player(),
+                                location: (to_zone, 0), // todo index,
+                            },
+                        })
+                    });
 
                 return Ok((
                     CardLocation {

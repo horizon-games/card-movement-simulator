@@ -112,3 +112,25 @@ impl Zone {
         Ok(!self.eq(other)?)
     }
 }
+
+impl std::fmt::Display for Zone {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Zone::Deck => write!(f, "deck"),
+            Zone::Hand { public } => {
+                write!(f, "{} hand", if *public { "public" } else { "private" })
+            }
+            Zone::Field => write!(f, "field"),
+            Zone::Graveyard => write!(f, "graveyard"),
+            Zone::Dust { public } => {
+                write!(f, "{} dust", if *public { "public" } else { "private" })
+            }
+            Zone::Attachment { parent } => write!(f, "attached to {:?}", parent),
+            Zone::Limbo { public } => {
+                write!(f, "{} limbo", if *public { "public" } else { "private" })
+            }
+            Zone::Casting => write!(f, "casting"),
+            Zone::CardSelection => write!(f, "card selection"),
+        }
+    }
+}
