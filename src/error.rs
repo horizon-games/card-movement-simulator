@@ -34,6 +34,12 @@ pub enum ZoneEqualityError {
     IncomparableZones { a: Zone, b: Zone },
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum ZoneAttachmentError {
+    #[error("cannot determine if zone {a:?} is public")]
+    AttachmentSecrecyIndeterminate { a: Zone },
+}
+
 #[doc(hidden)]
 #[derive(thiserror::Error, Eq, PartialEq, Debug)]
 pub enum RevealOkError {

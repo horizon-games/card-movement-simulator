@@ -111,10 +111,20 @@ fn main() -> std::io::Result<()> {
                             }
 
                             // Event should fire if we moved to a different zone.
-                            test += "
+                            test += &format!("
                                     let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                    assert!(matches!(move_to_end_zone_event, Event::MoveCard{..}));
-                                    ";
+                                    if ({to_zone}).is_public().unwrap() || ({from_zone}).is_public().unwrap() {{
+                                        assert!(matches!(move_to_end_zone_event, Event::MoveCard{{
+                                            instance: Some(_), 
+                                            ..
+                                        }}));
+                                    }} else {{
+                                        assert!(matches!(move_to_end_zone_event, Event::MoveCard{{
+                                            instance: None,
+                                            ..
+                                        }}));
+                                    }}
+                                    ", to_zone = to_zone, from_zone = from_zone);
 
                             // If we move to the field, it gets re-ordered.
                             if to_zone == &"Zone::Field" {

@@ -82,6 +82,23 @@ impl Zone {
         matches!(self, Self::CardSelection)
     }
 
+    pub fn is_public(&self) -> Result<bool, error::ZoneAttachmentError> {
+        match self {
+            Self::Deck => Ok(false),
+            Self::Hand { public } => Ok(*public),
+            Self::Field => Ok(true),
+            Self::Graveyard => Ok(true),
+            Self::Dust { public } => Ok(*public),
+            Self::Attachment { .. } => {
+                Err(error::ZoneAttachmentError::AttachmentSecrecyIndeterminate { a: *self })
+            }
+
+            Self::Limbo { public } => Ok(*public),
+            Self::Casting => Ok(true),
+            Self::CardSelection => Ok(false),
+        }
+    }
+
     pub fn eq(&self, other: Zone) -> Result<bool, error::ZoneEqualityError> {
         match self {
             Self::Deck => Ok(other.is_deck()),
