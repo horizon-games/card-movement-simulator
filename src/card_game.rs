@@ -1601,13 +1601,10 @@ impl<S: State> CardGame<S> {
 
                         f(instance, &mut |event| context.log(event));
 
-                        let after = state.instances[id.0]
-                            .instance_ref()
-                            .unwrap_or_else(|| panic!("{:?} vanished", id));
-
-                        if !before.eq(after) {
+                        let instance = &*instance; // lose mutable ref
+                        if !before.eq(instance) {
                             context.log(Event::ModifyCard {
-                                instance: after.clone(),
+                                instance: instance.clone(),
                             })
                         }
                         match location.0 {

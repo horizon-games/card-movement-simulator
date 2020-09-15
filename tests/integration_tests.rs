@@ -148,7 +148,7 @@ impl card_movement_simulator::State for State {
                             .reveal_from_card(parent_id, |info| { info.attachment_was_detached })
                             .await,
                         1,
-                        "Did not detach!"
+                        "Did not fire detach callback!"
                     );
 
                     assert!(
@@ -464,8 +464,10 @@ struct CardState {
 }
 
 impl card_movement_simulator::CardState for CardState {
-    fn eq(&self, _other: &Self) -> bool {
-        true
+    fn eq(&self, other: &Self) -> bool {
+        self.was_cloned == other.was_cloned
+            && self.attachment_was_attached == other.attachment_was_attached
+            && self.attachment_was_detached == other.attachment_was_detached
     }
     fn copy_card(&self) -> CardState {
         let mut copy = self.clone();
