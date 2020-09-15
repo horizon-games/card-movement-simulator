@@ -2103,7 +2103,16 @@ impl<S: State> CardGame<S> {
         }
 
         self.context.log(Event::MoveCard {
-            instance: instance.map(|i| (i, attachment_instance)),
+            instance: instance.map(|i| (i, attachment_instance)).or_else(|| {
+                id.instance(self, None).map(|instance| {
+                    (
+                        instance.clone(),
+                        instance
+                            .attachment
+                            .map(|a_id| a_id.instance(self, None).unwrap().clone()),
+                    )
+                })
+            }),
             from: CardLocation {
                 player: owner,
                 location,

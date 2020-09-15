@@ -111,9 +111,10 @@ fn main() -> std::io::Result<()> {
                             }
 
                             // Event should fire if we moved to a different zone.
+                            // Player 0 should see the card instance in every event involving it.
                             test += &format!("
                                     let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                    if ({to_zone}).is_public().unwrap() || ({from_zone}).is_public().unwrap() {{
+                                    if {from_player} == 0 || {to_player} == 0 || ({to_zone}).is_public().unwrap() || ({from_zone}).is_public().unwrap() {{
                                         assert!(matches!(move_to_end_zone_event, Event::MoveCard{{
                                             instance: Some(_), 
                                             ..
@@ -124,7 +125,12 @@ fn main() -> std::io::Result<()> {
                                             ..
                                         }}));
                                     }}
-                                    ", to_zone = to_zone, from_zone = from_zone);
+                                ",
+                                from_player = from_player,
+                                to_player = to_player,
+                                to_zone = to_zone,
+                                from_zone = from_zone
+                            );
 
                             // If we move to the field, it gets re-ordered.
                             if to_zone == &"Zone::Field" {
