@@ -305,32 +305,32 @@ fn main() -> std::io::Result<()> {
                                 card_owner,
                                 card_zone,
                             ));
-                            generated_tests.push_str(&format!(
-                                "
-                                #[test]
-                                fn test_{stripped_name}() {{
-                                  Tester::new(
-                                      GameState::<State>::default(),
-                                      [
-                                          PlayerSecret::new(0, Default::default()),
-                                          PlayerSecret::new(1, Default::default()),
-                                      ],
-                                      Default::default(),
-                                      |_, _, _| {{}},
-                                      |_, _| {{}},
-                                  )
-                                  .unwrap()
-                                  .apply(Some(0), &Action::Attach {{
-                                      parent_base_card: {parent_base_card},
-                                      parent_ptr_bucket: {parent_ptr_bucket},
-                                      parent_zone: {parent_zone},
-                                      card_ptr_bucket: {card_ptr_bucket},
-                                      card_owner: {card_owner},
-                                      card_zone: {card_zone},
-                                  }})
-                                  .unwrap();
-                                }}
 
+                            let mut test = format!(
+                                "
+                                    #[test]
+                                    fn test_{stripped_name}() {{
+                                        let (mut tester, _owner_logs, player_logs) = make_tester();
+
+                                        tester
+                                            .apply(Some(0), &Action::Attach {{
+                                                parent_base_card: {parent_base_card},
+                                                parent_ptr_bucket: {parent_ptr_bucket},
+                                                parent_zone: {parent_zone},
+                                                card_ptr_bucket: {card_ptr_bucket},
+                                                card_owner: {card_owner},
+                                                card_zone: {card_zone},
+                                            }})
+                                            .unwrap();
+                                        
+
+                                        println!(\"\n\nAll Logs:\");
+                                        for card in player_logs.try_borrow_mut().unwrap()[0].clone() {{
+                                            println!(\"{{}}\n\", card);
+                                        }}
+                                        println!(\"\n\");
+
+                                        let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
                                 ",
                                 stripped_name = stripped_name,
                                 parent_base_card = parent_base_card,
@@ -339,12 +339,102 @@ fn main() -> std::io::Result<()> {
                                 card_ptr_bucket = card_ptr_bucket,
                                 card_owner = card_owner,
                                 card_zone = card_zone,
-                            ));
+                            );
+                            if parent_base_card == &"BaseCard::WithAttachment" {
+                                // Our BaseCard has an attachment, so we'll see a MoveCard to attach it upon creation.
+                                test += "
+                                    let attach_event = actual_player_logs.next().expect(\"Expected attach event, got None.\");
+                                    assert!(matches!(attach_event, Event::MoveCard {
+                                        to: ExactCardLocation {
+                                            location: (Zone::Attachment{parent: Card::ID(_)}, _),
+                                            ..
+                                        },
+                                        instance: Some(_),
+                                        ..
+                                    }), \"Base card has attachment, so expected attach event.\nGot {:#?}.\", attach_event);
+
+                                    // ModifyCard of parent from attach callback.
+                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
+                                    assert!(matches!(modify_event, Event::ModifyCard {
+                                        ..
+                                    }));
+                            ";
+                            }
+                            test += "
+                                let move_parent_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                assert!(matches!(move_parent_to_start_zone_event, Event::MoveCard{..}));
+                            ";
+
+                            // If parent moves to the field to start, it gets re-ordered.
+                            if parent_zone == &"Zone::Field" {
+                                test += "
+                                    let sort_event = actual_player_logs.next().unwrap();
+                                    assert_eq!(sort_event, Event::SortField {
+                                        player: 0, permutation: vec![0]
+                                    });
+                                ";
+                            }
+
+                            test += "
+                                let move_attach_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                assert!(matches!(move_attach_to_start_zone_event, Event::MoveCard{..}));
+                            ";
+
+                            // If to-attach-card moves to the field to start, it gets re-ordered.
+                            if card_zone == &"Zone::Field" {
+                                let two_units_on_field =
+                                    parent_zone == &"Zone::Field" && card_owner == 0;
+                                test += &format!(
+                                    "
+                                        let sort_event = actual_player_logs.next().unwrap();
+                                        assert_eq!(sort_event, Event::SortField {{
+                                            player: {player}, permutation: vec![0{two_units}]
+                                        }});
+                                    ",
+                                    player = card_owner,
+                                    two_units = if two_units_on_field { ", 1" } else { "" },
+                                )
+                            }
+
+                            if parent_base_card == &"BaseCard::WithAttachment" {
+                                test += "
+                                // ModifyCard for parent being modified because of detach.
+                                let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
+                                assert!(matches!(modify_event, Event::ModifyCard {
+                                    ..
+                                }), \"Expected Event::ModifyCard for parent because of child being detached, got {:?}\", modify_event);
+                            ";
+                            }
+
+                            // If parent is modified in the field due to detach, field gets re-ordered.
+                            if parent_zone == &"Zone::Field" {
+                                let two_units_on_field =
+                                    card_zone == &"Zone::Field" && card_owner == 0;
+                                test += &format!(
+                                    "
+                                        let sort_event = actual_player_logs.next().unwrap();
+                                        assert_eq!(sort_event, Event::SortField {{
+                                            player: 0, permutation: vec![0{two_units}]
+                                        }});
+                                    ",
+                                    two_units = if two_units_on_field { ", 1" } else { "" },
+                                )
+                            }
+
+                            test += "
+                                let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                assert!(matches!(move_to_end_zone_event, Event::MoveCard {
+                                    instance: Some(_),
+                                    ..
+                                }));
+                            ";
+
+                            test += "\n}\n\n";
+                            generated_tests.push_str(&test);
                         }
                     }
                 }
             }
-            // break;
         }
     }
     /*
