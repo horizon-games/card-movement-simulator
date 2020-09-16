@@ -21,6 +21,7 @@ fn main() -> std::io::Result<()> {
         "Zone::Dust { public: false }",
     ];
 
+    /*
     // Generate tests for moving from/to all ones excluding attachments.
     for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
         // Option<Player>
@@ -174,7 +175,7 @@ fn main() -> std::io::Result<()> {
                             #[test]
                             fn test_{stripped_name}() {{
                                 let (mut tester, _owner_logs, player_logs) = make_tester();
-                                
+
                                 tester
                                     .apply(Some(0), &Action::Detach {{
                                         parent_zone: {parent_zone},
@@ -216,7 +217,7 @@ fn main() -> std::io::Result<()> {
                         assert!(matches!(modify_event, Event::ModifyCard {
                             ..
                         }));
-                    
+
                         let move_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
                         assert!(matches!(move_to_start_zone_event, Event::MoveCard{..}));
                     ";
@@ -278,33 +279,34 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-    /*
-        // Generate tests for attaching from all zones.
-        // Attach {
-        //     parent_base_card: BaseCard,
-        //     parent_ptr_bucket: Option<Player>,
-        //     parent_zone: Zone,
-        //     card_ptr_bucket: Option<Player>,
-        //     card_owner: Player,
-        //     card_zone: Zone,
-        // },
-        for parent_base_card in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
-            for parent_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
-                for parent_zone in &zones {
-                    for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
-                        for card_owner in 0..2 {
-                            for card_zone in &zones {
-                                let stripped_name = identifier_ify_string(&format!(
-                                    "attach_to_{}_parent_ptr_{}_in_{}_card_ptr_{}_of_{}_in_{}",
-                                    parent_base_card,
-                                    parent_ptr_bucket,
-                                    parent_zone,
-                                    card_ptr_bucket,
-                                    card_owner,
-                                    card_zone,
-                                ));
-                                generated_tests.push_str(&format!(
-                                    "
+    */
+
+    // Generate tests for attaching from all zones.
+    // Attach {
+    //     parent_base_card: BaseCard,
+    //     parent_ptr_bucket: Option<Player>,
+    //     parent_zone: Zone,
+    //     card_ptr_bucket: Option<Player>,
+    //     card_owner: Player,
+    //     card_zone: Zone,
+    // },
+    for parent_base_card in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
+        for parent_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+            for parent_zone in &zones {
+                for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+                    for card_owner in 0..2 {
+                        for card_zone in &zones {
+                            let stripped_name = identifier_ify_string(&format!(
+                                "attach_to_{}_parent_ptr_{}_in_{}_card_ptr_{}_of_{}_in_{}",
+                                parent_base_card,
+                                parent_ptr_bucket,
+                                parent_zone,
+                                card_ptr_bucket,
+                                card_owner,
+                                card_zone,
+                            ));
+                            generated_tests.push_str(&format!(
+                                "
                                 #[test]
                                 fn test_{stripped_name}() {{
                                   Tester::new(
@@ -330,20 +332,22 @@ fn main() -> std::io::Result<()> {
                                 }}
 
                                 ",
-                                    stripped_name = stripped_name,
-                                    parent_base_card = parent_base_card,
-                                    parent_ptr_bucket = parent_ptr_bucket,
-                                    parent_zone = parent_zone,
-                                    card_ptr_bucket = card_ptr_bucket,
-                                    card_owner = card_owner,
-                                    card_zone = card_zone,
-                                ))
-                            }
+                                stripped_name = stripped_name,
+                                parent_base_card = parent_base_card,
+                                parent_ptr_bucket = parent_ptr_bucket,
+                                parent_zone = parent_zone,
+                                card_ptr_bucket = card_ptr_bucket,
+                                card_owner = card_owner,
+                                card_zone = card_zone,
+                            ));
                         }
                     }
                 }
             }
+            // break;
         }
+    }
+    /*
 
         // Generate tests for copying cards.
         // CopyCard {
