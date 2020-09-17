@@ -398,13 +398,44 @@ fn main() -> std::io::Result<()> {
 
                             if parent_base_card == &"BaseCard::WithAttachment" {
                                 test += "
-                                // ModifyCard for parent being modified because of detach.
+                                    // Dust current attach
+                                    let dust_current_attach = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                    assert!(matches!(dust_current_attach, Event::MoveCard {
+                                        instance: Some(_),
+                                        ..
+                                    }), \"Expected MoveCard from Zone::Attach to Zone::Dust, got {:?}.\", dust_current_attach);
+                                    
+                                    // ModifyCard for parent being modified because of detach.
+                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
+                                    assert!(matches!(modify_event, Event::ModifyCard {
+                                        ..
+                                    }), \"Expected Event::ModifyCard for parent because of child being detached, got {:?}\", modify_event);
+                                ";
+                                // If parent is on the field, replacing its child will cause a re-order
+                                if parent_zone == &"Zone::Field" {
+                                    test += "
+                                        let sort_event = actual_player_logs.next().unwrap();
+                                        assert_eq!(sort_event, Event::SortField {
+                                            player: 0, permutation: vec![0]
+                                        });
+                                    ";
+                                }
+                            }
+                            test += "
+                                let attach_attachment_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                assert!(matches!(attach_attachment_event, Event::MoveCard {
+                                    instance: Some(_),
+                                    ..
+                                }), \"Expected MoveCard to Zone::Attachment, got {:?}.\", attach_attachment_event);
+                            ";
+
+                            test += "
+                                // Parent being modified because of new attach.
                                 let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
                                 assert!(matches!(modify_event, Event::ModifyCard {
                                     ..
-                                }), \"Expected Event::ModifyCard for parent because of child being detached, got {:?}\", modify_event);
+                                }), \"Expected Event::ModifyCard for parent because of new attach, got {:?}\", modify_event);
                             ";
-                            }
 
                             // If parent is modified in the field due to detach, field gets re-ordered.
                             if parent_zone == &"Zone::Field" {
@@ -420,14 +451,6 @@ fn main() -> std::io::Result<()> {
                                     two_units = if two_units_on_field { ", 1" } else { "" },
                                 )
                             }
-
-                            test += "
-                                let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                assert!(matches!(move_to_end_zone_event, Event::MoveCard {
-                                    instance: Some(_),
-                                    ..
-                                }));
-                            ";
 
                             test += "\n}\n\n";
                             generated_tests.push_str(&test);
