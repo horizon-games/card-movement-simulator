@@ -1559,6 +1559,7 @@ impl<S: State> CardGame<S> {
             &mut CardInstance<S>,
             &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
         ),
+        logger: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
     ) {
         let card = if let Card::Pointer(OpaquePointer { player, index }) = card {
             self.context
@@ -1599,11 +1600,11 @@ impl<S: State> CardGame<S> {
 
                         let before = instance.clone();
 
-                        f(instance, &mut |event| context.log(event));
+                        f(instance, &mut |event| logger(event));
 
                         let instance = &*instance; // lose mutable ref
                         if !before.eq(instance) {
-                            context.log(Event::ModifyCard {
+                            logger(Event::ModifyCard {
                                 instance: instance.clone(),
                             })
                         }
@@ -1855,9 +1856,31 @@ impl<S: State> CardGame<S> {
             }
         }
 
+        let mut deferred_logs = vec![];
+
         let (instance, attachment_instance) = match bucket {
             None => {
                 let id = id.expect("Card is in public state, but we don't know its id.");
+                if let Some((
+                    Zone::Attachment {
+                        parent: Card::ID(old_parent),
+                    },
+                    ..,
+                )) = location
+                {
+                    let attach_clone = id
+                        .instance(self, None)
+                        .expect("Match is in None, so this id must be in public state.")
+                        .clone();
+                    self.modify_card_internal(
+                        old_parent.into(),
+                        |parent, _| {
+                            S::on_detach(parent, &attach_clone);
+                        },
+                        &mut |event| deferred_logs.push(event),
+                    )
+                    .await;
+                }
 
                 if let Some(to_bucket_player) = to_bucket {
                     let instance = std::mem::replace(
@@ -2110,23 +2133,8 @@ impl<S: State> CardGame<S> {
             },
         });
 
-        if bucket.is_none() {
-            if let Some((
-                Zone::Attachment {
-                    parent: Card::ID(old_parent),
-                },
-                ..,
-            )) = location
-            {
-                let attach_clone = id
-                    .instance(self, None)
-                    .expect("Match is in None, so this id must be in public state.")
-                    .clone();
-                self.modify_card_internal(old_parent.into(), |parent, _| {
-                    S::on_detach(parent, &attach_clone);
-                })
-                .await;
-            }
+        for deferred_log in deferred_logs {
+            self.context.log(deferred_log);
         }
 
         for log_player in 0..2 {
@@ -2961,31 +2969,39 @@ impl<S: State> CardGame<S> {
                             .expect("New instance exists!")
                             .clone();
                         let parent_owner = self.owner(parent_id);
-                        self.modify_card_internal(parent_id.into(), move |parent, log| {
-                            parent.attachment = Some(card_id);
+                        let mut logs = vec![];
+                        self.modify_card_internal(
+                            parent_id.into(),
+                            move |parent, log| {
+                                parent.attachment = Some(card_id);
 
-                            // Log the card moving to public zone.
-                            log(Event::MoveCard {
-                                // we're moving an attach, so it can never have an attach.
-                                instance: Some((new_attach.clone(), None)),
-                                from: CardLocation {
-                                    player: owner,
-                                    location,
-                                },
-                                to: ExactCardLocation {
-                                    player: parent_owner,
-                                    location: (
-                                        Zone::Attachment {
-                                            parent: parent_id.into(),
-                                        },
-                                        0,
-                                    ),
-                                },
-                            });
+                                // Log the card moving to public zone.
+                                log(Event::MoveCard {
+                                    // we're moving an attach, so it can never have an attach.
+                                    instance: Some((new_attach.clone(), None)),
+                                    from: CardLocation {
+                                        player: owner,
+                                        location,
+                                    },
+                                    to: ExactCardLocation {
+                                        player: parent_owner,
+                                        location: (
+                                            Zone::Attachment {
+                                                parent: parent_id.into(),
+                                            },
+                                            0,
+                                        ),
+                                    },
+                                });
 
-                            S::on_attach(parent, &new_attach);
-                        })
+                                S::on_attach(parent, &new_attach);
+                            },
+                            &mut |event| logs.push(event),
+                        )
                         .await;
+                        for msg in logs.into_iter() {
+                            self.context.log(msg);
+                        }
                     }
                     Some(parent_bucket_player) => {
                         self.context

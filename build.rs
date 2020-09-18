@@ -21,6 +21,7 @@ fn main() -> std::io::Result<()> {
         "Zone::Dust { public: false }",
     ];
 
+    /*
     // Generate tests for moving from/to all ones excluding attachments.
     for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
         // Option<Player>
@@ -153,6 +154,7 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
+    */
 
     // Generate tests for detaching into all zones.
     // Detach {
@@ -231,6 +233,14 @@ fn main() -> std::io::Result<()> {
                         ";
                     }
 
+                    test += "
+                        let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                        assert!(matches!(move_to_end_zone_event, Event::MoveCard {
+                            instance: Some(_),
+                            ..
+                        }), \"Expected MoveCard to End Zone, got {:?}\", move_to_end_zone_event);
+                    ";
+
                     // Player 0 should see the card instance in every event involving it.
                     test += "
                         // ModifyCard for parent being modified because of detach.
@@ -249,14 +259,6 @@ fn main() -> std::io::Result<()> {
                             });
                         ";
                     }
-
-                    test += "
-                        let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                        assert!(matches!(move_to_end_zone_event, Event::MoveCard {
-                            instance: Some(_),
-                            ..
-                        }));
-                    ";
 
                     // If we move to the field, it gets an ordering event.
                     if to_zone == &"Zone::Field" {
@@ -279,6 +281,7 @@ fn main() -> std::io::Result<()> {
         }
     }
 
+    /*
     // Generate tests for attaching from all zones.
     // Attach {
     //     parent_base_card: BaseCard,
@@ -325,7 +328,7 @@ fn main() -> std::io::Result<()> {
                                                 card_zone: {card_zone},
                                             }})
                                             .unwrap();
-                                        
+
 
                                         println!(\"\n\nAll Logs:\");
                                         for card in player_logs.try_borrow_mut().unwrap()[0].clone() {{
@@ -407,7 +410,7 @@ fn main() -> std::io::Result<()> {
                                         instance: Some(_),
                                         ..
                                     }), \"Expected MoveCard from Zone::Attach to Zone::Dust, got {:?}.\", dust_current_attach);
-                                    
+
                                     // ModifyCard for parent being modified because of detach.
                                     let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
                                     assert!(matches!(modify_event, Event::ModifyCard {
@@ -518,6 +521,7 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
+    */
     // create file
 
     let test_file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("generated_tests.rs");
