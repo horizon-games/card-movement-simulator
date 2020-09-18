@@ -21,7 +21,6 @@ fn main() -> std::io::Result<()> {
         "Zone::Dust { public: false }",
     ];
 
-    /*
     // Generate tests for moving from/to all ones excluding attachments.
     for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
         // Option<Player>
@@ -279,7 +278,6 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-    */
 
     // Generate tests for attaching from all zones.
     // Attach {
@@ -469,25 +467,24 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-    /*
 
-        // Generate tests for copying cards.
-        // CopyCard {
-        //     card_ptr_bucket: Option<Player>, // 3
-        //     base_card_type: BaseCard,        // 2
-        //     deep: bool,                      // 2
-        //     card_zone: Zone,
-        // },
-        for base_card_type in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
-            for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
-                for card_zone in &zones {
-                    for deep in &[false, true] {
-                        let stripped_name = identifier_ify_string(&format!(
-                            "copy_card_ptr_{}_card_{}_zone_{}_deep_{}",
-                            card_ptr_bucket, base_card_type, card_zone, deep,
-                        ));
-                        generated_tests.push_str(&format!(
-                            "
+    // Generate tests for copying cards.
+    // CopyCard {
+    //     card_ptr_bucket: Option<Player>, // 3
+    //     base_card_type: BaseCard,        // 2
+    //     deep: bool,                      // 2
+    //     card_zone: Zone,
+    // },
+    for base_card_type in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
+        for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+            for card_zone in &zones {
+                for deep in &[false, true] {
+                    let stripped_name = identifier_ify_string(&format!(
+                        "copy_card_ptr_{}_card_{}_zone_{}_deep_{}",
+                        card_ptr_bucket, base_card_type, card_zone, deep,
+                    ));
+                    generated_tests.push_str(&format!(
+                        "
                             #[test]
                             fn test_{stripped_name}() {{
                               Tester::new(
@@ -511,17 +508,16 @@ fn main() -> std::io::Result<()> {
                             }}
 
                             ",
-                            stripped_name = stripped_name,
-                            card_ptr_bucket = card_ptr_bucket,
-                            base_card_type = base_card_type,
-                            card_zone = card_zone,
-                            deep = deep,
-                        ))
-                    }
+                        stripped_name = stripped_name,
+                        card_ptr_bucket = card_ptr_bucket,
+                        base_card_type = base_card_type,
+                        card_zone = card_zone,
+                        deep = deep,
+                    ))
                 }
             }
         }
-    */
+    }
     // create file
 
     let test_file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("generated_tests.rs");
