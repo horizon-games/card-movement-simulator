@@ -43,7 +43,12 @@ pub enum Event<S: State> {
     },
 
     /// Game-specific event.
+    #[serde(deserialize_with = "deserialize_game_event")]
     GameEvent { event: S::Event },
+}
+
+fn deserialize_game_event<'de, D: serde::Deserializer<'de>, T>(_: D) -> Result<T, D::Error> {
+    unreachable!("attempted to deserialize an Event::GameEvent");
 }
 
 impl<S: State> std::fmt::Display for Event<S> {
