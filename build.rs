@@ -296,6 +296,11 @@ fn main() -> std::io::Result<()> {
                 for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
                     for card_owner in 0..2 {
                         for card_zone in &zones {
+                            if !(parent_base_card == &"BaseCard::WithAttachment"
+                                && parent_ptr_bucket == &"Some(1)")
+                            {
+                                continue;
+                            }
                             let stripped_name = identifier_ify_string(&format!(
                                 "attach_to_{}_parent_ptr_{}_in_{}_card_ptr_{}_of_{}_in_{}",
                                 parent_base_card,
@@ -411,14 +416,21 @@ fn main() -> std::io::Result<()> {
                                         ..
                                     }), \"Expected Event::ModifyCard for parent because of child being detached, got {:?}\", modify_event);
                                 ";
+
                                 // If parent is on the field, replacing its child will cause a re-order
+                                // Note: Parent cards in this tests always belong to player 0.
                                 if parent_zone == &"Zone::Field" {
-                                    test += "
+                                    let two_units_on_field =
+                                        card_zone == &"Zone::Field" && card_owner == 0;
+                                    test += &format!(
+                                        "
                                         let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, Event::SortField {
-                                            player: 0, permutation: vec![0]
-                                        });
-                                    ";
+                                        assert_eq!(sort_event, Event::SortField {{
+                                            player: 0, permutation: vec![0{two_units}]
+                                        }});
+                                    ",
+                                        two_units = if two_units_on_field { ", 1" } else { "" },
+                                    )
                                 }
                             }
                             test += "
@@ -439,27 +451,21 @@ fn main() -> std::io::Result<()> {
 
                             // If parent is modified in the field due to detach, field gets re-ordered.
                             if parent_zone == &"Zone::Field" {
-                                let two_units_on_field =
-                                    card_zone == &"Zone::Field" && card_owner == 0;
                                 test += &format!(
                                     "
                                         let sort_event = actual_player_logs.next().unwrap();
                                         assert_eq!(sort_event, Event::SortField {{
-                                            player: 0, permutation: vec![0{two_units}]
+                                            player: 0, permutation: vec![0]
                                         }});
                                     ",
-                                    two_units = if two_units_on_field { ", 1" } else { "" },
                                 )
                             }
 
                             test += "\n}\n\n";
                             generated_tests.push_str(&test);
                         }
-                        break;
                     }
-                    break;
                 }
-                break;
             }
         }
     }

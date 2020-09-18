@@ -1858,23 +1858,6 @@ impl<S: State> CardGame<S> {
             None => {
                 let id = id.expect("Card is in public state, but we don't know its id.");
 
-                if let Some((
-                    Zone::Attachment {
-                        parent: Card::ID(old_parent),
-                    },
-                    ..,
-                )) = location
-                {
-                    let attach_clone = id
-                        .instance(self, None)
-                        .expect("Match is in None, so this id must be in public state.")
-                        .clone();
-                    self.modify_card_internal(old_parent.into(), |parent, _| {
-                        S::on_detach(parent, &attach_clone);
-                    })
-                    .await;
-                }
-
                 if let Some(to_bucket_player) = to_bucket {
                     let instance = std::mem::replace(
                         &mut self.instances[id.0],
@@ -2119,6 +2102,25 @@ impl<S: State> CardGame<S> {
                 location: (to_zone, 0),
             },
         });
+
+        if bucket.is_none() {
+            if let Some((
+                Zone::Attachment {
+                    parent: Card::ID(old_parent),
+                },
+                ..,
+            )) = location
+            {
+                let attach_clone = id
+                    .instance(self, None)
+                    .expect("Match is in None, so this id must be in public state.")
+                    .clone();
+                self.modify_card_internal(old_parent.into(), |parent, _| {
+                    S::on_detach(parent, &attach_clone);
+                })
+                .await;
+            }
+        }
 
         if to_zone.is_field() {
             self.sort_field(to_player);
