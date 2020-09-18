@@ -354,10 +354,6 @@ impl<S: State> PlayerSecret<S> {
 
         let from = self.location(id);
 
-        self.remove_id(log, id);
-
-        self.dust.push(id);
-
         let instance = self.instance(id).unwrap();
         let attach = instance
             .attachment
@@ -369,9 +365,14 @@ impl<S: State> PlayerSecret<S> {
             from,
             to: ExactCardLocation {
                 player: self.player,
-                location: (Zone::Dust { public: false }, self.dust.len() - 1),
+                location: (Zone::Dust { public: false }, self.dust.len()),
             },
         });
+
+        // Finally, move the card from its current zone to Dust.
+        // remove_id might call on_detach, so we have to run it after we emit the Dust event to get correct log orders.
+        self.remove_id(log, id);
+        self.dust.push(id);
 
         Ok(())
     }
