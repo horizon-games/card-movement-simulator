@@ -455,8 +455,11 @@ fn main() -> std::io::Result<()> {
                             test += "\n}\n\n";
                             generated_tests.push_str(&test);
                         }
+                        break;
                     }
+                    break;
                 }
+                break;
             }
         }
     }
