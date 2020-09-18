@@ -1748,6 +1748,22 @@ impl<S: State> CardGame<S> {
                 self.context.mutate_secret(bucket_owner, |secret, _, log| {
                     let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                     let old_location = secret.location(id);
+
+                    let instance = secret.instance(id).unwrap();
+                    log(Event::MoveCard {
+                        instance: Some((
+                            instance.clone(),
+                            instance
+                                .attachment
+                                .map(|a_id| secret.instance(a_id).unwrap().clone()),
+                        )),
+                        from: old_location,
+                        to: ExactCardLocation {
+                            player: secret.player(),
+                            location: (to_zone, 0), // todo index,
+                        },
+                    });
+
                     // Remove this card from its old zone in the secret.
                     secret.remove_id(log, id);
 
@@ -1768,21 +1784,6 @@ impl<S: State> CardGame<S> {
                             unreachable!("Can't attach a spell with move_card.")
                         }
                     }
-
-                    let instance = secret.instance(id).unwrap();
-                    log(Event::MoveCard {
-                        instance: Some((
-                            instance.clone(),
-                            instance
-                                .attachment
-                                .map(|a_id| secret.instance(a_id).unwrap().clone()),
-                        )),
-                        from: old_location,
-                        to: ExactCardLocation {
-                            player: secret.player(),
-                            location: (to_zone, 0), // todo index,
-                        },
-                    })
                 });
 
                 if let Some((zone, index)) = location {
@@ -1930,10 +1931,16 @@ impl<S: State> CardGame<S> {
                     // We're removing the attachment from a card in the secret
                     if let Some(parent_id) = parent_id {
                         let attach_clone = secret.instance(id).unwrap().clone();
-                        secret.modify_card_internal(parent_id, log, |parent, _| {
-                            S::on_detach(parent, &attach_clone);
-                            parent.attachment = None;
-                        });
+                        let mut deferred_logs = vec![];
+                        secret.modify_card_internal(
+                            parent_id,
+                            &mut |event| deferred_logs.push(event),
+                            |parent, _| {
+                                S::on_detach(parent, &attach_clone);
+                                parent.attachment = None;
+                            },
+                        );
+                        secret.deferred_logs = deferred_logs;
                     }
                     // We're removing a card with an attachment from the secret
                     if let Some(attachment_id) = secret.instance(id).unwrap().attachment {
@@ -2120,6 +2127,14 @@ impl<S: State> CardGame<S> {
                 })
                 .await;
             }
+        }
+
+        for log_player in 0..2 {
+            self.context.mutate_secret(log_player, |secret, _, log| {
+                for deferred_log in secret.deferred_logs.drain(..) {
+                    log(deferred_log);
+                }
+            });
         }
 
         if to_zone.is_field() {

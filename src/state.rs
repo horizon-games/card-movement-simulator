@@ -17,7 +17,7 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
     type Action: Action;
 
     /// Event type
-    type Event;
+    type Event: Clone + Debug + serde::Serialize + serde::de::DeserializeOwned;
 
     /// Secret type
     type Secret: Secret + Debug;

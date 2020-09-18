@@ -14,13 +14,13 @@ use wasm_bindgen::prelude::wasm_bindgen;
     derive(typescript_definitions::TypescriptDefinition)
 )]
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct PlayerSecret<S: State> {
     #[serde(bound = "S: State")]
     pub secret: S::Secret,
 
     #[serde(bound = "S: State")]
     pub(crate) instances: indexmap::IndexMap<InstanceID, CardInstance<S>>,
-    #[serde(rename = "nextInstance")]
     pub(crate) next_instance: Option<InstanceID>,
     pub(crate) pointers: Vec<InstanceID>,
 
@@ -28,8 +28,12 @@ pub struct PlayerSecret<S: State> {
     pub(crate) hand: Vec<Option<InstanceID>>,
     pub(crate) dust: Vec<InstanceID>,
     pub(crate) limbo: Vec<InstanceID>,
-    #[serde(rename = "cardSelection")]
     pub(crate) card_selection: Vec<InstanceID>,
+
+    /// Used for deferred ModifyCard events when attachments are detached.
+    /// Internal use only.
+    #[serde(bound = "S: State")]
+    pub(crate) deferred_logs: Vec<Event<S>>,
 
     player: Player,
 }
@@ -62,6 +66,8 @@ impl<S: State> PlayerSecret<S> {
             dust: Default::default(),
             limbo: Default::default(),
             card_selection: Default::default(),
+
+            deferred_logs: Default::default(),
 
             player,
         }
