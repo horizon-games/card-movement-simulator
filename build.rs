@@ -21,7 +21,6 @@ fn main() -> std::io::Result<()> {
         "Zone::Dust { public: false }",
     ];
 
-    /*
     // Generate tests for moving from/to all ones excluding attachments.
     for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
         // Option<Player>
@@ -154,7 +153,6 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-    */
 
     // Generate tests for detaching into all zones.
     // Detach {
@@ -281,7 +279,6 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    /*
     // Generate tests for attaching from all zones.
     // Attach {
     //     parent_base_card: BaseCard,
@@ -297,11 +294,6 @@ fn main() -> std::io::Result<()> {
                 for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
                     for card_owner in 0..2 {
                         for card_zone in &zones {
-                            if !(parent_base_card == &"BaseCard::WithAttachment"
-                                && parent_ptr_bucket == &"Some(1)")
-                            {
-                                continue;
-                            }
                             let stripped_name = identifier_ify_string(&format!(
                                 "attach_to_{}_parent_ptr_{}_in_{}_card_ptr_{}_of_{}_in_{}",
                                 parent_base_card,
@@ -521,7 +513,7 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-    */
+
     // create file
 
     let test_file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("generated_tests.rs");
