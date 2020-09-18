@@ -927,16 +927,20 @@ impl<S: State> CardGame<S> {
 
                     instance.state = instance.base.new_card_state();
 
+                    let mut logs = vec![];
                     match location.0 {
-                        Zone::Field => self.sort_field(owner),
+                        Zone::Field => self.sort_field(owner, &mut |event| logs.push(event)),
                         Zone::Attachment {
                             parent: Card::ID(parent_id),
                         } => {
                             if let Some((Zone::Field, ..)) = self.location(parent_id).location {
-                                self.sort_field(owner);
+                                self.sort_field(owner, &mut |event| logs.push(event));
                             }
                         }
                         _ => (),
+                    }
+                    for event in logs.into_iter() {
+                        self.context.log(event);
                     }
                 }
                 InstanceOrPlayer::Player(owner) => {
@@ -1514,16 +1518,22 @@ impl<S: State> CardGame<S> {
                             })
                         }
 
+                        let mut logs = vec![];
+
                         match location.0 {
-                            Zone::Field => self.sort_field(owner),
+                            Zone::Field => self.sort_field(owner, &mut |event| logs.push(event)),
                             Zone::Attachment {
                                 parent: Card::ID(parent_id),
                             } => {
                                 if let Some((Zone::Field, ..)) = self.location(parent_id).location {
-                                    self.sort_field(owner);
+                                    self.sort_field(owner, &mut |event| logs.push(event));
                                 }
                             }
                             _ => (),
+                        }
+
+                        for event in logs.into_iter() {
+                            self.context.log(event);
                         }
                     }
                     InstanceOrPlayer::Player(owner) => {
@@ -1583,7 +1593,7 @@ impl<S: State> CardGame<S> {
 
         match card {
             Card::ID(id) => {
-                let Self { state, context } = self;
+                let Self { state, .. } = self;
 
                 match &state.instances[id.0] {
                     InstanceOrPlayer::Instance(_) => {
@@ -1609,12 +1619,12 @@ impl<S: State> CardGame<S> {
                             })
                         }
                         match location.0 {
-                            Zone::Field => self.sort_field(owner),
+                            Zone::Field => self.sort_field(owner, logger),
                             Zone::Attachment {
                                 parent: Card::ID(parent_id),
                             } => {
                                 if let Some((Zone::Field, ..)) = self.location(parent_id).location {
-                                    self.sort_field(owner);
+                                    self.sort_field(owner, logger);
                                 }
                             }
                             _ => (),
@@ -2146,7 +2156,11 @@ impl<S: State> CardGame<S> {
         }
 
         if to_zone.is_field() {
-            self.sort_field(to_player);
+            let mut logs = vec![];
+            self.sort_field(to_player, &mut |event| logs.push(event));
+            for event in logs.into_iter() {
+                self.context.log(event);
+            }
         }
 
         Ok((
@@ -3047,7 +3061,11 @@ impl<S: State> CardGame<S> {
         })
     }
 
-    fn sort_field(&mut self, player: Player) {
+    fn sort_field(
+        &mut self,
+        player: Player,
+        logger: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
+    ) {
         let mut field = self.player_cards(player).field.clone();
 
         field.sort_by(|a, b| {
@@ -3095,7 +3113,7 @@ impl<S: State> CardGame<S> {
                     .unwrap()
             })
             .collect();
-        self.context.log(Event::SortField {
+        logger(Event::SortField {
             player,
             permutation,
         });
