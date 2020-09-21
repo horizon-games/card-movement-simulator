@@ -9,7 +9,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 )]
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "payload")]
-pub enum Event<S: State> {
+pub enum CardEvent<S: State> {
     /// Emitted when an OpaquePointer to an exact location is created.
     /// *not* emitted when new cards (and their associated pointers) are created in secret state.
     NewPointer {
@@ -44,39 +44,42 @@ pub enum Event<S: State> {
 
     /// Game-specific event.
     #[serde(deserialize_with = "deserialize_game_event")]
-    GameEvent { event: S::Event },
+    GameEvent {
+        #[cfg_attr(feature = "bindings", ts(ts_type = "GameEvent"))]
+        event: S::Event,
+    },
 }
 
 fn deserialize_game_event<'de, D: serde::Deserializer<'de>, T>(_: D) -> Result<T, D::Error> {
-    unreachable!("attempted to deserialize an Event::GameEvent");
+    unreachable!("attempted to deserialize an CardEvent::GameEvent");
 }
 
-impl<S: State> std::fmt::Display for Event<S> {
+impl<S: State> std::fmt::Display for CardEvent<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Event::NewPointer { pointer, location } => {
+            CardEvent::NewPointer { pointer, location } => {
                 write!(f, "New Pointer #{:?} to {:?})", pointer, location)
             }
-            Event::ModifyCard { instance } => write!(f, "Card #{:?} modified", instance.id),
-            Event::MoveCard { instance, from, to } => write!(
+            CardEvent::ModifyCard { instance } => write!(f, "Card #{:?} modified", instance.id),
+            CardEvent::MoveCard { instance, from, to } => write!(
                 f,
                 "Card moved from {} to {} with{} instance",
                 from,
                 to,
                 if instance.is_some() { "" } else { "out" }
             ),
-            Event::SortField {
+            CardEvent::SortField {
                 player,
                 permutation,
             } => write!(f, "Player {}'s field sorted: {:?}", player, permutation),
-            Event::GameEvent { .. } => write!(f, "Game Event"),
+            CardEvent::GameEvent { .. } => write!(f, "Game Event"),
         }
     }
 }
 
 #[cfg(feature = "event-eq")]
-impl<S: State> PartialEq for Event<S> {
-    fn eq(&self, other: &Event<S>) -> bool {
+impl<S: State> PartialEq for CardEvent<S> {
+    fn eq(&self, other: &CardEvent<S>) -> bool {
         match (self, other) {
             (
                 Self::NewPointer { pointer, location },

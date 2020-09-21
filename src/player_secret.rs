@@ -1,7 +1,7 @@
 use {
     crate::{
-        card_state::CardState, error, Card, CardInfo, CardInfoMut, CardInstance, CardLocation,
-        Event, ExactCardLocation, GameState, InstanceID, OpaquePointer, Player, State, Zone,
+        card_state::CardState, error, Card, CardEvent, CardInfo, CardInfoMut, CardInstance,
+        CardLocation, ExactCardLocation, GameState, InstanceID, OpaquePointer, Player, State, Zone,
     },
     std::ops::{Deref, DerefMut},
 };
@@ -33,7 +33,7 @@ pub struct PlayerSecret<S: State> {
     /// Used for deferred ModifyCard events when attachments are detached.
     /// Internal use only.
     #[serde(bound = "S: State")]
-    pub(crate) deferred_logs: Vec<Event<S>>,
+    pub(crate) deferred_logs: Vec<CardEvent<S>>,
 
     player: Player,
 }
@@ -303,7 +303,7 @@ impl<S: State> PlayerSecret<S> {
         self.modify_card_internal(card, log, |parent, log| {
             parent.attachment = Some(attachment);
             // Log the card moving to public zone.
-            log(Event::MoveCard {
+            log(CardEvent::MoveCard {
                 // we're moving an attach, so it can never have an attach.
                 instance: Some((new_attach.clone(), None)),
                 from,
@@ -366,7 +366,7 @@ impl<S: State> PlayerSecret<S> {
             .map(|attach_id| self.instance(attach_id).unwrap().clone());
 
         // Emit dust event.
-        log(Event::MoveCard {
+        log(CardEvent::MoveCard {
             instance: Some((instance.clone(), attach)),
             from,
             to: ExactCardLocation {
@@ -409,7 +409,7 @@ impl<S: State> PlayerSecret<S> {
             .unwrap_or_else(|| panic!("{:?} vanished", card));
 
         if !before.eq(after) {
-            log(Event::ModifyCard {
+            log(CardEvent::ModifyCard {
                 instance: after.clone(),
             })
         }

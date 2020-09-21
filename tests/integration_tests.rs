@@ -1,6 +1,6 @@
 use arcadeum::store::Tester;
 use card_movement_simulator::{
-    Card, CardGame, CardInstance, Event, ExactCardLocation, GameState, InstanceID, Player,
+    Card, CardEvent, CardGame, CardInstance, ExactCardLocation, GameState, InstanceID, Player,
     PlayerSecret, Zone,
 };
 use pretty_assertions::{assert_eq, assert_ne};
@@ -649,11 +649,12 @@ fn opponent_instance_from_id() {
 
 fn make_tester() -> (
     Tester<GameState<State>>,
-    Rc<RefCell<Vec<Event<State>>>>,
-    Rc<RefCell<[Vec<Event<State>>; 2]>>,
+    Rc<RefCell<Vec<CardEvent<State>>>>,
+    Rc<RefCell<[Vec<CardEvent<State>>; 2]>>,
 ) {
-    let owner_logs: Rc<RefCell<Vec<Event<State>>>> = Rc::new(RefCell::new(vec![]));
-    let player_logs: Rc<RefCell<[Vec<Event<State>>; 2]>> = Rc::new(RefCell::new([vec![], vec![]]));
+    let owner_logs: Rc<RefCell<Vec<CardEvent<State>>>> = Rc::new(RefCell::new(vec![]));
+    let player_logs: Rc<RefCell<[Vec<CardEvent<State>>; 2]>> =
+        Rc::new(RefCell::new([vec![], vec![]]));
 
     let owner_logs_clone = owner_logs.clone();
     let player_logs_clone = player_logs.clone();

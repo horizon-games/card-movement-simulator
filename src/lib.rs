@@ -3,11 +3,11 @@ use std::fmt::Debug;
 mod base_card;
 mod bind;
 mod card;
+mod card_event;
 mod card_game;
 mod card_instance;
 mod card_location;
 mod card_state;
-mod event;
 mod game_state;
 mod instance_id;
 mod opaque_pointer;
@@ -22,11 +22,11 @@ pub use {
     arcadeum::{crypto::Address, Nonce, Player, ID},
     base_card::BaseCard,
     card::Card,
+    card_event::CardEvent,
     card_game::{CardGame, CardInfo, CardInfoMut},
     card_instance::CardInstance,
     card_location::{CardLocation, ExactCardLocation},
     card_state::CardState,
-    event::Event,
     game_state::GameState,
     instance_id::InstanceID,
     opaque_pointer::OpaquePointer,

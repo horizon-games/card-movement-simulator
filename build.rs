@@ -76,7 +76,7 @@ fn main() -> std::io::Result<()> {
                             if base_card_type == &"BaseCard::WithAttachment" {
                                 test += "
                                     let attach_event = actual_player_logs.next().expect(\"Expected attach event, got None.\");
-                                    assert!(matches!(attach_event, Event::MoveCard {
+                                    assert!(matches!(attach_event, CardEvent::MoveCard {
                                         to: ExactCardLocation {
                                             location: (Zone::Attachment{parent: Card::ID(_)}, _),
                                             ..
@@ -86,16 +86,16 @@ fn main() -> std::io::Result<()> {
                                     }), \"Base card has attachment, so expected attach event.\nGot {:#?}.\", attach_event);
 
                                     // ModifyCard of parent from attach callback.
-                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
-                                    assert!(matches!(modify_event, Event::ModifyCard {
+                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                                    assert!(matches!(modify_event, CardEvent::ModifyCard {
                                         ..
                                     }));
                                 ";
                             };
 
                             test += "
-                                let move_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                assert!(matches!(move_to_start_zone_event, Event::MoveCard{..}));
+                                let move_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                assert!(matches!(move_to_start_zone_event, CardEvent::MoveCard{..}));
                             ";
 
                             // If we move to the field, it gets re-ordered.
@@ -103,7 +103,7 @@ fn main() -> std::io::Result<()> {
                                 test += &format!(
                                     "
                                         let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, Event::SortField {{
+                                        assert_eq!(sort_event, CardEvent::SortField {{
                                             player: {from_player}, permutation: vec![0]
                                         }});
                                     ",
@@ -114,14 +114,14 @@ fn main() -> std::io::Result<()> {
                             // Event should fire if we moved to a different zone.
                             // Player 0 should see the card instance in every event involving it.
                             test += &format!("
-                                        let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
+                                        let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
                                         if {from_player} == 0 || {to_player} == 0 || ({to_zone}).is_public().unwrap() || ({from_zone}).is_public().unwrap() {{
-                                            assert!(matches!(move_to_end_zone_event, Event::MoveCard{{
+                                            assert!(matches!(move_to_end_zone_event, CardEvent::MoveCard{{
                                                 instance: Some(_),
                                                 ..
                                             }}));
                                         }} else {{
-                                            assert!(matches!(move_to_end_zone_event, Event::MoveCard{{
+                                            assert!(matches!(move_to_end_zone_event, CardEvent::MoveCard{{
                                                 instance: None,
                                                 ..
                                             }}));
@@ -138,7 +138,7 @@ fn main() -> std::io::Result<()> {
                                 test += &format!(
                                     "
                                         let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, Event::SortField {{
+                                        assert_eq!(sort_event, CardEvent::SortField {{
                                             player: {to_player}, permutation: vec![0]
                                         }});
                                     ",
@@ -202,7 +202,7 @@ fn main() -> std::io::Result<()> {
                     // Our BaseCard has an attachment, so we'll see a MoveCard to attach it upon creation.
                     test += "
                         let attach_event = actual_player_logs.next().expect(\"Expected attach event, got None.\");
-                        assert!(matches!(attach_event, Event::MoveCard {
+                        assert!(matches!(attach_event, CardEvent::MoveCard {
                             to: ExactCardLocation {
                                 location: (Zone::Attachment{parent: Card::ID(_)}, _),
                                 ..
@@ -212,28 +212,28 @@ fn main() -> std::io::Result<()> {
                         }), \"Base card has attachment, so expected attach event.\nGot {:#?}.\", attach_event);
 
                         // ModifyCard of parent from attach callback.
-                        let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
-                        assert!(matches!(modify_event, Event::ModifyCard {
+                        let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                        assert!(matches!(modify_event, CardEvent::ModifyCard {
                             ..
                         }));
 
-                        let move_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                        assert!(matches!(move_to_start_zone_event, Event::MoveCard{..}));
+                        let move_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                        assert!(matches!(move_to_start_zone_event, CardEvent::MoveCard{..}));
                     ";
 
                     // If parent moves to the field to start, it gets re-ordered.
                     if parent_zone == &"Zone::Field" {
                         test += "
                             let sort_event = actual_player_logs.next().unwrap();
-                            assert_eq!(sort_event, Event::SortField {
+                            assert_eq!(sort_event, CardEvent::SortField {
                                 player: 0, permutation: vec![0]
                             });
                         ";
                     }
 
                     test += "
-                        let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                        assert!(matches!(move_to_end_zone_event, Event::MoveCard {
+                        let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                        assert!(matches!(move_to_end_zone_event, CardEvent::MoveCard {
                             instance: Some(_),
                             ..
                         }), \"Expected MoveCard to End Zone, got {:?}\", move_to_end_zone_event);
@@ -242,8 +242,8 @@ fn main() -> std::io::Result<()> {
                     // Player 0 should see the card instance in every event involving it.
                     test += "
                         // ModifyCard for parent being modified because of detach.
-                        let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
-                        assert!(matches!(modify_event, Event::ModifyCard {
+                        let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                        assert!(matches!(modify_event, CardEvent::ModifyCard {
                             ..
                         }));
                     ";
@@ -252,7 +252,7 @@ fn main() -> std::io::Result<()> {
                     if parent_zone == &"Zone::Field" {
                         test += "
                             let sort_event = actual_player_logs.next().unwrap();
-                            assert_eq!(sort_event, Event::SortField {
+                            assert_eq!(sort_event, CardEvent::SortField {
                                 player: 0, permutation: vec![0]
                             });
                         ";
@@ -264,7 +264,7 @@ fn main() -> std::io::Result<()> {
                         test += &format!(
                             "
                                 let sort_event = actual_player_logs.next().unwrap();
-                                assert_eq!(sort_event, Event::SortField {{
+                                assert_eq!(sort_event, CardEvent::SortField {{
                                     player: {to_player}, permutation: vec![0{two_units}]
                                 }});
                             ",
@@ -342,7 +342,7 @@ fn main() -> std::io::Result<()> {
                                 // Our BaseCard has an attachment, so we'll see a MoveCard to attach it upon creation.
                                 test += "
                                     let attach_event = actual_player_logs.next().expect(\"Expected attach event, got None.\");
-                                    assert!(matches!(attach_event, Event::MoveCard {
+                                    assert!(matches!(attach_event, CardEvent::MoveCard {
                                         to: ExactCardLocation {
                                             location: (Zone::Attachment{parent: Card::ID(_)}, _),
                                             ..
@@ -352,30 +352,30 @@ fn main() -> std::io::Result<()> {
                                     }), \"Base card has attachment, so expected attach event.\nGot {:#?}.\", attach_event);
 
                                     // ModifyCard of parent from attach callback.
-                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
-                                    assert!(matches!(modify_event, Event::ModifyCard {
+                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                                    assert!(matches!(modify_event, CardEvent::ModifyCard {
                                         ..
                                     }));
                             ";
                             }
                             test += "
-                                let move_parent_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                assert!(matches!(move_parent_to_start_zone_event, Event::MoveCard{..}));
+                                let move_parent_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                assert!(matches!(move_parent_to_start_zone_event, CardEvent::MoveCard{..}));
                             ";
 
                             // If parent moves to the field to start, it gets re-ordered.
                             if parent_zone == &"Zone::Field" {
                                 test += "
                                     let sort_event = actual_player_logs.next().unwrap();
-                                    assert_eq!(sort_event, Event::SortField {
+                                    assert_eq!(sort_event, CardEvent::SortField {
                                         player: 0, permutation: vec![0]
                                     });
                                 ";
                             }
 
                             test += "
-                                let move_attach_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                assert!(matches!(move_attach_to_start_zone_event, Event::MoveCard{..}));
+                                let move_attach_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                assert!(matches!(move_attach_to_start_zone_event, CardEvent::MoveCard{..}));
                             ";
 
                             // If to-attach-card moves to the field to start, it gets re-ordered.
@@ -385,7 +385,7 @@ fn main() -> std::io::Result<()> {
                                 test += &format!(
                                     "
                                         let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, Event::SortField {{
+                                        assert_eq!(sort_event, CardEvent::SortField {{
                                             player: {player}, permutation: vec![0{two_units}]
                                         }});
                                     ",
@@ -397,17 +397,17 @@ fn main() -> std::io::Result<()> {
                             if parent_base_card == &"BaseCard::WithAttachment" {
                                 test += "
                                     // Dust current attach
-                                    let dust_current_attach = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                    assert!(matches!(dust_current_attach, Event::MoveCard {
+                                    let dust_current_attach = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                    assert!(matches!(dust_current_attach, CardEvent::MoveCard {
                                         instance: Some(_),
                                         ..
                                     }), \"Expected MoveCard from Zone::Attach to Zone::Dust, got {:?}.\", dust_current_attach);
 
                                     // ModifyCard for parent being modified because of detach.
-                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
-                                    assert!(matches!(modify_event, Event::ModifyCard {
+                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                                    assert!(matches!(modify_event, CardEvent::ModifyCard {
                                         ..
-                                    }), \"Expected Event::ModifyCard for parent because of child being detached, got {:?}\", modify_event);
+                                    }), \"Expected CardEvent::ModifyCard for parent because of child being detached, got {:?}\", modify_event);
                                 ";
 
                                 // If parent is on the field, replacing its child will cause a re-order
@@ -418,7 +418,7 @@ fn main() -> std::io::Result<()> {
                                     test += &format!(
                                         "
                                         let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, Event::SortField {{
+                                        assert_eq!(sort_event, CardEvent::SortField {{
                                             player: 0, permutation: vec![0{two_units}]
                                         }});
                                     ",
@@ -427,8 +427,8 @@ fn main() -> std::io::Result<()> {
                                 }
                             }
                             test += "
-                                let attach_attachment_event = actual_player_logs.next().expect(\"Expected Some(Event::MoveCard), got None.\");
-                                assert!(matches!(attach_attachment_event, Event::MoveCard {
+                                let attach_attachment_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
                                     instance: Some(_),
                                     ..
                                 }), \"Expected MoveCard to Zone::Attachment, got {:?}.\", attach_attachment_event);
@@ -436,10 +436,10 @@ fn main() -> std::io::Result<()> {
 
                             test += "
                                 // Parent being modified because of new attach.
-                                let modify_event = actual_player_logs.next().expect(\"Expected Some(Event::ModifyCard), got None.\");
-                                assert!(matches!(modify_event, Event::ModifyCard {
+                                let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                                assert!(matches!(modify_event, CardEvent::ModifyCard {
                                     ..
-                                }), \"Expected Event::ModifyCard for parent because of new attach, got {:?}\", modify_event);
+                                }), \"Expected CardEvent::ModifyCard for parent because of new attach, got {:?}\", modify_event);
                             ";
 
                             // If parent is modified in the field due to detach, field gets re-ordered.
@@ -447,7 +447,7 @@ fn main() -> std::io::Result<()> {
                                 test += &format!(
                                     "
                                         let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, Event::SortField {{
+                                        assert_eq!(sort_event, CardEvent::SortField {{
                                             player: 0, permutation: vec![0]
                                         }});
                                     ",

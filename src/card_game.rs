@@ -1,6 +1,6 @@
 use {
     crate::{
-        error, BaseCard, Card, CardInstance, CardLocation, CardState, Context, Event,
+        error, BaseCard, Card, CardEvent, CardInstance, CardLocation, CardState, Context,
         ExactCardLocation, GameState, InstanceID, InstanceOrPlayer, OpaquePointer, Player,
         PlayerSecret, Secret, State, Zone,
     },
@@ -92,7 +92,7 @@ impl<S: State> CardGame<S> {
             index: player_cards.pointers - 1,
         };
 
-        self.context.log(Event::NewPointer {
+        self.context.log(CardEvent::NewPointer {
             pointer,
             location: ExactCardLocation {
                 player,
@@ -127,7 +127,7 @@ impl<S: State> CardGame<S> {
                     index: player_cards.pointers - 1,
                 };
 
-                self.context.log(Event::NewPointer {
+                self.context.log(CardEvent::NewPointer {
                     pointer,
                     location: ExactCardLocation {
                         player,
@@ -166,7 +166,7 @@ impl<S: State> CardGame<S> {
             index: player_cards.pointers - 1,
         };
 
-        self.context.log(Event::NewPointer {
+        self.context.log(CardEvent::NewPointer {
             pointer,
             location: ExactCardLocation {
                 player,
@@ -195,7 +195,7 @@ impl<S: State> CardGame<S> {
             index: player_cards.pointers - 1,
         };
 
-        self.context.log(Event::NewPointer {
+        self.context.log(CardEvent::NewPointer {
             pointer,
             location: ExactCardLocation {
                 player,
@@ -224,7 +224,7 @@ impl<S: State> CardGame<S> {
             index: player_cards.pointers - 1,
         };
 
-        self.context.log(Event::NewPointer {
+        self.context.log(CardEvent::NewPointer {
             pointer,
             location: ExactCardLocation {
                 player,
@@ -250,7 +250,7 @@ impl<S: State> CardGame<S> {
             .collect();
 
         for (index, pointer) in pointers.iter().enumerate() {
-            self.context.log(Event::NewPointer {
+            self.context.log(CardEvent::NewPointer {
                 pointer: *pointer,
                 location: ExactCardLocation {
                     player,
@@ -281,7 +281,7 @@ impl<S: State> CardGame<S> {
         self.player_cards_mut(player).pointers += num_secret_cards;
 
         for (pointer_index, hand_index) in secret_hand_indices.into_iter().enumerate() {
-            self.context.log(Event::NewPointer {
+            self.context.log(CardEvent::NewPointer {
                 pointer: OpaquePointer {
                     player,
                     index: pointer_index,
@@ -374,7 +374,7 @@ impl<S: State> CardGame<S> {
         let end_ptr = self.player_cards(player).pointers;
 
         for (zone_index, pointer_index) in (start_ptr..end_ptr).enumerate() {
-            self.context.log(Event::NewPointer {
+            self.context.log(CardEvent::NewPointer {
                 pointer: OpaquePointer {
                     player,
                     index: pointer_index,
@@ -1513,7 +1513,7 @@ impl<S: State> CardGame<S> {
                             .unwrap_or_else(|| panic!("{:?} vanished", id));
 
                         if !before.eq(after) {
-                            context.log(Event::ModifyCard {
+                            context.log(CardEvent::ModifyCard {
                                 instance: after.clone(),
                             })
                         }
@@ -1614,7 +1614,7 @@ impl<S: State> CardGame<S> {
 
                         let instance = &*instance; // lose mutable ref
                         if !before.eq(instance) {
-                            logger(Event::ModifyCard {
+                            logger(CardEvent::ModifyCard {
                                 instance: instance.clone(),
                             })
                         }
@@ -1761,7 +1761,7 @@ impl<S: State> CardGame<S> {
                     let old_location = secret.location(id);
 
                     let instance = secret.instance(id).unwrap();
-                    log(Event::MoveCard {
+                    log(CardEvent::MoveCard {
                         instance: Some((
                             instance.clone(),
                             instance
@@ -1843,7 +1843,7 @@ impl<S: State> CardGame<S> {
                 // Bucket owner has already seen the log, so do it for only the other player
                 self.context
                     .mutate_secret(1 - bucket_owner, |secret, _, log| {
-                        log(Event::MoveCard {
+                        log(CardEvent::MoveCard {
                             instance: None,
                             from: CardLocation {
                                 player: secret.player(),
@@ -2122,7 +2122,7 @@ impl<S: State> CardGame<S> {
             None => (),
         }
 
-        self.context.log(Event::MoveCard {
+        self.context.log(CardEvent::MoveCard {
             instance: instance.map(|i| (i, attachment_instance)).or_else(|| {
                 id.instance(self, None).map(|instance| {
                     (
@@ -2947,7 +2947,7 @@ impl<S: State> CardGame<S> {
                     // secret.attach_card only logs for *that* player, so we need to log for the other player.
                     self.context
                         .mutate_secret(1 - parent_bucket_player, |_, _, log| {
-                            log(Event::MoveCard {
+                            log(CardEvent::MoveCard {
                                 instance: None, // todo is this None correct?
                                 from: CardLocation {
                                     player: owner,
@@ -2990,7 +2990,7 @@ impl<S: State> CardGame<S> {
                                 parent.attachment = Some(card_id);
 
                                 // Log the card moving to public zone.
-                                log(Event::MoveCard {
+                                log(CardEvent::MoveCard {
                                     // we're moving an attach, so it can never have an attach.
                                     instance: Some((new_attach.clone(), None)),
                                     from: CardLocation {
@@ -3030,7 +3030,7 @@ impl<S: State> CardGame<S> {
                         // secret.attach_card only logs for *that* player, so we need to log for the other player.
                         self.context
                             .mutate_secret(1 - parent_bucket_player, |_, _, log| {
-                                log(Event::MoveCard {
+                                log(CardEvent::MoveCard {
                                     instance: None, // todo is this None correct?
                                     from: CardLocation {
                                         player: owner,
@@ -3113,7 +3113,7 @@ impl<S: State> CardGame<S> {
                     .unwrap()
             })
             .collect();
-        logger(Event::SortField {
+        logger(CardEvent::SortField {
             player,
             permutation,
         });
