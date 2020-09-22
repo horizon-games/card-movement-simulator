@@ -1760,21 +1760,34 @@ impl<S: State> CardGame<S> {
                     let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                     let old_location = secret.location(id);
 
-                    let instance = secret.instance(id).unwrap();
+                    let instance = secret.instance(id).unwrap().clone();
+                    let attachment = instance
+                        .attachment
+                        .map(|a_id| secret.instance(a_id).unwrap().clone());
                     log(CardEvent::MoveCard {
-                        instance: Some((
-                            instance.clone(),
-                            instance
-                                .attachment
-                                .map(|a_id| secret.instance(a_id).unwrap().clone()),
-                        )),
+                        instance: Some((instance, attachment)),
                         from: old_location,
                         to: ExactCardLocation {
-                            player: secret.player(),
-                            location: (to_zone, 0), // todo index,
+                            player: bucket_owner,
+                            location: (
+                                to_zone,
+                                match to_zone {
+                                    Zone::Deck => secret.deck.len(),
+                                    Zone::Hand { public: false } => secret.hand.len(),
+                                    Zone::Hand { public: true } => unreachable!(),
+                                    Zone::Field => unreachable!(),
+                                    Zone::Graveyard => unreachable!(),
+                                    Zone::Limbo { public: false } => secret.limbo.len(),
+                                    Zone::Limbo { public: true } => unreachable!(),
+                                    Zone::CardSelection => secret.card_selection.len(),
+                                    Zone::Casting => unreachable!(),
+                                    Zone::Dust { public: false } => secret.dust.len(),
+                                    Zone::Dust { public: true } => unreachable!(),
+                                    Zone::Attachment { .. } => 0,
+                                },
+                            ),
                         },
                     });
-
                     // Remove this card from its old zone in the secret.
                     secret.remove_id(log, id);
 
@@ -1840,21 +1853,39 @@ impl<S: State> CardGame<S> {
                     Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
                 }
 
+                let to_location = (
+                    to_zone,
+                    match to_zone {
+                        Zone::Deck => self.player_cards(to_player).deck() - 1,
+                        Zone::Hand { public: false } => {
+                            self.player_cards(to_player).hand().len() - 1
+                        }
+                        Zone::Hand { public: true } => unreachable!(),
+                        Zone::Field => unreachable!(),
+                        Zone::Graveyard => unreachable!(),
+                        Zone::Limbo { public: false } => 0,
+                        Zone::Limbo { public: true } => unreachable!(),
+                        Zone::CardSelection => 0,
+                        Zone::Casting => unreachable!(),
+                        Zone::Dust { public: false } => 0,
+                        Zone::Dust { public: true } => unreachable!(),
+                        Zone::Attachment { .. } => 0,
+                    },
+                );
                 // Bucket owner has already seen the log, so do it for only the other player
-                self.context
-                    .mutate_secret(1 - bucket_owner, |secret, _, log| {
-                        log(CardEvent::MoveCard {
-                            instance: None,
-                            from: CardLocation {
-                                player: secret.player(),
-                                location,
-                            },
-                            to: ExactCardLocation {
-                                player: secret.player(),
-                                location: (to_zone, 0), // todo index,
-                            },
-                        })
-                    });
+                self.context.mutate_secret(1 - bucket_owner, |_, _, log| {
+                    log(CardEvent::MoveCard {
+                        instance: None,
+                        from: CardLocation {
+                            player: bucket_owner,
+                            location,
+                        },
+                        to: ExactCardLocation {
+                            player: to_player,
+                            location: to_location,
+                        },
+                    })
+                });
 
                 return Ok((
                     CardLocation {
@@ -2139,7 +2170,24 @@ impl<S: State> CardGame<S> {
             },
             to: ExactCardLocation {
                 player: to_player,
-                location: (to_zone, 0),
+                location: (
+                    to_zone,
+                    match to_zone {
+                        Zone::Deck => self.player_cards(to_player).deck() - 1,
+                        Zone::Hand { .. } => self.player_cards(to_player).hand().len() - 1,
+                        Zone::Field => self.player_cards(to_player).field().len() - 1,
+                        Zone::Graveyard => self.player_cards(to_player).graveyard().len() - 1,
+                        Zone::Limbo { public: false } => 0,
+                        Zone::Limbo { public: true } => 0,
+                        Zone::CardSelection => self.player_cards(to_player).card_selection() - 1,
+                        Zone::Casting => self.player_cards(to_player).casting().len() - 1,
+                        Zone::Dust { public: false } => 0,
+                        Zone::Dust { public: true } => {
+                            self.player_cards(to_player).dust().len() - 1
+                        }
+                        Zone::Attachment { .. } => 0,
+                    },
+                ),
             },
         });
 
