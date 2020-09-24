@@ -1,4 +1,6 @@
-use crate::{CardInstance, CardLocation, ExactCardLocation, OpaquePointer, Player, State};
+use crate::{
+    CardInstance, CardLocation, ExactCardLocation, InstanceID, OpaquePointer, Player, State,
+};
 
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -34,12 +36,7 @@ pub enum CardEvent<S: State> {
     /// Emitted when the field is re-ordered.
     SortField {
         player: Player,
-
-        /// The permutation from the old field order to the new one.
-        /// Each item in the array is the index of where that card *used to be*.
-        /// e.g. For reordering `[a, b, c, d]` -> `[a, c, d, b]`,
-        // the permutation is: `[0, 2, 3, 1]`.
-        permutation: Vec<usize>,
+        ids: Vec<InstanceID>,
     },
 
     /// Game-specific event.
@@ -68,10 +65,9 @@ impl<S: State> std::fmt::Display for CardEvent<S> {
                 to,
                 if instance.is_some() { "" } else { "out" }
             ),
-            CardEvent::SortField {
-                player,
-                permutation,
-            } => write!(f, "Player {}'s field sorted: {:?}", player, permutation),
+            CardEvent::SortField { player, ids } => {
+                write!(f, "Player {}'s field sorted: {:?}", player, ids)
+            }
             CardEvent::GameEvent { .. } => write!(f, "Game Event"),
         }
     }
@@ -103,15 +99,12 @@ impl<S: State> PartialEq for CardEvent<S> {
                 },
             ) => instance == other_instance && from == other_from && to == other_to,
             (
-                Self::SortField {
-                    player,
-                    permutation,
-                },
+                Self::SortField { player, ids },
                 Self::SortField {
                     player: other_player,
-                    permutation: other_permutation,
+                    ids: other_ids,
                 },
-            ) => player == other_player && permutation == other_permutation,
+            ) => player == other_player && ids == other_ids,
             _ => false,
         }
     }

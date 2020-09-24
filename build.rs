@@ -98,19 +98,6 @@ fn main() -> std::io::Result<()> {
                                 assert!(matches!(move_to_start_zone_event, CardEvent::MoveCard{..}));
                             ";
 
-                            // If we move to the field, it gets re-ordered.
-                            if from_zone == &"Zone::Field" {
-                                test += &format!(
-                                    "
-                                        let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, CardEvent::SortField {{
-                                            player: {from_player}, permutation: vec![0]
-                                        }});
-                                    ",
-                                    from_player = from_player
-                                )
-                            }
-
                             // Event should fire if we moved to a different zone.
                             // Player 0 should see the card instance in every event involving it.
                             test += &format!("
@@ -133,18 +120,6 @@ fn main() -> std::io::Result<()> {
                                     from_zone = from_zone
                                 );
 
-                            // If we move to the field, it gets re-ordered.
-                            if to_zone == &"Zone::Field" {
-                                test += &format!(
-                                    "
-                                        let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, CardEvent::SortField {{
-                                            player: {to_player}, permutation: vec![0]
-                                        }});
-                                    ",
-                                    to_player = to_player
-                                )
-                            }
                             test += "\n}\n\n";
                             generated_tests.push_str(&test);
                         }
@@ -221,16 +196,6 @@ fn main() -> std::io::Result<()> {
                         assert!(matches!(move_to_start_zone_event, CardEvent::MoveCard{..}));
                     ";
 
-                    // If parent moves to the field to start, it gets re-ordered.
-                    if parent_zone == &"Zone::Field" {
-                        test += "
-                            let sort_event = actual_player_logs.next().unwrap();
-                            assert_eq!(sort_event, CardEvent::SortField {
-                                player: 0, permutation: vec![0]
-                            });
-                        ";
-                    }
-
                     test += "
                         let move_to_end_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
                         assert!(matches!(move_to_end_zone_event, CardEvent::MoveCard {
@@ -248,30 +213,6 @@ fn main() -> std::io::Result<()> {
                         }));
                     ";
 
-                    // If parent is modified in the field due to detach, field gets re-ordered.
-                    if parent_zone == &"Zone::Field" {
-                        test += "
-                            let sort_event = actual_player_logs.next().unwrap();
-                            assert_eq!(sort_event, CardEvent::SortField {
-                                player: 0, permutation: vec![0]
-                            });
-                        ";
-                    }
-
-                    // If we move to the field, it gets an ordering event.
-                    if to_zone == &"Zone::Field" {
-                        let two_units_on_field = parent_zone == &"Zone::Field" && to_player == 0;
-                        test += &format!(
-                            "
-                                let sort_event = actual_player_logs.next().unwrap();
-                                assert_eq!(sort_event, CardEvent::SortField {{
-                                    player: {to_player}, permutation: vec![0{two_units}]
-                                }});
-                            ",
-                            to_player = to_player,
-                            two_units = if two_units_on_field { ", 1" } else { "" }
-                        )
-                    }
                     test += "\n}\n\n";
                     generated_tests.push_str(&test);
                 }
@@ -363,36 +304,10 @@ fn main() -> std::io::Result<()> {
                                 assert!(matches!(move_parent_to_start_zone_event, CardEvent::MoveCard{..}));
                             ";
 
-                            // If parent moves to the field to start, it gets re-ordered.
-                            if parent_zone == &"Zone::Field" {
-                                test += "
-                                    let sort_event = actual_player_logs.next().unwrap();
-                                    assert_eq!(sort_event, CardEvent::SortField {
-                                        player: 0, permutation: vec![0]
-                                    });
-                                ";
-                            }
-
                             test += "
                                 let move_attach_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
                                 assert!(matches!(move_attach_to_start_zone_event, CardEvent::MoveCard{..}));
                             ";
-
-                            // If to-attach-card moves to the field to start, it gets re-ordered.
-                            if card_zone == &"Zone::Field" {
-                                let two_units_on_field =
-                                    parent_zone == &"Zone::Field" && card_owner == 0;
-                                test += &format!(
-                                    "
-                                        let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, CardEvent::SortField {{
-                                            player: {player}, permutation: vec![0{two_units}]
-                                        }});
-                                    ",
-                                    player = card_owner,
-                                    two_units = if two_units_on_field { ", 1" } else { "" },
-                                )
-                            }
 
                             if parent_base_card == &"BaseCard::WithAttachment" {
                                 test += "
@@ -409,22 +324,6 @@ fn main() -> std::io::Result<()> {
                                         ..
                                     }), \"Expected CardEvent::ModifyCard for parent because of child being detached, got {:?}\", modify_event);
                                 ";
-
-                                // If parent is on the field, replacing its child will cause a re-order
-                                // Note: Parent cards in this tests always belong to player 0.
-                                if parent_zone == &"Zone::Field" {
-                                    let two_units_on_field =
-                                        card_zone == &"Zone::Field" && card_owner == 0;
-                                    test += &format!(
-                                        "
-                                        let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, CardEvent::SortField {{
-                                            player: 0, permutation: vec![0{two_units}]
-                                        }});
-                                    ",
-                                        two_units = if two_units_on_field { ", 1" } else { "" },
-                                    )
-                                }
                             }
                             test += "
                                 let attach_attachment_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
@@ -441,18 +340,6 @@ fn main() -> std::io::Result<()> {
                                     ..
                                 }), \"Expected CardEvent::ModifyCard for parent because of new attach, got {:?}\", modify_event);
                             ";
-
-                            // If parent is modified in the field due to detach, field gets re-ordered.
-                            if parent_zone == &"Zone::Field" {
-                                test += &format!(
-                                    "
-                                        let sort_event = actual_player_logs.next().unwrap();
-                                        assert_eq!(sort_event, CardEvent::SortField {{
-                                            player: 0, permutation: vec![0]
-                                        }});
-                                    ",
-                                )
-                            }
 
                             test += "\n}\n\n";
                             generated_tests.push_str(&test);
