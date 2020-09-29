@@ -249,7 +249,6 @@ impl<S: State> PlayerSecret<S> {
                 owner,
                 zone,
                 attachment: attachment.as_ref(),
-                random,
                 log,
             })
         });

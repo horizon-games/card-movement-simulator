@@ -1504,7 +1504,6 @@ impl<S: State> CardGame<S> {
                             owner,
                             zone: location.0,
                             attachment: attachment.as_ref(),
-                            random: &mut context.random().await,
                             log: &mut |event| context.log(event),
                         });
 
@@ -3182,7 +3181,6 @@ pub struct CardInfoMut<'a, S: State> {
     pub owner: Player,
     pub zone: Zone,
     pub attachment: Option<&'a CardInstance<S>>,
-    pub random: &'a mut dyn rand::RngCore,
     pub log: &'a mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
 }
 
