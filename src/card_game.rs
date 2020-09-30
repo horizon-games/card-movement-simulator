@@ -885,27 +885,13 @@ impl<S: State> CardGame<S> {
                                 .expect("attachment base exists, but no attachment")
                                 .id();
 
-                            let attachment = self.instances[attachment.0].instance_mut().expect("immutable attachment instance exists, but no mutable attachment instance");
-
-                            attachment.state = default.new_card_state();
+                            self.modify_card(attachment, |mut c| {
+                                c.state = default.new_card_state()
+                            })
+                            .await;
                         }
                         (Some(..), Some(default)) => {
-                            // dust current attachment
-
-                            let attachment = attachment
-                                .expect("attachment base exists, but no attachment")
-                                .id();
-
-                            self.move_card(attachment, owner, Zone::Dust { public: true })
-                                .await
-                                .unwrap_or_else(|_| {
-                                    panic!(
-                                        "unable to move attachment {:?} to public dust",
-                                        attachment
-                                    )
-                                });
-
-                            // attach base attachment
+                            // attach base attachment, will implicitly dust current attachment.
 
                             let attachment = self.new_card(owner, default).await;
 
@@ -920,28 +906,10 @@ impl<S: State> CardGame<S> {
                             });
                         }
                     }
-
-                    let instance = self.instances[id.0]
-                        .instance_mut()
-                        .expect("immutable instance exists, but no mutable instance");
-
-                    instance.state = instance.base.new_card_state();
-
-                    let mut logs = vec![];
-                    match location.0 {
-                        Zone::Field => self.sort_field(owner, &mut |event| logs.push(event)),
-                        Zone::Attachment {
-                            parent: Card::ID(parent_id),
-                        } => {
-                            if let Some((Zone::Field, ..)) = self.location(parent_id).location {
-                                self.sort_field(owner, &mut |event| logs.push(event));
-                            }
-                        }
-                        _ => (),
-                    }
-                    for event in logs.into_iter() {
-                        self.context.log(event);
-                    }
+                    self.modify_card(id, |mut c| {
+                        c.state = c.base.new_card_state();
+                    })
+                    .await;
                 }
                 InstanceOrPlayer::Player(owner) => {
                     // public ID to secret instance
@@ -957,7 +925,6 @@ impl<S: State> CardGame<S> {
                             secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", owner, id, attachment))
                         });
 
-                        let next_instance = secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call");
 
                             match (
                                 attachment,
@@ -975,19 +942,8 @@ impl<S: State> CardGame<S> {
                                 }
                                 (None, Some(default)) => {
                                     // attach base attachment
-
-                                    let state = default.new_card_state();
-
-                                    let attachment = CardInstance {
-                                        id: next_instance,
-                                        base: default,
-                                        attachment: None,
-                                        state,
-                                    };
-
-                                    secret.instances.insert(next_instance, attachment);
-
-                                    secret.attach_card(id, next_instance).expect("Unable to secretly attach a secret card to another card in the same secret.");
+                                    let new_attach = secret.new_card(default);
+                                    secret.attach_card(id, new_attach).expect("Unable to secretly attach a secret card to another card in the same secret.");
                                 }
                                 (Some(current), Some(default)) if current.base == default => {
                                     // reset current attachment
@@ -996,36 +952,17 @@ impl<S: State> CardGame<S> {
                                     secret.instance_mut(current_id).unwrap().state = attachment_base_state;
                             }
                                 (Some(current), Some(default)) => {
-                                    // dust current attachment
-                                    let current_id = current.id();
-                                    secret.dust_card(current_id).expect("current_id is in this secret, and is not already dust.");
-
-                                    // attach base attachment
-
-                                    let state = default.new_card_state();
-
-                                    let attachment = CardInstance {
-                                        id: next_instance,
-                                        base: default,
-                                        attachment: None,
-                                        state,
-                                    };
-
-                                    secret.instances.insert(next_instance, attachment);
-
-                                    secret.attach_card(id, next_instance).expect("Unable to secretly attach a secret card to another card in the same secret.");
+                                     // attach base attachment, current attachment is implicitly dusted.
+                                     let new_attach = secret.new_card(default);
+                                     secret.attach_card(id, new_attach).expect("Unable to secretly attach a secret card to another card in the same secret.");
                                 }
                             }
 
-                            // unconditionally increment instance ID to avoid leaking attachment information
 
-                        secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call").0 += 1;
 
-                        let instance = secret
-                            .instance_mut(id)
-                            .expect("immutable instance exists, but no mutable instance");
-
-                        instance.state = instance.base.new_card_state();
+                        secret.modify_card(id, |mut c| {
+                            c.state = c.base.new_card_state();
+                        }).expect("Failed to reset card in this secret.");
                     }).await;
                 }
             },
