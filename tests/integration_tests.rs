@@ -1,7 +1,6 @@
 use arcadeum::store::Tester;
 use card_movement_simulator::{
-    Card, CardEvent, CardGame, CardInstance, ExactCardLocation, GameState, InstanceID, Player,
-    PlayerSecret, Zone,
+    Card, CardEvent, CardGame, CardInstance, GameState, InstanceID, Player, PlayerSecret, Zone,
 };
 use pretty_assertions::{assert_eq, assert_ne};
 use std::{cell::RefCell, convert::TryInto, future::Future, pin::Pin, rc::Rc};
@@ -415,6 +414,128 @@ impl card_movement_simulator::State for State {
                         "Copy ID must be different from parent ID!"
                     );
                 }
+                Action::ResetCard {
+                    card_ptr_bucket,
+                    base_card_type,
+                    attachment_type,
+                    card_zone,
+                } => {
+                    let owner = 0;
+                    let card_id = live_game.new_card(owner, base_card_type).await;
+
+                    let starting_attach = live_game
+                        .reveal_from_card(card_id, |c| {
+                            c.attachment
+                                .map(|attachment| (attachment.id(), attachment.base().clone()))
+                        })
+                        .await;
+
+                    if let Some(new_attach) = attachment_type {
+                        let attach = live_game.new_card(owner, new_attach).await;
+                        live_game
+                            .move_card(
+                                attach,
+                                owner,
+                                Zone::Attachment {
+                                    parent: card_id.into(),
+                                },
+                            )
+                            .await
+                            .unwrap();
+                    }
+
+                    live_game
+                        .move_card(card_id, owner, card_zone)
+                        .await
+                        .unwrap();
+
+                    let card: Card = if let Some(ptr_owner) = card_ptr_bucket {
+                        live_game
+                            .new_secret_pointers(ptr_owner, |mut secret| {
+                                secret.new_pointer(card_id);
+                            })
+                            .await[0]
+                    } else {
+                        card_id.into()
+                    };
+
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
+
+                    live_game.reset_card(card).await;
+
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
+
+                    let ending_attach = live_game
+                        .reveal_from_card(card_id, |c| {
+                            c.attachment
+                                .map(|attachment| (attachment.id(), attachment.base().clone()))
+                        })
+                        .await;
+
+                    match (attachment_type, starting_attach, ending_attach) {
+                        (None, Some((start_id, start_base)), Some((end_id, end_base))) => {
+                            assert_eq!(start_base, end_base, "Attachment wasn't changed before reset, but attachment base changed.");
+                            assert_eq!(start_id, end_id, "Attachment wasn't changed before reset, but attachment instance changed.");
+                        }
+                        (None, None, Some(..)) => panic!(
+                            "Card didn't start with attach, didn't get one, reset, but has one now."
+                        ),
+                        (Some(..), None, Some(..)) => panic!(
+                            "Card didn't start with attach, got one, reset, but still has one."
+                        ),
+                        (Some(..), Some(..), None) => panic!(
+                            "Card started with an attach, got one, reset, but doesn't have one."
+                        ),
+                        (
+                            Some(new_attach_base),
+                            Some((start_id, start_base)),
+                            Some((end_id, end_base)),
+                        ) => {
+                            assert_eq!(start_base, end_base, "Card started with an attach, got one, reset, but has non-original attach base.");
+                            if new_attach_base == start_base {
+                                assert_ne!(start_id, end_id, "Card started with an attach, got one with the same base, reset, but has the same attach instance it started with.")
+                            }
+                        }
+                        (None, None, None) => {
+                            // Ok! Didn't start with an attach, didn't get one, have none at the end.
+                        }
+                        (Some(_), None, None) => {
+                            // Ok! Didn't start with an attach, got one, reset, have none at the end.                        
+                        },
+                        (None, Some(..), None) => panic!("Card started with an attach, didn't get one, reset, and lost its attach.")
+                    }
+
+                    let card_state = live_game
+                        .reveal_from_card(card_id, |c| c.instance.clone())
+                        .await;
+                    let base_state =
+                        card_movement_simulator::BaseCard::new_card_state(&base_card_type);
+
+                    assert!(
+                        card_movement_simulator::CardState::eq(&*card_state, &base_state,),
+                        "Card failed to reset: {:?} != {:?}",
+                        *card_state,
+                        base_state
+                    );
+
+                    if let Some((attach_id, attach_base)) = ending_attach {
+                        let attach_state = live_game
+                            .reveal_from_card(attach_id, |c| c.instance.clone())
+                            .await;
+                        let attach_base_state =
+                            card_movement_simulator::BaseCard::new_card_state(&attach_base);
+
+                        assert!(
+                            card_movement_simulator::CardState::eq(
+                                &*attach_state,
+                                &attach_base_state,
+                            ),
+                            "Card failed to reset: {:?} != {:?}",
+                            *attach_state,
+                            attach_base_state
+                        );
+                    }
+                }
             }
         })
     }
@@ -505,6 +626,12 @@ enum Action {
         card_zone: Zone,                 // 11
         base_card_type: BaseCard,        // 2
         deep: bool,                      // 2
+    },
+    ResetCard {
+        card_ptr_bucket: Option<Player>,
+        base_card_type: BaseCard,
+        attachment_type: Option<BaseCard>,
+        card_zone: Zone,
     },
     ReplacingAttachOnSecretCardDoesNotLeakInfo,
     OpaquePointerAssociationDoesntHoldThroughDraw,

@@ -401,6 +401,62 @@ fn main() -> std::io::Result<()> {
         }
     }
 
+
+    // Generate tests for resetting cards.
+    // ResetCard {
+    //     card_ptr_bucket: Option<Player>, // 3
+    //     attachment_type: Option<BaseCard>,//2
+    //     base_card_type: BaseCard,        // 2
+    //     card_zone: Zone,
+    // },
+    for base_card_type in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
+        for attachment_type in &[
+            "None",
+            "Some(BaseCard::Basic)",
+            "Some(BaseCard::Attachment)",
+        ] {
+            for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+                for card_zone in &zones {
+                    let stripped_name = identifier_ify_string(&format!(
+                        "reset_card_ptr_{}_card_{}_attachment_{}_zone_{}",
+                        card_ptr_bucket, base_card_type, attachment_type, card_zone,
+                    ));
+                    generated_tests.push_str(&format!(
+                        "
+                            #[test]
+                            fn test_{stripped_name}() {{
+                              Tester::new(
+                                  GameState::<State>::default(),
+                                  [
+                                      PlayerSecret::new(0, Default::default()),
+                                      PlayerSecret::new(1, Default::default()),
+                                  ],
+                                  Default::default(),
+                                  |_, _, _| {{}},
+                                  |_, _| {{}},
+                              )
+                              .unwrap()
+                              .apply(Some(0), &Action::ResetCard {{
+                                  card_ptr_bucket: {card_ptr_bucket},
+                                  base_card_type: {base_card_type},
+                                  attachment_type: {attachment_type},
+                                  card_zone: {card_zone},
+                              }})
+                              .unwrap();
+                            }}
+
+                            ",
+                        stripped_name = stripped_name,
+                        card_ptr_bucket = card_ptr_bucket,
+                        base_card_type = base_card_type,
+                        attachment_type = attachment_type,
+                        card_zone = card_zone,
+                    ))
+                }
+            }
+        }
+    }
+
     // create file
 
     let test_file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("generated_tests.rs");
