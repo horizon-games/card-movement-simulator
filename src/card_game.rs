@@ -2247,7 +2247,42 @@ impl<S: State> CardGame<S> {
         player: Player,
         f: impl Fn(SecretCardsWithFakesInfo<S>),
     ) {
-        todo!();
+        let start = self.instances.len();
+
+        self.context.mutate_secret(player, |secret, random, log| {
+            secret.next_instance = Some(InstanceID(start));
+
+            f(SecretCardsWithFakesInfo(SecretCardsInfo {
+                secret,
+                random,
+                log,
+            }))
+        });
+
+        let (pointers, end) = self
+            .context
+            .reveal_unique(
+                player,
+                |secret| {
+                    (secret.pointers.len(), secret.next_instance.expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call").0)
+                },
+                |_| true,
+            )
+            .await;
+
+        assert!(pointers >= self.player_cards(player).pointers);
+        assert!(end >= start);
+
+        self.context.mutate_secret(player, |secret, _, _| {
+            secret.next_instance = None;
+        });
+
+        self.instances
+            .extend(repeat(InstanceOrPlayer::Player(player)).take(end - start));
+
+        let player_cards = self.player_cards_mut(player);
+
+        player_cards.pointers = pointers;
     }
 
     pub async fn new_secret_pointers(
