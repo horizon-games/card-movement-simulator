@@ -114,7 +114,7 @@ impl PlayerCards {
                 self.dust
                     .remove(index.expect("no index for public dust zone"));
             }
-            Zone::Attachment { .. } => todo!(),
+            Zone::Attachment { .. } => unreachable!("remove_from(Zone::Attachment { ... }, ...)"),
             Zone::Limbo { public: true } => {
                 self.limbo
                     .remove(index.expect("no index for public limbo zone"));
