@@ -1694,15 +1694,27 @@ impl<S: State> CardGame<S> {
                                 match to_zone {
                                     Zone::Deck => secret.deck.len(),
                                     Zone::Hand { public: false } => secret.hand.len(),
-                                    Zone::Hand { public: true } => unreachable!(),
-                                    Zone::Field => unreachable!(),
-                                    Zone::Graveyard => unreachable!(),
+                                    Zone::Hand { public: true } => {
+                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                    }
+                                    Zone::Field => {
+                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                    }
+                                    Zone::Graveyard => {
+                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                    }
                                     Zone::Limbo { public: false } => secret.limbo.len(),
-                                    Zone::Limbo { public: true } => unreachable!(),
+                                    Zone::Limbo { public: true } => {
+                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                    }
                                     Zone::CardSelection => secret.card_selection.len(),
-                                    Zone::Casting => unreachable!(),
+                                    Zone::Casting => {
+                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                    }
                                     Zone::Dust { public: false } => secret.dust.len(),
-                                    Zone::Dust { public: true } => unreachable!(),
+                                    Zone::Dust { public: true } => {
+                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                    }
                                     Zone::Attachment { .. } => 0,
                                 },
                             ),
@@ -1715,15 +1727,21 @@ impl<S: State> CardGame<S> {
                     match to_zone {
                         Zone::Deck => secret.deck.push(id),
                         Zone::Hand { public: false } => secret.hand.push(Some(id)),
-                        Zone::Hand { public: true } => unreachable!(),
-                        Zone::Field => unreachable!(),
-                        Zone::Graveyard => unreachable!(),
+                        Zone::Hand { public: true } => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                        }
+                        Zone::Field => unreachable!("{}:{}:{}", file!(), line!(), column!()),
+                        Zone::Graveyard => unreachable!("{}:{}:{}", file!(), line!(), column!()),
                         Zone::Limbo { public: false } => secret.limbo.push(id),
-                        Zone::Limbo { public: true } => unreachable!(),
+                        Zone::Limbo { public: true } => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                        }
                         Zone::CardSelection => secret.card_selection.push(id),
-                        Zone::Casting => unreachable!(),
+                        Zone::Casting => unreachable!("{}:{}:{}", file!(), line!(), column!()),
                         Zone::Dust { public: false } => secret.dust.push(id),
-                        Zone::Dust { public: true } => unreachable!(),
+                        Zone::Dust { public: true } => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                        }
                         Zone::Attachment { .. } => {
                             unreachable!("Can't attach a spell with move_card.")
                         }
@@ -1744,31 +1762,31 @@ impl<S: State> CardGame<S> {
                         player_state.hand.push(None);
                     }
                     Zone::Hand { public: true } => {
-                        unreachable!();
+                        unreachable!("{}:{}:{}", file!(), line!(), column!());
                     }
                     Zone::Field => {
-                        unreachable!();
+                        unreachable!("{}:{}:{}", file!(), line!(), column!());
                     }
                     Zone::Graveyard => {
-                        unreachable!();
+                        unreachable!("{}:{}:{}", file!(), line!(), column!());
                     }
                     Zone::Limbo { public: false } => {
                         // do nothing, this is a secret
                     }
                     Zone::Limbo { public: true } => {
-                        unreachable!();
+                        unreachable!("{}:{}:{}", file!(), line!(), column!());
                     }
                     Zone::CardSelection => {
                         player_state.card_selection += 1;
                     }
                     Zone::Casting => {
-                        unreachable!();
+                        unreachable!("{}:{}:{}", file!(), line!(), column!());
                     }
                     Zone::Dust { public: false } => {
                         // do nothing, this is a secret
                     }
                     Zone::Dust { public: true } => {
-                        unreachable!();
+                        unreachable!("{}:{}:{}", file!(), line!(), column!());
                     }
                     Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
                 }
@@ -1780,15 +1798,21 @@ impl<S: State> CardGame<S> {
                         Zone::Hand { public: false } => {
                             self.player_cards(to_player).hand().len() - 1
                         }
-                        Zone::Hand { public: true } => unreachable!(),
-                        Zone::Field => unreachable!(),
-                        Zone::Graveyard => unreachable!(),
+                        Zone::Hand { public: true } => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                        }
+                        Zone::Field => unreachable!("{}:{}:{}", file!(), line!(), column!()),
+                        Zone::Graveyard => unreachable!("{}:{}:{}", file!(), line!(), column!()),
                         Zone::Limbo { public: false } => 0,
-                        Zone::Limbo { public: true } => unreachable!(),
+                        Zone::Limbo { public: true } => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                        }
                         Zone::CardSelection => 0,
-                        Zone::Casting => unreachable!(),
+                        Zone::Casting => unreachable!("{}:{}:{}", file!(), line!(), column!()),
                         Zone::Dust { public: false } => 0,
-                        Zone::Dust { public: true } => unreachable!(),
+                        Zone::Dust { public: true } => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                        }
                         Zone::Attachment { .. } => 0,
                     },
                 );
