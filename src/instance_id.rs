@@ -20,6 +20,7 @@ impl InstanceID {
     pub fn from_raw(raw: usize) -> InstanceID {
         InstanceID(raw)
     }
+
     pub fn instance<'a, S: State>(
         &self,
         state: &'a GameState<S>,
