@@ -2372,12 +2372,16 @@ impl<S: State> CardGame<S> {
             secrets
         };
 
-        secrets.iter().any(|secret| {
+        if secrets.iter().any(|secret| {
             secret
                 .pointers
                 .iter()
                 .any(|pointer| pointer.0 >= self.instances.len())
-        });
+        }) {
+            return Err(error::RevealOkError::Error {
+                err: "pointer out of bounds".into(),
+            });
+        }
 
         // Only one bucket may contain the CardInstance for an InstanceID.
         // If a CardInstance has an attachment, the attachment must be in the same Bucket.
