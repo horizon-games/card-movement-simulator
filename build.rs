@@ -327,10 +327,45 @@ fn main() -> std::io::Result<()> {
                             }
                             test += "
                                 let attach_attachment_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
-                                assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
-                                    instance: Some(_),
-                                    ..
-                                }), \"Expected MoveCard to Zone::Attachment, got {:?}.\", attach_attachment_event);
+                                ";
+                                
+                                test += &format!("
+                                let zone = {card_zone};
+                                let is_mine = {card_owner} == 0;
+                                let has_public_location = match zone {{
+                                    Zone::Deck => true,
+                                    Zone::Hand {{ .. }} => true,
+                                    Zone::Field => true,
+                                    Zone::Graveyard => true,
+                                    Zone::Dust {{ .. }} => true,
+                                    Zone::Attachment {{ .. }} => false,
+                                    Zone::Limbo {{ public: false }} => false, // TODO this line should be removed, and the logging fixed
+                                    Zone::Limbo {{ public }} => is_mine || public,
+                                    Zone::Casting => true,
+                                    Zone::CardSelection => true,
+                                }};
+                               ", card_zone = card_zone
+                               , card_owner = card_owner);
+                                test += "
+                                if has_public_location {
+                                    assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
+                                        instance: Some(_),
+                                        from: CardLocation {
+                                            location: Some(_),
+                                            ..
+                                        },
+                                        ..
+                                    }), \"Expected MoveCard to Zone::Attachment with Some(location), got {:?}.\", attach_attachment_event);
+                                } else {
+                                    assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
+                                        instance: Some(_),
+                                        from: CardLocation {
+                                            location: None,
+                                            ..
+                                        },
+                                        ..
+                                    }), \"Expected MoveCard to Zone::Attachment with location: None, got {:?}.\", attach_attachment_event);
+                                }
                             ";
 
                             test += "

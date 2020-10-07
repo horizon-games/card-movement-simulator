@@ -1,6 +1,6 @@
 use arcadeum::store::Tester;
 use card_movement_simulator::{
-    Card, CardEvent, CardGame, CardInstance, ExactCardLocation, GameState, InstanceID, Player, PlayerSecret, Zone,
+    Card, CardEvent, CardGame, CardInstance, CardLocation, ExactCardLocation, GameState, InstanceID, Player, PlayerSecret, Zone,
 };
 use pretty_assertions::{assert_eq, assert_ne};
 use std::{cell::RefCell, convert::TryInto, future::Future, pin::Pin, rc::Rc};

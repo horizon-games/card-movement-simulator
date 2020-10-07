@@ -2712,7 +2712,7 @@ impl<S: State> CardGame<S> {
                             let card_id = card_id
                                 .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                             let parent_id = secret.pointers[parent.pointer().unwrap().index];
-                            secret.attach_card(parent_id, card_id, log).unwrap();
+                            secret.attach_card(parent_id, card_id, location, log).unwrap();
                         });
 
                     // secret.attach_card only logs for *that* player, so we need to log for the other player.
@@ -2795,7 +2795,7 @@ impl<S: State> CardGame<S> {
                                     secret.pointers[card.pointer().unwrap().index]
                                 });
 
-                                secret.attach_card(parent_id, card_id, log).unwrap();
+                                secret.attach_card(parent_id, card_id, location, log).unwrap();
                             });
 
                         // secret.attach_card only logs for *that* player, so we need to log for the other player.
@@ -3005,7 +3005,7 @@ impl<S: State> SecretCardsInfo<'_, S> {
         card: impl Into<Card>,
         attachment: impl Into<Card>,
     ) -> Result<(), error::SecretMoveCardError> {
-        self.secret.attach_card(card, attachment, self.log)
+        self.secret.attach_card(card, attachment, None, self.log)
     }
     pub fn modify_card(
         &mut self,

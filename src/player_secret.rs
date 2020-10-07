@@ -260,6 +260,7 @@ impl<S: State> PlayerSecret<S> {
         &mut self,
         card: impl Into<Card>,
         attachment: impl Into<Card>,
+        from_location: Option<(Zone, Option<usize>)>,
         log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
     ) -> Result<(), error::SecretMoveCardError> {
         let card = card.into();
@@ -305,7 +306,10 @@ impl<S: State> PlayerSecret<S> {
             log(CardEvent::MoveCard {
                 // we're moving an attach, so it can never have an attach.
                 instance: Some((new_attach.clone(), None)),
-                from,
+                from: CardLocation {
+                    player: from.player,
+                    location: from.location.or(from_location)
+                },
                 to: ExactCardLocation {
                     player,
                     location: (
