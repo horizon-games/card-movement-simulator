@@ -268,6 +268,113 @@ impl card_movement_simulator::State for State {
                     }
                 }
 
+                Action::AttachFromAttached {
+                    parent_base_card,
+                    parent_ptr_bucket,
+                    parent_zone,
+                    card_ptr_bucket,
+                    card_owner,
+                    card_zone,
+                  } => {
+                    let parent_owner = 0;
+                    let parent_id = live_game.new_card(parent_owner, parent_base_card).await;
+                    
+                    live_game
+                        .move_card(parent_id, parent_owner, parent_zone)
+                        .await
+                        .unwrap();
+                  
+                    let parent: Card = if let Some(ptr_owner) = parent_ptr_bucket {
+                        live_game
+                            .new_secret_pointers(ptr_owner, |mut secret| {
+                                secret.new_pointer(parent_id);
+                            })
+                            .await[0]
+                    } else {
+                        parent_id.into()
+                    };
+                  
+                    let original_attachment = live_game
+                        .reveal_from_card(parent_id, |info| info.attachment.map(|c| c.id()))
+                        .await;
+                  
+                    let started_with_attach = original_attachment.is_some();
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(parent_id, move |info| {
+                                info.attachment_was_attached
+                            })
+                            .await,
+                        if started_with_attach { 1 } else { 0 }
+                    );
+                  
+                    let starting_parent_id = live_game.new_card(card_owner, BaseCard::WithAttachment).await;
+                    live_game
+                        .move_card(starting_parent_id, card_owner, card_zone)
+                        .await
+                        .unwrap();
+                    
+                    let card_id = live_game.reveal_from_card(starting_parent_id, |c| c.attachment.unwrap().id()).await;
+                    
+                    let card: Card = if let Some(ptr_owner) = card_ptr_bucket {
+                        live_game
+                            .new_secret_pointers(ptr_owner, |mut secret| {
+                                secret.new_pointer(card_id);
+                            })
+                            .await[0]
+                    } else {
+                        card_id.into()
+                    };
+                  
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
+                    live_game
+                        .move_card(card, 0, Zone::Attachment { parent })
+                        .await
+                        .unwrap();
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(parent_id, |info| { info.attachment_was_attached })
+                            .await,
+                        if started_with_attach { 2 } else { 1 }
+                    );
+                  
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(parent, |info| CardInstance::attachment(
+                                info.instance
+                            ))
+                            .await,
+                        Some(
+                            live_game
+                                .reveal_from_card(card, |info| CardInstance::id(info.instance))
+                                .await
+                        )
+                    );
+                  
+                    if let Some(original_attachment) = original_attachment {
+                        // original attachment should have been dusted
+                        let parent_id = live_game
+                            .reveal_from_card(parent, |info| CardInstance::id(info.instance))
+                            .await;
+                  
+                        let parent_card_is_public = parent_id.instance(&live_game, None).is_some();
+                  
+                        assert!(
+                            live_game
+                                .reveal_from_card(original_attachment, move |info| {
+                                    info.owner == parent_owner
+                                        && if let Zone::Dust { public } = info.zone {
+                                            public == parent_card_is_public
+                                        } else {
+                                            false
+                                        }
+                                })
+                                .await,
+                        );
+                    }
+                  }
+
                 Action::ReplacingAttachOnSecretCardDoesNotLeakInfo => {
                     // All assertions that these methods work correctly are made in the auto-generated Attach tests.
 
@@ -614,6 +721,14 @@ enum Action {
         to_zone: Zone,                         // 11
     },
     Attach {
+        parent_base_card: BaseCard,        // 2
+        parent_ptr_bucket: Option<Player>, // 3
+        parent_zone: Zone,                 // 11
+        card_ptr_bucket: Option<Player>,   // 3
+        card_owner: Player,                // 2
+        card_zone: Zone,                   // 11
+    },
+    AttachFromAttached {
         parent_base_card: BaseCard,        // 2
         parent_ptr_bucket: Option<Player>, // 3
         parent_zone: Zone,                 // 11
