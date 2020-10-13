@@ -2587,7 +2587,41 @@ impl<S: State> CardGame<S> {
             };
 
             if let Some((zone, index)) = location {
-                self.player_cards_mut(owner).remove_from(zone, index);
+                match zone {
+                    Zone::Attachment { parent } => {
+                        let parent = match parent {
+                            Card::ID(parent) => parent,
+                            Card::Pointer(OpaquePointer { player, index }) => {
+                                self.context
+                                    .reveal_unique(
+                                        player,
+                                        move |secret| secret.pointers[index],
+                                        |_| true,
+                                    )
+                                    .await
+                            }
+                        };
+
+                        match &mut self.instances[parent.0] {
+                            InstanceOrPlayer::Instance(parent) => {
+                                parent.attachment = None;
+                            }
+                            InstanceOrPlayer::Player(player) => {
+                                let player = *player;
+                                self.context.mutate_secret(player, |secret, _, _| {
+                                    secret
+                                        .instance_mut(parent)
+                                        .expect(&format!(
+                                            "{:?} not in player {:?} secret",
+                                            parent, player
+                                        ))
+                                        .attachment = None;
+                                });
+                            }
+                        }
+                    }
+                    _ => self.player_cards_mut(owner).remove_from(zone, index),
+                }
             }
 
             self.context.mutate_secret(owner, |secret, _, log| {
@@ -2712,7 +2746,9 @@ impl<S: State> CardGame<S> {
                             let card_id = card_id
                                 .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                             let parent_id = secret.pointers[parent.pointer().unwrap().index];
-                            secret.attach_card(parent_id, card_id, location, log).unwrap();
+                            secret
+                                .attach_card(parent_id, card_id, location, log)
+                                .unwrap();
                         });
 
                     // secret.attach_card only logs for *that* player, so we need to log for the other player.
@@ -2795,7 +2831,9 @@ impl<S: State> CardGame<S> {
                                     secret.pointers[card.pointer().unwrap().index]
                                 });
 
-                                secret.attach_card(parent_id, card_id, location, log).unwrap();
+                                secret
+                                    .attach_card(parent_id, card_id, location, log)
+                                    .unwrap();
                             });
 
                         // secret.attach_card only logs for *that* player, so we need to log for the other player.

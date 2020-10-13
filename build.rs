@@ -328,8 +328,8 @@ fn main() -> std::io::Result<()> {
                             test += "
                                 let attach_attachment_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
                                 ";
-                                
-                                test += &format!("
+
+                            test += &format!("
                                 let zone = {card_zone};
                                 let is_mine = {card_owner} == 0;
                                 let has_public_location = match zone {{
@@ -346,7 +346,7 @@ fn main() -> std::io::Result<()> {
                                 }};
                                ", card_zone = card_zone
                                , card_owner = card_owner);
-                                test += "
+                            test += "
                                 if has_public_location {
                                     assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
                                         instance: Some(_),
@@ -435,7 +435,6 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-
 
     // Generate tests for resetting cards.
     // ResetCard {

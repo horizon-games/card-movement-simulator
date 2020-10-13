@@ -308,7 +308,7 @@ impl<S: State> PlayerSecret<S> {
                 instance: Some((new_attach.clone(), None)),
                 from: CardLocation {
                     player: from.player,
-                    location: from.location.or(from_location)
+                    location: from.location.or(from_location),
                 },
                 to: ExactCardLocation {
                     player,
