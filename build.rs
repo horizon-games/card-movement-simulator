@@ -431,7 +431,7 @@ fn main() -> std::io::Result<()> {
 
                                         println!(\"\n\nAll Logs:\");
                                         for card in player_logs.try_borrow_mut().unwrap()[0].clone() {{
-                                            println!(\"{{}}\n\", card);
+                                            println!(\"{{:#?}}\n\", card);
                                         }}
                                         println!(\"\n\");
 
@@ -472,7 +472,13 @@ fn main() -> std::io::Result<()> {
 
                             test += "
                                 let start_parent_gains_attach = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
-                                assert!(matches!(start_parent_gains_attach, CardEvent::MoveCard{..}), \"Expected Some(CardEvent::MoveCard) for attach coming to starting parent, got {:#?}\", start_parent_gains_attach);
+                                assert!(matches!(start_parent_gains_attach, CardEvent::MoveCard{
+                                    to: ExactCardLocation {
+                                        location: (Zone::Attachment {..}, _),
+                                        ..
+                                    },
+                                    ..
+                                }), \"Expected Some(CardEvent::MoveCard) for attach coming to starting parent, got {:#?}\", start_parent_gains_attach);
 
                                 let start_parent_gains_attach_modify = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
                                 assert!(matches!(start_parent_gains_attach_modify, CardEvent::ModifyCard{..}), \"Expected Some(CardEvent::ModifyCard) for attach callback on starting parent, got {:#?}\", start_parent_gains_attach_modify);
