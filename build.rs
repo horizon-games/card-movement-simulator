@@ -21,6 +21,7 @@ fn main() -> std::io::Result<()> {
         "Zone::Dust { public: false }",
     ];
 
+    /*
     // Generate tests for moving from/to all ones excluding attachments.
     for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
         // Option<Player>
@@ -161,7 +162,7 @@ fn main() -> std::io::Result<()> {
 
                                   println!(\"\n\nAll Logs:\");
                                   for card in player_logs.try_borrow_mut().unwrap()[0].clone() {{
-                                      println!(\"{{:?}}\n\", card);
+                                      println!(\"{{:#?}}\n\", card);
                                   }}
                                   println!(\"\n\");
 
@@ -201,7 +202,7 @@ fn main() -> std::io::Result<()> {
                         assert!(matches!(move_to_end_zone_event, CardEvent::MoveCard {
                             instance: Some(_),
                             ..
-                        }), \"Expected MoveCard to End Zone, got {:?}\", move_to_end_zone_event);
+                        }), \"Expected MoveCard to End Zone, got {:#?}\", move_to_end_zone_event);
                     ";
 
                     // Player 0 should see the card instance in every event involving it.
@@ -220,7 +221,7 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    // Generate tests for attaching from all zones.
+    // Generate tests for attaching from all zones except already attached.
     // Attach {
     //     parent_base_card: BaseCard,
     //     parent_ptr_bucket: Option<Player>,
@@ -316,13 +317,13 @@ fn main() -> std::io::Result<()> {
                                     assert!(matches!(dust_current_attach, CardEvent::MoveCard {
                                         instance: Some(_),
                                         ..
-                                    }), \"Expected MoveCard from Zone::Attach to Zone::Dust, got {:?}.\", dust_current_attach);
+                                    }), \"Expected MoveCard from Zone::Attach to Zone::Dust, got {:#?}.\", dust_current_attach);
 
                                     // ModifyCard for parent being modified because of detach.
                                     let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
                                     assert!(matches!(modify_event, CardEvent::ModifyCard {
                                         ..
-                                    }), \"Expected CardEvent::ModifyCard for parent because of child being detached, got {:?}\", modify_event);
+                                    }), \"Expected CardEvent::ModifyCard for parent because of child being detached, got {:#?}\", modify_event);
                                 ";
                             }
                             test += "
@@ -355,7 +356,7 @@ fn main() -> std::io::Result<()> {
                                             ..
                                         },
                                         ..
-                                    }), \"Expected MoveCard to Zone::Attachment with Some(location), got {:?}.\", attach_attachment_event);
+                                    }), \"Expected MoveCard to Zone::Attachment with Some(location), got {:#?}.\", attach_attachment_event);
                                 } else {
                                     assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
                                         instance: Some(_),
@@ -364,7 +365,7 @@ fn main() -> std::io::Result<()> {
                                             ..
                                         },
                                         ..
-                                    }), \"Expected MoveCard to Zone::Attachment with location: None, got {:?}.\", attach_attachment_event);
+                                    }), \"Expected MoveCard to Zone::Attachment with location: None, got {:#?}.\", attach_attachment_event);
                                 }
                             ";
 
@@ -373,7 +374,180 @@ fn main() -> std::io::Result<()> {
                                 let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
                                 assert!(matches!(modify_event, CardEvent::ModifyCard {
                                     ..
-                                }), \"Expected CardEvent::ModifyCard for parent because of new attach, got {:?}\", modify_event);
+                                }), \"Expected CardEvent::ModifyCard for parent because of new attach, got {:#?}\", modify_event);
+                            ";
+
+                            test += "\n}\n\n";
+                            generated_tests.push_str(&test);
+                        }
+                    }
+                }
+            }
+        }
+    } */
+
+    // Generate tests for moving an attachment from one parent to another.
+    // AttachFromAttached {
+    //     parent_base_card: BaseCard,
+    //     parent_ptr_bucket: Option<Player>,
+    //     parent_zone: Zone,
+    //     card_ptr_bucket: Option<Player>,
+    //     card_owner: Player,
+    //     card_zone: Zone,
+    // },
+    for parent_base_card in &["BaseCard::Basic", "BaseCard::WithAttachment"] {
+        for parent_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+            for parent_zone in &zones {
+                for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
+                    for card_owner in 0..2 {
+                        for card_zone in &zones {
+                            let stripped_name = identifier_ify_string(&format!(
+                                "attach_from_attached_to_{}_parent_ptr_{}_in_{}_card_ptr_{}_of_{}_in_{}",
+                                parent_base_card,
+                                parent_ptr_bucket,
+                                parent_zone,
+                                card_ptr_bucket,
+                                card_owner,
+                                card_zone,
+                            ));
+
+                            let mut test = format!(
+                                "
+                                    #[test]
+                                    fn test_{stripped_name}() {{
+                                        let (mut tester, _owner_logs, player_logs) = make_tester();
+
+                                        tester
+                                            .apply(Some(0), &Action::AttachFromAttached {{
+                                                parent_base_card: {parent_base_card},
+                                                parent_ptr_bucket: {parent_ptr_bucket},
+                                                parent_zone: {parent_zone},
+                                                card_ptr_bucket: {card_ptr_bucket},
+                                                card_owner: {card_owner},
+                                                card_zone: {card_zone},
+                                            }})
+                                            .unwrap();
+
+
+                                        println!(\"\n\nAll Logs:\");
+                                        for card in player_logs.try_borrow_mut().unwrap()[0].clone() {{
+                                            println!(\"{{}}\n\", card);
+                                        }}
+                                        println!(\"\n\");
+
+                                        let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
+                                ",
+                                stripped_name = stripped_name,
+                                parent_base_card = parent_base_card,
+                                parent_ptr_bucket = parent_ptr_bucket,
+                                parent_zone = parent_zone,
+                                card_ptr_bucket = card_ptr_bucket,
+                                card_owner = card_owner,
+                                card_zone = card_zone,
+                            );
+                            if parent_base_card == &"BaseCard::WithAttachment" {
+                                // Our BaseCard has an attachment, so we'll see a MoveCard to attach it upon creation.
+                                test += "
+                                    let attach_event = actual_player_logs.next().expect(\"Expected attach event, got None.\");
+                                    assert!(matches!(attach_event, CardEvent::MoveCard {
+                                        to: ExactCardLocation {
+                                            location: (Zone::Attachment{parent: Card::ID(_)}, _),
+                                            ..
+                                        },
+                                        instance: Some(_),
+                                        ..
+                                    }), \"Base card has attachment, so expected attach event.\nGot {:#?}.\", attach_event);
+
+                                    // ModifyCard of parent from attach callback.
+                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                                    assert!(matches!(modify_event, CardEvent::ModifyCard {
+                                        ..
+                                    }));
+                            ";
+                            }
+                            test += "
+                                let move_parent_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                assert!(matches!(move_parent_to_start_zone_event, CardEvent::MoveCard{..}));
+                            ";
+
+                            test += "
+                                let start_parent_gains_attach = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                assert!(matches!(start_parent_gains_attach, CardEvent::MoveCard{..}), \"Expected Some(CardEvent::MoveCard) for attach coming to starting parent, got {:#?}\", start_parent_gains_attach);
+
+                                let start_parent_gains_attach_modify = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                                assert!(matches!(start_parent_gains_attach_modify, CardEvent::ModifyCard{..}), \"Expected Some(CardEvent::ModifyCard) for attach callback on starting parent, got {:#?}\", start_parent_gains_attach_modify);
+                            ";
+
+                            test += "
+                                let move_attach_to_start_zone_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                assert!(matches!(move_attach_to_start_zone_event, CardEvent::MoveCard{..}));
+                            ";
+
+                            if parent_base_card == &"BaseCard::WithAttachment" {
+                                test += "
+                                    // Dust current attach
+                                    let dust_current_attach = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                    assert!(matches!(dust_current_attach, CardEvent::MoveCard {
+                                        instance: Some(_),
+                                        ..
+                                    }), \"Expected MoveCard from Zone::Attach to Zone::Dust, got {:#?}.\", dust_current_attach);
+
+                                    // ModifyCard for parent being modified because of detach.
+                                    let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                                    assert!(matches!(modify_event, CardEvent::ModifyCard {
+                                        ..
+                                    }), \"Expected CardEvent::ModifyCard for parent because of child being detached, got {:#?}\", modify_event);
+                                ";
+                            }
+                            test += "
+                                let attach_attachment_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
+                                ";
+
+                            test += &format!("
+                                let zone = {card_zone};
+                                let is_mine = {card_owner} == 0;
+                                let has_public_location = match zone {{
+                                    Zone::Deck => true,
+                                    Zone::Hand {{ .. }} => true,
+                                    Zone::Field => true,
+                                    Zone::Graveyard => true,
+                                    Zone::Dust {{ .. }} => true,
+                                    Zone::Attachment {{ .. }} => unreachable!(),
+                                    Zone::Limbo {{ public: false }} => false, // TODO this line should be removed, and the logging fixed
+                                    Zone::Limbo {{ public }} => is_mine || public,
+                                    Zone::Casting => true,
+                                    Zone::CardSelection => true,
+                                }};
+                               ", card_zone = card_zone
+                               , card_owner = card_owner);
+                            test += "
+                                if has_public_location {
+                                    assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
+                                        instance: Some(_),
+                                        from: CardLocation {
+                                            location: Some(_),
+                                            ..
+                                        },
+                                        ..
+                                    }), \"Expected MoveCard to Zone::Attachment with Some(location), got {:#?}.\", attach_attachment_event);
+                                } else {
+                                    assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
+                                        instance: Some(_),
+                                        from: CardLocation {
+                                            location: None,
+                                            ..
+                                        },
+                                        ..
+                                    }), \"Expected MoveCard to Zone::Attachment with location: None, got {:#?}.\", attach_attachment_event);
+                                }
+                            ";
+
+                            test += "
+                                // Parent being modified because of new attach.
+                                let modify_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::ModifyCard), got None.\");
+                                assert!(matches!(modify_event, CardEvent::ModifyCard {
+                                    ..
+                                }), \"Expected CardEvent::ModifyCard for parent because of new attach, got {:#?}\", modify_event);
                             ";
 
                             test += "\n}\n\n";
@@ -384,6 +558,8 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
+
+    /*
 
     // Generate tests for copying cards.
     // CopyCard {
@@ -490,6 +666,7 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
+    */
 
     // create file
 
