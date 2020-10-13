@@ -508,10 +508,10 @@ fn main() -> std::io::Result<()> {
                                 let is_mine = {card_owner} == 0;
                                 let has_public_location = match zone {{
                                     Zone::Deck => true,
-                                    Zone::Hand {{ .. }} => true,
+                                    Zone::Hand {{ public }} => is_mine || public, // attachment secrecy depends on parent secrecy
                                     Zone::Field => true,
                                     Zone::Graveyard => true,
-                                    Zone::Dust {{ .. }} => true,
+                                    Zone::Dust {{ public }} => is_mine || public,
                                     Zone::Attachment {{ .. }} => unreachable!(),
                                     Zone::Limbo {{ public: false }} => false, // TODO this line should be removed, and the logging fixed
                                     Zone::Limbo {{ public }} => is_mine || public,
