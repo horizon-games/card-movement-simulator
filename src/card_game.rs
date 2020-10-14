@@ -1948,7 +1948,7 @@ impl<S: State> CardGame<S> {
                                 parent.attachment = None;
                             },
                         );
-                        secret.deferred_logs = deferred_logs;
+                        secret.deferred_logs.append(&mut deferred_logs);
                     }
                     // We're removing a card with an attachment from the secret
                     if let Some(attachment_id) = secret.instance(id).unwrap().attachment {
@@ -2627,7 +2627,9 @@ impl<S: State> CardGame<S> {
             self.context.mutate_secret(owner, |secret, _, log| {
                 // Either we know the ID, or it's in this secret!
                 let id = card_id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
-                secret.remove_id(log, id);
+                let mut deferred_logs = vec![];
+                secret.remove_id(&mut |event| deferred_logs.push(event), id);
+                secret.deferred_logs.extend(deferred_logs);
             });
 
             // Step 3 and 4 only need to be performed if the source and destination buckets are different.
@@ -2860,6 +2862,13 @@ impl<S: State> CardGame<S> {
                 },
             }
 
+            for log_player in 0..2 {
+                self.context.mutate_secret(log_player, |secret, _, log| {
+                    for deferred_log in secret.deferred_logs.drain(..) {
+                        log(deferred_log);
+                    }
+                });
+            }
             Ok((
                 CardLocation {
                     player: owner,
