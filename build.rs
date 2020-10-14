@@ -340,7 +340,6 @@ fn main() -> std::io::Result<()> {
                                     Zone::Graveyard => true,
                                     Zone::Dust {{ .. }} => true,
                                     Zone::Attachment {{ .. }} => false,
-                                    Zone::Limbo {{ public: false }} => false, // TODO this line should be removed, and the logging fixed
                                     Zone::Limbo {{ public }} => is_mine || public,
                                     Zone::Casting => true,
                                     Zone::CardSelection => true,
@@ -519,7 +518,6 @@ fn main() -> std::io::Result<()> {
                                     Zone::Graveyard => true,
                                     Zone::Dust {{ public }} => is_mine || public,
                                     Zone::Attachment {{ .. }} => unreachable!(),
-                                    Zone::Limbo {{ public: false }} => false, // TODO this line should be removed, and the logging fixed
                                     Zone::Limbo {{ public }} => is_mine || public,
                                     Zone::Casting => true,
                                     Zone::CardSelection => is_mine,
