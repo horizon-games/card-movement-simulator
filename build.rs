@@ -522,7 +522,7 @@ fn main() -> std::io::Result<()> {
                                     Zone::Limbo {{ public: false }} => false, // TODO this line should be removed, and the logging fixed
                                     Zone::Limbo {{ public }} => is_mine || public,
                                     Zone::Casting => true,
-                                    Zone::CardSelection => true,
+                                    Zone::CardSelection => is_mine,
                                 }};
                                ", card_zone = card_zone
                                , card_owner = card_owner);
