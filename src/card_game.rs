@@ -1650,6 +1650,24 @@ impl<S: State> CardGame<S> {
                 )
             }
             Some(player) => {
+                self.context.mutate_secret(player, move |secret, _, _| {
+                    let location = secret
+                        .location(
+                            id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]),
+                        )
+                        .location
+                        .expect("The secret should know the zone.");
+
+                    match location.0 {
+                        Zone::Limbo { public: false } | Zone::Attachment { .. } => {
+                            secret.deferred_locations.push(location);
+                        }
+                        _ => {
+                            // location will get revealed publicly
+                        }
+                    }
+                });
+
                 self.context
                     .reveal_unique(
                         player,
@@ -1662,8 +1680,9 @@ impl<S: State> CardGame<S> {
                                 .expect("The secret should know the zone.");
 
                             match location.0 {
-                                Zone::Limbo { public: false } => None,
-                                Zone::Attachment { .. } => None,
+                                Zone::Limbo { public: false } | Zone::Attachment { .. } => {
+                                    None // secret.deferred_locations has this key.
+                                }
                                 _ => Some(location),
                             }
                         },
@@ -2563,6 +2582,24 @@ impl<S: State> CardGame<S> {
                     )
                 }
                 Some(player) => {
+                    self.context.mutate_secret(player, move |secret, _, _| {
+                        let location =
+                            secret
+                                .location(card_id.unwrap_or_else(|| {
+                                    secret.pointers[card.pointer().unwrap().index]
+                                }))
+                                .location
+                                .expect("The secret should know the zone.");
+
+                        match location.0 {
+                            Zone::Limbo { public: false } | Zone::Attachment { .. } => {
+                                secret.deferred_locations.push(location);
+                            }
+                            _ => {
+                                // location will be revealed publicly
+                            }
+                        }
+                    });
                     self.context
                         .reveal_unique(
                             player,
@@ -2869,6 +2906,7 @@ impl<S: State> CardGame<S> {
                     }
                 });
             }
+
             Ok((
                 CardLocation {
                     player: owner,

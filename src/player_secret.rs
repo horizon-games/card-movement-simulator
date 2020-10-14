@@ -35,6 +35,8 @@ pub struct PlayerSecret<S: State> {
     #[serde(bound = "S: State")]
     pub(crate) deferred_logs: Vec<CardEvent<S>>,
 
+    pub(crate) deferred_locations: Vec<(Zone, Option<usize>)>,
+
     player: Player,
 }
 
@@ -68,6 +70,7 @@ impl<S: State> PlayerSecret<S> {
             card_selection: Default::default(),
 
             deferred_logs: Default::default(),
+            deferred_locations: Default::default(),
 
             player,
         }
