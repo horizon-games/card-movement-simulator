@@ -2116,8 +2116,8 @@ impl<S: State> CardGame<S> {
             None => (),
         }
 
-        self.context.log(CardEvent::MoveCard {
-            instance: instance.map(|i| (i, attachment_instance)).or_else(|| {
+        let move_card_event = (
+            instance.map(|i| (i, attachment_instance)).or_else(|| {
                 id.instance(self, None).map(|instance| {
                     (
                         instance.clone(),
@@ -2127,11 +2127,11 @@ impl<S: State> CardGame<S> {
                     )
                 })
             }),
-            from: CardLocation {
+            CardLocation {
                 player: owner,
                 location,
             },
-            to: ExactCardLocation {
+            ExactCardLocation {
                 player: to_player,
                 location: (
                     to_zone,
@@ -2152,6 +2152,21 @@ impl<S: State> CardGame<S> {
                     },
                 ),
             },
+        );
+
+        self.context
+            .mutate_secret(1 - owner, |_, _, log| {
+                let (instance, from, to) = move_card_event.clone();
+                log(CardEvent::MoveCard { instance, from, to });
+            });
+        self.context.mutate_secret(owner, |secret, _, log| {
+            let (instance, mut from, to) = move_card_event.clone();
+            
+            if from.location.is_none() {
+                let missing_location = secret.deferred_locations.pop().expect("If from location is none, publically, and we're the player, we should have the deferred location.");
+                from.location = Some(missing_location);
+            }
+                log(CardEvent::MoveCard { instance, from, to });
         });
 
         for deferred_log in deferred_logs {
@@ -2785,6 +2800,13 @@ impl<S: State> CardGame<S> {
                             let card_id = card_id
                                 .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                             let parent_id = secret.pointers[parent.pointer().unwrap().index];
+                            let location = location.or_else(||
+                            {   if card_bucket == Some(parent_bucket_player) {
+                                    Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
+                                } else {
+                                    None
+                                }
+                            });
                             secret
                                 .attach_card(parent_id, card_id, location, log)
                                 .unwrap();
@@ -2792,7 +2814,14 @@ impl<S: State> CardGame<S> {
 
                     // secret.attach_card only logs for *that* player, so we need to log for the other player.
                     self.context
-                        .mutate_secret(1 - parent_bucket_player, |_, _, log| {
+                        .mutate_secret(1 - parent_bucket_player, |secret, _, log| {
+                            let location = location.or_else(||
+                                {   if card_bucket == Some(1 - parent_bucket_player) {
+                                        Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
+                                    } else {
+                                        None
+                                    }
+                                });
                             log(CardEvent::MoveCard {
                                 instance: None, // todo is this None correct?
                                 from: CardLocation {
@@ -2869,7 +2898,13 @@ impl<S: State> CardGame<S> {
                                 let card_id = card_id.unwrap_or_else(|| {
                                     secret.pointers[card.pointer().unwrap().index]
                                 });
-
+                                let location = location.or_else(||
+                                    {   if card_bucket == Some(parent_bucket_player) {
+                                            Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
+                                        } else {
+                                            None
+                                        }
+                                    });
                                 secret
                                     .attach_card(parent_id, card_id, location, log)
                                     .unwrap();
@@ -2877,7 +2912,14 @@ impl<S: State> CardGame<S> {
 
                         // secret.attach_card only logs for *that* player, so we need to log for the other player.
                         self.context
-                            .mutate_secret(1 - parent_bucket_player, |_, _, log| {
+                            .mutate_secret(1 - parent_bucket_player, |secret, _, log| {
+                                let location = location.or_else(||
+                                    {   if card_bucket == Some(1 - parent_bucket_player) {
+                                            Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
+                                        } else {
+                                            None
+                                        }
+                                    });
                                 log(CardEvent::MoveCard {
                                     instance: None, // todo is this None correct?
                                     from: CardLocation {
