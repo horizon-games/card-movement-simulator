@@ -21,7 +21,6 @@ fn main() -> std::io::Result<()> {
         "Zone::Dust { public: false }",
     ];
 
-    /*
     // Generate tests for moving from/to all ones excluding attachments.
     for card_ptr_bucket in &["None", "Some(0)", "Some(1)"] {
         // Option<Player>
@@ -330,7 +329,8 @@ fn main() -> std::io::Result<()> {
                                 let attach_attachment_event = actual_player_logs.next().expect(\"Expected Some(CardEvent::MoveCard), got None.\");
                                 ";
 
-                            test += &format!("
+                            test += &format!(
+                                "
                                 let zone = {card_zone};
                                 let is_mine = {card_owner} == 0;
                                 let has_public_location = match zone {{
@@ -344,8 +344,10 @@ fn main() -> std::io::Result<()> {
                                     Zone::Casting => true,
                                     Zone::CardSelection => true,
                                 }};
-                               ", card_zone = card_zone
-                               , card_owner = card_owner);
+                               ",
+                                card_zone = card_zone,
+                                card_owner = card_owner
+                            );
                             test += "
                                 if has_public_location {
                                     assert!(matches!(attach_attachment_event, CardEvent::MoveCard {
@@ -383,7 +385,7 @@ fn main() -> std::io::Result<()> {
                 }
             }
         }
-    } */
+    }
 
     // Generate tests for moving an attachment from one parent to another.
     // AttachFromAttached {
@@ -563,8 +565,6 @@ fn main() -> std::io::Result<()> {
         }
     }
 
-    /*
-
     // Generate tests for copying cards.
     // CopyCard {
     //     card_ptr_bucket: Option<Player>, // 3
@@ -670,7 +670,6 @@ fn main() -> std::io::Result<()> {
             }
         }
     }
-    */
 
     // create file
 
