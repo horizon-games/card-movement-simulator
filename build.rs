@@ -513,7 +513,7 @@ fn main() -> std::io::Result<()> {
                                 let zone = {card_zone};
                                 let is_mine = {card_owner} == 0;
                                 let has_public_location = match zone {{
-                                    Zone::Deck => true,
+                                    Zone::Deck => is_mine,
                                     Zone::Hand {{ public }} => is_mine || public, // attachment secrecy depends on parent secrecy
                                     Zone::Field => true,
                                     Zone::Graveyard => true,
