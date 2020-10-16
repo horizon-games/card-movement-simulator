@@ -178,7 +178,7 @@ impl<S: State> PlayerSecret<S> {
                         })
                     })
             })
-            .unwrap_or_else(|| CardLocation {
+            .unwrap_or(CardLocation {
                 player: self.player,
                 location: None,
             })
@@ -217,7 +217,6 @@ impl<S: State> PlayerSecret<S> {
     pub fn modify_card(
         &mut self,
         card: impl Into<Card>,
-        random: &mut dyn rand::RngCore,
         log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
         f: impl FnOnce(CardInfoMut<S>),
     ) -> Result<(), error::SecretModifyCardError> {

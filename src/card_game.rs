@@ -17,6 +17,8 @@ use {
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
+type AttachCardResult = Result<(CardLocation, Option<InstanceID>), error::MoveCardError>;
+
 pub struct CardGame<S: State> {
     pub state: GameState<S>,
 
@@ -809,12 +811,7 @@ impl<S: State> CardGame<S> {
                 InstanceOrPlayer::Instance(instance) => {
                     // public ID to public instance
 
-                    let CardLocation {
-                        player: owner,
-                        location,
-                    } = self.location(id);
-                    let location =
-                        location.unwrap_or_else(|| panic!("public {:?} has no zone", id));
+                    let owner = self.location(id).player;
 
                     let attachment = instance.attachment().map(|attachment| {
                         self.instances[attachment.0]
@@ -935,7 +932,7 @@ impl<S: State> CardGame<S> {
                                     let current_id = current.id();
                                     secret.instance_mut(current_id).unwrap().state = attachment_base_state;
                             }
-                                (Some(current), Some(default)) => {
+                                (Some(_), Some(default)) => {
                                      // attach base attachment, current attachment is implicitly dusted.
                                      let new_attach = secret.new_card(default);
                                      secret.attach_card(id, new_attach).expect("Unable to secretly attach a secret card to another card in the same secret.");
@@ -1457,9 +1454,9 @@ impl<S: State> CardGame<S> {
                         }
                     }
                     InstanceOrPlayer::Player(owner) => {
-                        self.context.mutate_secret(*owner, |secret, random, log| {
+                        self.context.mutate_secret(*owner, |secret, _, log| {
                             secret
-                                .modify_card(card, random, log, |instance| f(instance))
+                                .modify_card(card, log, |instance| f(instance))
                                 .unwrap_or_else(|_| {
                                     panic!("player {} secret {:?} not in secret", owner, card)
                                 });
@@ -1468,9 +1465,9 @@ impl<S: State> CardGame<S> {
                 }
             }
             Card::Pointer(OpaquePointer { player, .. }) => {
-                self.context.mutate_secret(player, |secret, random, log| {
+                self.context.mutate_secret(player, |secret, _, log| {
                     secret
-                        .modify_card(card, random, log, |instance| f(instance))
+                        .modify_card(card, log, |instance| f(instance))
                         .unwrap_or_else(|_| {
                             panic!("player {} secret {:?} not in secret", player, card)
                         });
@@ -1941,7 +1938,7 @@ impl<S: State> CardGame<S> {
                     )
                     .await;
 
-                self.context.mutate_secret(player, move |secret, _, log| {
+                self.context.mutate_secret(player, move |secret, _, _| {
                     let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                     // find what collection id is in and remove it
                     secret.deck.retain(|i| *i != id);
@@ -2482,12 +2479,7 @@ impl<S: State> CardGame<S> {
         &'a mut self,
         card: impl Into<Card>,
         parent: impl Into<Card>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<(CardLocation, Option<InstanceID>), error::MoveCardError>>
-                + 'a,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = AttachCardResult> + 'a>> {
         let card = card.into();
         let parent = parent.into();
 
@@ -2678,10 +2670,12 @@ impl<S: State> CardGame<S> {
                                 self.context.mutate_secret(player, |secret, _, _| {
                                     secret
                                         .instance_mut(parent)
-                                        .expect(&format!(
-                                            "{:?} not in player {:?} secret",
-                                            parent, player
-                                        ))
+                                        .unwrap_or_else(|| {
+                                            unreachable!(
+                                                "{:?} not in player {:?} secret",
+                                                parent, player
+                                            )
+                                        })
                                         .attachment = None;
                                 });
                             }
@@ -2691,7 +2685,7 @@ impl<S: State> CardGame<S> {
                 }
             }
 
-            self.context.mutate_secret(owner, |secret, _, log| {
+            self.context.mutate_secret(owner, |secret, _, _| {
                 // Either we know the ID, or it's in this secret!
                 let id = card_id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                 let mut deferred_logs = vec![];
@@ -3180,7 +3174,7 @@ impl<S: State> SecretCardsInfo<'_, S> {
         card: impl Into<Card>,
         f: impl FnOnce(CardInfoMut<S>),
     ) -> Result<(), error::SecretModifyCardError> {
-        self.secret.modify_card(card, self.random, self.log, f)
+        self.secret.modify_card(card, self.log, f)
     }
 }
 

@@ -144,12 +144,13 @@ impl<S: State> GameState<S> {
     #[cfg(debug_assertions)]
     #[doc(hidden)]
     pub fn ok(&self, secrets: &[Option<&PlayerSecret<S>>]) -> Result<(), error::RevealOkError> {
-        if secrets.iter().flatten().any(|secret| {
+        let any_pointer_out_of_bounds = secrets.iter().flatten().any(|secret| {
             secret
                 .pointers
                 .iter()
                 .any(|pointer| pointer.0 >= self.instances.len())
-        }) {
+        });
+        if any_pointer_out_of_bounds {
             return Err(error::RevealOkError::Error {
                 err: "pointer out of bounds".into(),
             });
