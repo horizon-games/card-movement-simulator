@@ -2154,14 +2154,13 @@ impl<S: State> CardGame<S> {
             },
         );
 
-        self.context
-            .mutate_secret(1 - owner, |_, _, log| {
-                let (instance, from, to) = move_card_event.clone();
-                log(CardEvent::MoveCard { instance, from, to });
-            });
+        self.context.mutate_secret(1 - owner, |_, _, log| {
+            let (instance, from, to) = move_card_event.clone();
+            log(CardEvent::MoveCard { instance, from, to });
+        });
         self.context.mutate_secret(owner, |secret, _, log| {
             let (instance, mut from, to) = move_card_event.clone();
-            
+
             if from.location.is_none() {
                 let missing_location = secret.deferred_locations.pop().expect("If from location is none, publically, and we're the player, we should have the deferred location.");
                 from.location = Some(missing_location);
@@ -2889,12 +2888,12 @@ impl<S: State> CardGame<S> {
                         )
                         .await;
                         for msg in logs.into_iter() {
-                            if let CardEvent::MoveCard{instance, from, to}= msg {
+                            if let CardEvent::MoveCard { instance, from, to } = msg {
                                 let from_player = from.player;
                                 self.context
                                 .mutate_secret(from_player, |secret, _, log| {
                                     let location = from.location.or_else(||
-                                        {  
+                                        {
                                                 Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
                                         });
                                     log(CardEvent::MoveCard {
@@ -2904,20 +2903,17 @@ impl<S: State> CardGame<S> {
                                             location,
                                         },
                                         to: to.clone()
-                                    
                                     })
                                 });
-                                self.context
-                                .mutate_secret(1 - from_player, |_, _, log| {
+                                self.context.mutate_secret(1 - from_player, |_, _, log| {
                                     log(CardEvent::MoveCard {
                                         instance: instance.clone(),
                                         from: from.clone(),
-                                        to: to.clone()
-                                    
+                                        to: to.clone(),
                                     })
                                 });
                             } else {
-                            self.context.log(msg);
+                                self.context.log(msg);
                             }
                         }
                     }
