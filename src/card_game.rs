@@ -2034,10 +2034,19 @@ impl<S: State> CardGame<S> {
                 self.player_cards_mut(to_player).hand.push(None);
             }
             Zone::Hand { public: true } => {
-                self.player_cards_mut(to_player).hand.push(Some(id));
+                let index = match location {
+                    Some((Zone::Hand { public: false }, Some(index))) if to_player == owner => {
+                        index
+                    }
+                    _ => self.player_cards(to_player).hand.len(),
+                };
+
+                self.player_cards_mut(to_player)
+                    .hand
+                    .insert(index, Some(id));
 
                 self.context.mutate_secret(to_player, |secret, _, _| {
-                    secret.hand.push(None);
+                    secret.hand.insert(index, None);
                 });
             }
             Zone::Field => {
@@ -2137,7 +2146,14 @@ impl<S: State> CardGame<S> {
                     to_zone,
                     match to_zone {
                         Zone::Deck => self.player_cards(to_player).deck() - 1,
-                        Zone::Hand { .. } => self.player_cards(to_player).hand().len() - 1,
+                        Zone::Hand { .. } => match location {
+                            Some((Zone::Hand { public: false }, Some(index)))
+                                if to_player == owner =>
+                            {
+                                index
+                            }
+                            _ => self.player_cards(to_player).hand.len() - 1,
+                        },
                         Zone::Field => self.player_cards(to_player).field().len() - 1,
                         Zone::Graveyard => self.player_cards(to_player).graveyard().len() - 1,
                         Zone::Limbo { public: false } => 0,

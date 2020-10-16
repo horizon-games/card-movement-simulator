@@ -648,6 +648,29 @@ impl card_movement_simulator::State for State {
                         );
                     }
                 }
+                Action::RevealSecretHandCard => {
+                    let hand = live_game
+                        .new_secret_cards(0, |mut secret| {
+                            for _ in 0..5 {
+                                secret.new_card(BaseCard::Basic);
+                            }
+                        })
+                        .await;
+
+                    for card in &hand {
+                        live_game
+                            .move_card(card, 0, Zone::Hand { public: false })
+                            .await
+                            .unwrap();
+                    }
+
+                    live_game
+                        .move_card(hand[2], 0, Zone::Hand { public: true })
+                        .await
+                        .unwrap();
+
+                    assert_eq!(live_game.reveal_ok().await, Ok(()));
+                }
             }
         })
     }
@@ -756,6 +779,7 @@ enum Action {
     ReplacingAttachOnSecretCardDoesNotLeakInfo,
     OpaquePointerAssociationDoesntHoldThroughDraw,
     InstanceFromIDSetup,
+    RevealSecretHandCard,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Default)]
@@ -892,6 +916,60 @@ fn opponent_instance_from_id() {
     assert!(id
         .instance(tester.state(), Some(&tester.secret(0)))
         .is_none());
+}
+
+#[test]
+fn move_secret_hand_to_public_hand() {
+    let (mut tester, _owner_logs, player_logs) = make_tester();
+    tester
+        .apply(Some(0), &Action::RevealSecretHandCard)
+        .unwrap();
+
+    println!(
+        "
+
+All Logs:"
+    );
+    for card in player_logs.try_borrow_mut().unwrap()[0].clone() {
+        println!("{}", card);
+    }
+    println!(
+        "
+"
+    );
+
+    let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
+
+    for i in 0..5 {
+        let move_to_secret_hand_event = actual_player_logs
+            .next()
+            .expect("Expected Some(CardEvent::MoveCard), got None.");
+        if let CardEvent::MoveCard {
+            to:
+                ExactCardLocation {
+                    player: 0,
+                    location: (Zone::Hand { public: false }, index),
+                },
+            ..
+        } = move_to_secret_hand_event
+        {
+            assert_eq!(index, i);
+        } else {
+            unreachable!(
+                "Expected MoveCard to secret hand, got {:?}",
+                move_to_secret_hand_event
+            );
+        };
+    }
+
+    let reveal_hand_event = actual_player_logs
+        .next()
+        .expect("Expected Some(CardEvent::MoveCard), got None.");
+    assert!(
+        matches!(reveal_hand_event, CardEvent::MoveCard { to: ExactCardLocation { player: 0, location: (Zone::Hand { public: true }, 2) }, .. }),
+        "Expected MoveCard to public hand position 2, got {:#?}",
+        reveal_hand_event
+    );
 }
 
 fn make_tester() -> (
