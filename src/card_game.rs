@@ -2000,6 +2000,24 @@ impl<S: State> CardGame<S> {
             });
         }
 
+        match location {
+            Some((
+                Zone::Attachment {
+                    parent: Card::ID(old_parent),
+                },
+                ..,
+            )) => {
+                self.instances[old_parent.0]
+                    .instance_mut()
+                    .expect("Card should have been attached to a public parent")
+                    .attachment = None;
+            }
+            Some((zone, index)) => {
+                self.player_cards_mut(owner).remove_from(zone, index);
+            }
+            None => (),
+        }
+
         match to_zone {
             Zone::Deck => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
@@ -2096,24 +2114,6 @@ impl<S: State> CardGame<S> {
                     }
                 }
             }
-        }
-
-        match location {
-            Some((
-                Zone::Attachment {
-                    parent: Card::ID(old_parent),
-                },
-                ..,
-            )) => {
-                self.instances[old_parent.0]
-                    .instance_mut()
-                    .expect("Card should have been attached to a public parent")
-                    .attachment = None;
-            }
-            Some((zone, index)) => {
-                self.player_cards_mut(owner).remove_from(zone, index);
-            }
-            None => (),
         }
 
         let move_card_event = (
