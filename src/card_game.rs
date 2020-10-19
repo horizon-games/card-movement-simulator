@@ -6,6 +6,7 @@ use {
     },
     rand::seq::IteratorRandom,
     std::{
+        cmp::Ordering,
         convert::TryInto,
         future::Future,
         iter::repeat,
@@ -2015,6 +2016,54 @@ impl<S: State> CardGame<S> {
             None => (),
         }
 
+        let field_index = if let Zone::Field = to_zone {
+            let my_instance = instance.as_ref().unwrap_or_else(|| {
+                id.instance(self, None)
+                    .expect("Card going to field isn't being removed from a secret, so should be in public state.")
+            });
+            let my_attachment = attachment_instance.as_ref().or_else(|| {
+                my_instance
+                    .attachment
+                    .map(|attach| attach.instance(self, None)
+                    .expect("Attachment of card going to field isn't being removed from a secret, so should be in public state."))
+            });
+
+            let field_index = self
+                .player_cards(to_player)
+                .field
+                .iter()
+                .map(|id| {
+                    let instance = id
+                        .instance(self, None)
+                        .expect("Instances on the field are in public state");
+                    CardInfo {
+                        instance,
+                        owner: to_player,
+                        zone: Zone::Field,
+                        attachment: instance.attachment.map(|attach| {
+                            attach
+                                .instance(self, None)
+                                .expect("Attachments on instances on the field are in public state")
+                        }),
+                    }
+                })
+                .position(move |card| {
+                    S::field_order(
+                        card,
+                        CardInfo {
+                            instance: &my_instance,
+                            owner: to_player,
+                            zone: Zone::Field,
+                            attachment: my_attachment,
+                        },
+                    ) == Ordering::Greater
+                })
+                .unwrap_or_else(|| self.player_cards(to_player).field.len());
+            Some(field_index)
+        } else {
+            None
+        };
+
         match to_zone {
             Zone::Deck => {
                 self.context.mutate_secret(to_player, |secret, _, _| {
@@ -2047,7 +2096,10 @@ impl<S: State> CardGame<S> {
                 });
             }
             Zone::Field => {
-                self.player_cards_mut(to_player).field.push(id);
+                self.player_cards_mut(to_player).field.insert(
+                    field_index.expect("field_index should be Some when to_zone is Field"),
+                    id,
+                );
             }
             Zone::Graveyard => {
                 self.player_cards_mut(to_player).graveyard.push(id);
@@ -2151,7 +2203,9 @@ impl<S: State> CardGame<S> {
                             }
                             _ => self.player_cards(to_player).hand.len() - 1,
                         },
-                        Zone::Field => self.player_cards(to_player).field().len() - 1,
+                        Zone::Field => {
+                            field_index.expect("field_index should be Some when to_zone is Field")
+                        }
                         Zone::Graveyard => self.player_cards(to_player).graveyard().len() - 1,
                         Zone::Limbo { public: false } => 0,
                         Zone::Limbo { public: true } => 0,
