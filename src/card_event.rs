@@ -36,7 +36,7 @@ pub enum CardEvent<S: State> {
     /// Emitted when the field is re-ordered.
     SortField {
         player: Player,
-        ids: Vec<InstanceID>,
+        field: Vec<InstanceID>,
     },
 
     /// Game-specific event.
@@ -65,8 +65,8 @@ impl<S: State> std::fmt::Display for CardEvent<S> {
                 to,
                 if instance.is_some() { "" } else { "out" }
             ),
-            CardEvent::SortField { player, ids } => {
-                write!(f, "Player {}'s field sorted: {:?}", player, ids)
+            CardEvent::SortField { player, field } => {
+                write!(f, "Player {}'s field sorted: {:?}", player, field)
             }
             CardEvent::GameEvent { .. } => write!(f, "Game Event"),
         }

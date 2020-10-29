@@ -3092,7 +3092,7 @@ impl<S: State> CardGame<S> {
         if field != self.player_cards(player).field {
             logger(CardEvent::SortField {
                 player,
-                ids: field.clone(),
+                field: field.clone(),
             });
         }
 
