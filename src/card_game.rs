@@ -2247,12 +2247,23 @@ impl<S: State> CardGame<S> {
             });
         }
 
-        if to_zone.is_field() {
-            let mut logs = vec![];
-            self.sort_field(to_player, &mut |event| logs.push(event));
-            for event in logs.into_iter() {
-                self.context.log(event);
+        match to_zone {
+            Zone::Deck => {
+                if self.shuffle_deck_on_insert {
+                    self.context
+                        .mutate_secret(to_player, |secret, random, log| {
+                            secret.shuffle_deck(random, log);
+                        })
+                }
             }
+            Zone::Field => {
+                let mut logs = vec![];
+                self.sort_field(to_player, &mut |event| logs.push(event));
+                for event in logs.into_iter() {
+                    self.context.log(event);
+                }
+            }
+            _ => (),
         }
 
         Ok((

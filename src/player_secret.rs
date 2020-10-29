@@ -3,6 +3,7 @@ use {
         card_state::CardState, error, Card, CardEvent, CardInfo, CardInfoMut, CardInstance,
         CardLocation, ExactCardLocation, GameState, InstanceID, OpaquePointer, Player, State, Zone,
     },
+    rand::seq::SliceRandom,
     std::ops::{Deref, DerefMut},
 };
 
@@ -326,6 +327,19 @@ impl<S: State> PlayerSecret<S> {
         });
 
         Ok(())
+    }
+
+    pub fn shuffle_deck(
+        &mut self,
+        random: &mut dyn rand::RngCore,
+        log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
+    ) {
+        self.deck.shuffle(random);
+
+        log(CardEvent::ShuffleDeck {
+            player: self.player,
+            deck: self.deck.clone(),
+        });
     }
 
     pub(crate) fn instance_mut(&mut self, card: impl Into<Card>) -> Option<&mut CardInstance<S>> {

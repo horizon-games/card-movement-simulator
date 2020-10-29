@@ -19,12 +19,14 @@ use wasm_bindgen::prelude::wasm_bindgen;
     derive(typescript_definitions::TypescriptDefinition)
 )]
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct GameState<S: State> {
     #[serde(bound = "S: State")]
     pub(crate) instances: Vec<InstanceOrPlayer<S>>,
 
-    #[serde(rename = "playerCards")]
     player_cards: [PlayerCards; 2],
+
+    pub(crate) shuffle_deck_on_insert: bool,
 
     #[serde(bound = "S: State")]
     state: S,
@@ -45,10 +47,11 @@ impl<S: State> DerefMut for GameState<S> {
 }
 
 impl<S: State> GameState<S> {
-    pub fn new(state: S) -> Self {
+    pub fn new(state: S, shuffle_deck_on_insert: bool) -> Self {
         Self {
             instances: Default::default(),
             player_cards: Default::default(),
+            shuffle_deck_on_insert,
             state,
         }
     }

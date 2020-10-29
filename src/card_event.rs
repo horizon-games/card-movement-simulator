@@ -33,6 +33,12 @@ pub enum CardEvent<S: State> {
         to: ExactCardLocation,
     },
 
+    /// Emitted when a deck is shuffled.
+    ShuffleDeck {
+        player: Player,
+        deck: Vec<InstanceID>,
+    },
+
     /// Emitted when the field is re-ordered.
     SortField {
         player: Player,
@@ -65,6 +71,9 @@ impl<S: State> std::fmt::Display for CardEvent<S> {
                 to,
                 if instance.is_some() { "" } else { "out" }
             ),
+            CardEvent::ShuffleDeck { player, deck } => {
+                write!(f, "Player {}'s deck shuffled: {:?}", player, deck)
+            }
             CardEvent::SortField { player, field } => {
                 write!(f, "Player {}'s field sorted: {:?}", player, field)
             }
