@@ -1067,59 +1067,64 @@ impl<S: State> CardGame<S> {
         card: impl Into<Card>,
         deep: bool,
     ) -> Pin<Box<dyn Future<Output = Card> + 'a>> {
-        let card = card.into();
+        return inner(self, card.into(), deep);
 
-        Box::pin(async move {
-            match card {
-                Card::ID(id) => match &self.instances[id.0] {
-                    InstanceOrPlayer::Instance(instance) => {
-                        let owner = self.owner(id);
-                        let base = instance.base.clone();
-                        let state = instance.state.copy_card();
-                        let attachment = if deep {
-                            if let Some(attachment) = instance.attachment {
-                                Some(
-                                    self.copy_card(attachment, deep)
-                                        .await
-                                        .id()
-                                        .expect("public card attachment copy must be public"),
-                                )
+        fn inner<'a, S: State>(
+            this: &'a mut CardGame<S>,
+            card: Card,
+            deep: bool,
+        ) -> Pin<Box<dyn Future<Output = Card> + 'a>> {
+            Box::pin(async move {
+                match card {
+                    Card::ID(id) => match &this.instances[id.0] {
+                        InstanceOrPlayer::Instance(instance) => {
+                            let owner = this.owner(id);
+                            let base = instance.base.clone();
+                            let state = instance.state.copy_card();
+                            let attachment = if deep {
+                                if let Some(attachment) = instance.attachment {
+                                    Some(
+                                        this.copy_card(attachment, deep)
+                                            .await
+                                            .id()
+                                            .expect("public card attachment copy must be public"),
+                                    )
+                                } else {
+                                    None
+                                }
+                            } else if let Some(attachment) = base.attachment() {
+                                Some(this.new_card(owner, attachment).await)
                             } else {
                                 None
+                            };
+
+                            let copy_id = InstanceID(this.instances.len());
+                            let copy = CardInstance {
+                                id: copy_id,
+                                base,
+                                state,
+                                attachment: None,
+                            };
+                            this.instances.push(InstanceOrPlayer::Instance(copy));
+
+                            this.player_cards_mut(owner).limbo.push(copy_id);
+
+                            if let Some(attachment) = attachment {
+                                this.move_card(
+                                    attachment,
+                                    owner,
+                                    Zone::Attachment {
+                                        parent: copy_id.into(),
+                                    },
+                                )
+                                .await
+                                .unwrap();
                             }
-                        } else if let Some(attachment) = base.attachment() {
-                            Some(self.new_card(owner, attachment).await)
-                        } else {
-                            None
-                        };
-
-                        let copy_id = InstanceID(self.instances.len());
-                        let copy = CardInstance {
-                            id: copy_id,
-                            base,
-                            state,
-                            attachment: None,
-                        };
-                        self.instances.push(InstanceOrPlayer::Instance(copy));
-
-                        self.player_cards_mut(owner).limbo.push(copy_id);
-
-                        if let Some(attachment) = attachment {
-                            self.move_card(
-                                attachment,
-                                owner,
-                                Zone::Attachment {
-                                    parent: copy_id.into(),
-                                },
-                            )
-                            .await
-                            .unwrap();
+                            copy_id.into()
                         }
-                        copy_id.into()
-                    }
-                    InstanceOrPlayer::Player(owner) => {
-                        let owner = *owner;
-                        self.new_secret_cards(owner, |mut secret| {
+                        InstanceOrPlayer::Player(owner) => {
+                            let owner = *owner;
+                            this.new_secret_cards(owner, |mut secret| {
                             let (copy_id, attach_id) = {
                                 let mut next_instance = secret.next_instance.expect(
                                     "`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call",
@@ -1181,39 +1186,39 @@ impl<S: State> CardGame<S> {
                             }
                         })
                         .await[0]
-                    }
-                },
-                Card::Pointer(OpaquePointer { player, index }) => {
-                    let buckets: Vec<_> = self
-                        .instances
-                        .iter()
-                        .map(InstanceOrPlayer::player)
-                        .collect();
+                        }
+                    },
+                    Card::Pointer(OpaquePointer { player, index }) => {
+                        let buckets: Vec<_> = this
+                            .instances
+                            .iter()
+                            .map(InstanceOrPlayer::player)
+                            .collect();
 
-                    let id = self
-                        .context
-                        .reveal_unique(
-                            player,
-                            move |secret| {
-                                let id = secret.pointers[index];
+                        let id = this
+                            .context
+                            .reveal_unique(
+                                player,
+                                move |secret| {
+                                    let id = secret.pointers[index];
 
-                                buckets[id.0].and_then(|bucket| {
-                                    if bucket == player {
-                                        None
-                                    } else {
-                                        Some(id)
-                                    }
-                                })
-                            },
-                            |_| true,
-                        )
-                        .await;
+                                    buckets[id.0].and_then(|bucket| {
+                                        if bucket == player {
+                                            None
+                                        } else {
+                                            Some(id)
+                                        }
+                                    })
+                                },
+                                |_| true,
+                            )
+                            .await;
 
-                    match id {
-                        None => {
-                            let instances = self.instances.clone();
+                        match id {
+                            None => {
+                                let instances = this.instances.clone();
 
-                            self.new_secret_cards(player, |mut secret| {
+                                this.new_secret_cards(player, |mut secret| {
                                 let (copy_id, attach_id) = {
                                     let mut next_instance = secret
                                         .next_instance
@@ -1278,13 +1283,13 @@ impl<S: State> CardGame<S> {
                                     secret.attach_card(copy_id, attachment).unwrap();
                                 }
                             }).await[0]
-                        }
-                        Some(id) => {
-                            let owner = self.instances[id.0]
-                                .player()
-                                .expect("instance is not in another player's secret");
+                            }
+                            Some(id) => {
+                                let owner = this.instances[id.0]
+                                    .player()
+                                    .expect("instance is not in another player's secret");
 
-                            self.new_secret_cards(owner, |mut secret| {
+                                this.new_secret_cards(owner, |mut secret| {
                                 let (copy_id, attach_id) = {
                                         let mut next_instance = secret
                                             .next_instance
@@ -1348,11 +1353,12 @@ impl<S: State> CardGame<S> {
                                         assert!(secret.instance(copy_id).unwrap().attachment.is_some());
                                     }
                                 }).await[0]
+                            }
                         }
                     }
                 }
-            }
-        })
+            })
+        }
     }
 
     pub async fn copy_cards(&mut self, cards: Vec<Card>, deep: bool) -> Vec<Card> {
@@ -1578,315 +1584,334 @@ impl<S: State> CardGame<S> {
         to_player: Player,
         to_zone: Zone,
     ) -> Result<(CardLocation, Option<InstanceID>), error::MoveCardError> {
-        let card = card.into();
-        let to_bucket = match to_zone {
-            Zone::Deck => Some(to_player),
-            Zone::Hand { public: false } => Some(to_player),
-            Zone::Hand { public: true } => None,
-            Zone::Field => None,
-            Zone::Graveyard => None,
-            Zone::Limbo { public: false } => Some(to_player),
-            Zone::Limbo { public: true } => None,
-            Zone::CardSelection => Some(to_player),
-            Zone::Casting => None,
-            Zone::Dust { public: false } => Some(to_player),
-            Zone::Dust { public: true } => None,
-            Zone::Attachment { parent } => {
-                return self.attach_card(card, parent).await;
-            }
-        };
-        // We always need to know who owns the card instance itself.
+        return inner(self, card.into(), to_player, to_zone).await;
 
-        // Either this card is in Public state (None) or a player's secret (Some(player)).
-        // We also need to know who owns the card, regardless of its secrecy, so we can later update the public state for that player.
-        let (bucket, owner) = match card {
-            Card::Pointer(OpaquePointer { player, index }) => {
-                let buckets: Vec<_> = self
-                    .instances
-                    .iter()
-                    .enumerate()
-                    .map(|(i, instance)| (instance.player(), self.owner(InstanceID(i))))
-                    .collect();
-
-                self.context
-                    .reveal_unique(
-                        player,
-                        move |secret| buckets[secret.pointers[index].0],
-                        |_| true,
-                    )
-                    .await
-            }
-            Card::ID(id) => (self.instances[id.0].player(), self.owner(id)),
-        };
-
-        let id = match card {
-            Card::ID(id) => Some(id),
-            Card::Pointer(OpaquePointer { player, index }) => {
-                if bucket != Some(player) || to_bucket != Some(player) {
-                    Some(
-                        self.context
-                            .reveal_unique(player, move |secret| secret.pointers[index], |_| true)
-                            .await,
-                    )
-                } else {
-                    // The pointer, the card, and the destination all exist within one player's secret.
-                    // Therefore, the instance ID need not be revealed.
-
-                    None
+        async fn inner<S: State>(
+            this: &mut CardGame<S>,
+            card: Card,
+            to_player: Player,
+            to_zone: Zone,
+        ) -> Result<(CardLocation, Option<InstanceID>), error::MoveCardError> {
+            let to_bucket = match to_zone {
+                Zone::Deck => Some(to_player),
+                Zone::Hand { public: false } => Some(to_player),
+                Zone::Hand { public: true } => None,
+                Zone::Field => None,
+                Zone::Graveyard => None,
+                Zone::Limbo { public: false } => Some(to_player),
+                Zone::Limbo { public: true } => None,
+                Zone::CardSelection => Some(to_player),
+                Zone::Casting => None,
+                Zone::Dust { public: false } => Some(to_player),
+                Zone::Dust { public: true } => None,
+                Zone::Attachment { parent } => {
+                    return this.attach_card(card, parent).await;
                 }
-            }
-        };
-        // Reveal the zone that a card came from
-        let location = match bucket {
-            None => {
-                let id = id.expect("ID should have been revealed in this case");
+            };
+            // We always need to know who owns the card instance itself.
 
-                Some(
-                    self.location(id)
-                        .location
-                        .expect("CardLocation for a public card must be public."),
-                )
-            }
-            Some(player) => {
-                self.context.mutate_secret(player, move |secret, _, _| {
-                    let location = secret
-                        .location(
-                            id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]),
+            // Either this card is in Public state (None) or a player's secret (Some(player)).
+            // We also need to know who owns the card, regardless of its secrecy, so we can later update the public state for that player.
+            let (bucket, owner) = match card {
+                Card::Pointer(OpaquePointer { player, index }) => {
+                    let buckets: Vec<_> = this
+                        .instances
+                        .iter()
+                        .enumerate()
+                        .map(|(i, instance)| (instance.player(), this.owner(InstanceID(i))))
+                        .collect();
+
+                    this.context
+                        .reveal_unique(
+                            player,
+                            move |secret| buckets[secret.pointers[index].0],
+                            |_| true,
                         )
-                        .location
-                        .expect("The secret should know the zone.");
+                        .await
+                }
+                Card::ID(id) => (this.instances[id.0].player(), this.owner(id)),
+            };
 
-                    match location.0 {
-                        Zone::Limbo { public: false } | Zone::Attachment { .. } => {
-                            secret.deferred_locations.push(location);
-                        }
-                        _ => {
-                            // location will get revealed publicly
-                        }
+            let id = match card {
+                Card::ID(id) => Some(id),
+                Card::Pointer(OpaquePointer { player, index }) => {
+                    if bucket != Some(player) || to_bucket != Some(player) {
+                        Some(
+                            this.context
+                                .reveal_unique(
+                                    player,
+                                    move |secret| secret.pointers[index],
+                                    |_| true,
+                                )
+                                .await,
+                        )
+                    } else {
+                        // The pointer, the card, and the destination all exist within one player's secret.
+                        // Therefore, the instance ID need not be revealed.
+
+                        None
                     }
-                });
+                }
+            };
+            // Reveal the zone that a card came from
+            let location = match bucket {
+                None => {
+                    let id = id.expect("ID should have been revealed in this case");
 
-                self.context
-                    .reveal_unique(
-                        player,
-                        move |secret| {
-                            let location = secret
+                    Some(
+                        this.location(id)
+                            .location
+                            .expect("CardLocation for a public card must be public."),
+                    )
+                }
+                Some(player) => {
+                    this.context.mutate_secret(player, move |secret, _, _| {
+                        let location =
+                            secret
                                 .location(id.unwrap_or_else(|| {
                                     secret.pointers[card.pointer().unwrap().index]
                                 }))
                                 .location
                                 .expect("The secret should know the zone.");
 
-                            match location.0 {
-                                Zone::Limbo { public: false } | Zone::Attachment { .. } => {
-                                    None // secret.deferred_locations has this key.
-                                }
-                                _ => Some(location),
+                        match location.0 {
+                            Zone::Limbo { public: false } | Zone::Attachment { .. } => {
+                                secret.deferred_locations.push(location);
                             }
-                        },
-                        |_| true,
-                    )
-                    .await
-            }
-        };
-
-        // Special case, secret -> secret for a single player
-        if let Some(bucket_owner) = bucket {
-            if to_bucket == bucket {
-                self.context.mutate_secret(bucket_owner, |secret, _, log| {
-                    let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
-                    let old_location = secret.location(id);
-
-                    let instance = secret.instance(id).unwrap().clone();
-                    let attachment = instance
-                        .attachment
-                        .map(|a_id| secret.instance(a_id).unwrap().clone());
-                    log(CardEvent::MoveCard {
-                        instance: Some((instance, attachment)),
-                        from: old_location,
-                        to: ExactCardLocation {
-                            player: bucket_owner,
-                            location: (
-                                to_zone,
-                                match to_zone {
-                                    Zone::Deck => secret.deck.len(),
-                                    Zone::Hand { public: false } => secret.hand.len(),
-                                    Zone::Hand { public: true } => {
-                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                    }
-                                    Zone::Field => {
-                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                    }
-                                    Zone::Graveyard => {
-                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                    }
-                                    Zone::Limbo { public: false } => secret.limbo.len(),
-                                    Zone::Limbo { public: true } => {
-                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                    }
-                                    Zone::CardSelection => secret.card_selection.len(),
-                                    Zone::Casting => {
-                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                    }
-                                    Zone::Dust { public: false } => secret.dust.len(),
-                                    Zone::Dust { public: true } => {
-                                        unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                    }
-                                    Zone::Attachment { .. } => 0,
-                                },
-                            ),
-                        },
+                            _ => {
+                                // location will get revealed publicly
+                            }
+                        }
                     });
-                    // Remove this card from its old zone in the secret.
-                    secret.remove_id(log, id);
 
-                    // Put the card in its new zone in the secret.
+                    this.context
+                        .reveal_unique(
+                            player,
+                            move |secret| {
+                                let location = secret
+                                    .location(id.unwrap_or_else(|| {
+                                        secret.pointers[card.pointer().unwrap().index]
+                                    }))
+                                    .location
+                                    .expect("The secret should know the zone.");
+
+                                match location.0 {
+                                    Zone::Limbo { public: false } | Zone::Attachment { .. } => {
+                                        None // secret.deferred_locations has this key.
+                                    }
+                                    _ => Some(location),
+                                }
+                            },
+                            |_| true,
+                        )
+                        .await
+                }
+            };
+
+            // Special case, secret -> secret for a single player
+            if let Some(bucket_owner) = bucket {
+                if to_bucket == bucket {
+                    this.context.mutate_secret(bucket_owner, |secret, _, log| {
+                        let id =
+                            id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                        let old_location = secret.location(id);
+
+                        let instance = secret.instance(id).unwrap().clone();
+                        let attachment = instance
+                            .attachment
+                            .map(|a_id| secret.instance(a_id).unwrap().clone());
+                        log(CardEvent::MoveCard {
+                            instance: Some((instance, attachment)),
+                            from: old_location,
+                            to: ExactCardLocation {
+                                player: bucket_owner,
+                                location: (
+                                    to_zone,
+                                    match to_zone {
+                                        Zone::Deck => secret.deck.len(),
+                                        Zone::Hand { public: false } => secret.hand.len(),
+                                        Zone::Hand { public: true } => {
+                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                        }
+                                        Zone::Field => {
+                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                        }
+                                        Zone::Graveyard => {
+                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                        }
+                                        Zone::Limbo { public: false } => secret.limbo.len(),
+                                        Zone::Limbo { public: true } => {
+                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                        }
+                                        Zone::CardSelection => secret.card_selection.len(),
+                                        Zone::Casting => {
+                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                        }
+                                        Zone::Dust { public: false } => secret.dust.len(),
+                                        Zone::Dust { public: true } => {
+                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                        }
+                                        Zone::Attachment { .. } => 0,
+                                    },
+                                ),
+                            },
+                        });
+                        // Remove this card from its old zone in the secret.
+                        secret.remove_id(log, id);
+
+                        // Put the card in its new zone in the secret.
+                        match to_zone {
+                            Zone::Deck => secret.deck.push(id),
+                            Zone::Hand { public: false } => secret.hand.push(Some(id)),
+                            Zone::Hand { public: true } => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
+                            Zone::Field => unreachable!("{}:{}:{}", file!(), line!(), column!()),
+                            Zone::Graveyard => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
+                            Zone::Limbo { public: false } => secret.limbo.push(id),
+                            Zone::Limbo { public: true } => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
+                            Zone::CardSelection => secret.card_selection.push(id),
+                            Zone::Casting => unreachable!("{}:{}:{}", file!(), line!(), column!()),
+                            Zone::Dust { public: false } => secret.dust.push(id),
+                            Zone::Dust { public: true } => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
+                            Zone::Attachment { .. } => {
+                                unreachable!("Can't attach a spell with move_card.")
+                            }
+                        }
+                    });
+
+                    if let Some((zone, index)) = location {
+                        this.player_cards_mut(bucket_owner).remove_from(zone, index);
+                    }
+
+                    // Update the public state about where we put this card
+                    let player_state = this.player_cards_mut(to_player);
                     match to_zone {
-                        Zone::Deck => secret.deck.push(id),
-                        Zone::Hand { public: false } => secret.hand.push(Some(id)),
+                        Zone::Deck => {
+                            player_state.deck += 1;
+                        }
+                        Zone::Hand { public: false } => {
+                            player_state.hand.push(None);
+                        }
                         Zone::Hand { public: true } => {
-                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            unreachable!("{}:{}:{}", file!(), line!(), column!());
                         }
-                        Zone::Field => unreachable!("{}:{}:{}", file!(), line!(), column!()),
-                        Zone::Graveyard => unreachable!("{}:{}:{}", file!(), line!(), column!()),
-                        Zone::Limbo { public: false } => secret.limbo.push(id),
+                        Zone::Field => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!());
+                        }
+                        Zone::Graveyard => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!());
+                        }
+                        Zone::Limbo { public: false } => {
+                            // do nothing, this is a secret
+                        }
                         Zone::Limbo { public: true } => {
-                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            unreachable!("{}:{}:{}", file!(), line!(), column!());
                         }
-                        Zone::CardSelection => secret.card_selection.push(id),
-                        Zone::Casting => unreachable!("{}:{}:{}", file!(), line!(), column!()),
-                        Zone::Dust { public: false } => secret.dust.push(id),
+                        Zone::CardSelection => {
+                            player_state.card_selection += 1;
+                        }
+                        Zone::Casting => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!());
+                        }
+                        Zone::Dust { public: false } => {
+                            // do nothing, this is a secret
+                        }
                         Zone::Dust { public: true } => {
-                            unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            unreachable!("{}:{}:{}", file!(), line!(), column!());
                         }
                         Zone::Attachment { .. } => {
-                            unreachable!("Can't attach a spell with move_card.")
+                            unreachable!("Cannot move card to attachment zone")
                         }
                     }
-                });
 
-                if let Some((zone, index)) = location {
-                    self.player_cards_mut(bucket_owner).remove_from(zone, index);
-                }
+                    let to_location = (
+                        to_zone,
+                        match to_zone {
+                            Zone::Deck => this.player_cards(to_player).deck() - 1,
+                            Zone::Hand { public: false } => {
+                                this.player_cards(to_player).hand().len() - 1
+                            }
+                            Zone::Hand { public: true } => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
+                            Zone::Field => unreachable!("{}:{}:{}", file!(), line!(), column!()),
+                            Zone::Graveyard => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
+                            Zone::Limbo { public: false } => 0,
+                            Zone::Limbo { public: true } => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
+                            Zone::CardSelection => 0,
+                            Zone::Casting => unreachable!("{}:{}:{}", file!(), line!(), column!()),
+                            Zone::Dust { public: false } => 0,
+                            Zone::Dust { public: true } => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
+                            Zone::Attachment { .. } => 0,
+                        },
+                    );
+                    // Bucket owner has already seen the log, so do it for only the other player
+                    this.context.mutate_secret(1 - bucket_owner, |_, _, log| {
+                        log(CardEvent::MoveCard {
+                            instance: None,
+                            from: CardLocation {
+                                player: bucket_owner,
+                                location,
+                            },
+                            to: ExactCardLocation {
+                                player: to_player,
+                                location: to_location,
+                            },
+                        })
+                    });
 
-                // Update the public state about where we put this card
-                let player_state = self.player_cards_mut(to_player);
-                match to_zone {
-                    Zone::Deck => {
-                        player_state.deck += 1;
-                    }
-                    Zone::Hand { public: false } => {
-                        player_state.hand.push(None);
-                    }
-                    Zone::Hand { public: true } => {
-                        unreachable!("{}:{}:{}", file!(), line!(), column!());
-                    }
-                    Zone::Field => {
-                        unreachable!("{}:{}:{}", file!(), line!(), column!());
-                    }
-                    Zone::Graveyard => {
-                        unreachable!("{}:{}:{}", file!(), line!(), column!());
-                    }
-                    Zone::Limbo { public: false } => {
-                        // do nothing, this is a secret
-                    }
-                    Zone::Limbo { public: true } => {
-                        unreachable!("{}:{}:{}", file!(), line!(), column!());
-                    }
-                    Zone::CardSelection => {
-                        player_state.card_selection += 1;
-                    }
-                    Zone::Casting => {
-                        unreachable!("{}:{}:{}", file!(), line!(), column!());
-                    }
-                    Zone::Dust { public: false } => {
-                        // do nothing, this is a secret
-                    }
-                    Zone::Dust { public: true } => {
-                        unreachable!("{}:{}:{}", file!(), line!(), column!());
-                    }
-                    Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
-                }
-
-                let to_location = (
-                    to_zone,
-                    match to_zone {
-                        Zone::Deck => self.player_cards(to_player).deck() - 1,
-                        Zone::Hand { public: false } => {
-                            self.player_cards(to_player).hand().len() - 1
-                        }
-                        Zone::Hand { public: true } => {
-                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                        }
-                        Zone::Field => unreachable!("{}:{}:{}", file!(), line!(), column!()),
-                        Zone::Graveyard => unreachable!("{}:{}:{}", file!(), line!(), column!()),
-                        Zone::Limbo { public: false } => 0,
-                        Zone::Limbo { public: true } => {
-                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                        }
-                        Zone::CardSelection => 0,
-                        Zone::Casting => unreachable!("{}:{}:{}", file!(), line!(), column!()),
-                        Zone::Dust { public: false } => 0,
-                        Zone::Dust { public: true } => {
-                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                        }
-                        Zone::Attachment { .. } => 0,
-                    },
-                );
-                // Bucket owner has already seen the log, so do it for only the other player
-                self.context.mutate_secret(1 - bucket_owner, |_, _, log| {
-                    log(CardEvent::MoveCard {
-                        instance: None,
-                        from: CardLocation {
+                    return Ok((
+                        CardLocation {
                             player: bucket_owner,
                             location,
                         },
-                        to: ExactCardLocation {
-                            player: to_player,
-                            location: to_location,
-                        },
-                    })
-                });
-
-                return Ok((
-                    CardLocation {
-                        player: bucket_owner,
-                        location,
-                    },
-                    id,
-                ));
-            }
-        }
-
-        let mut deferred_logs = vec![];
-
-        let (instance, attachment_instance) = match bucket {
-            None => {
-                let id = id.expect("Card is in public state, but we don't know its id.");
-                if let Some((
-                    Zone::Attachment {
-                        parent: Card::ID(old_parent),
-                    },
-                    ..,
-                )) = location
-                {
-                    let attach_clone = id
-                        .instance(self, None)
-                        .expect("Match is in None, so this id must be in public state.")
-                        .clone();
-                    self.modify_card_internal(
-                        old_parent.into(),
-                        |parent, _| {
-                            S::on_detach(parent, &attach_clone);
-                        },
-                        &mut |event| deferred_logs.push(event),
-                    )
-                    .await;
+                        id,
+                    ));
                 }
+            }
 
-                if let Some(to_bucket_player) = to_bucket {
-                    let instance = std::mem::replace(
-                        &mut self.instances[id.0],
+            let mut deferred_logs = vec![];
+
+            let (instance, attachment_instance) = match bucket {
+                None => {
+                    let id = id.expect("Card is in public state, but we don't know its id.");
+                    if let Some((
+                        Zone::Attachment {
+                            parent: Card::ID(old_parent),
+                        },
+                        ..,
+                    )) = location
+                    {
+                        let attach_clone = id
+                            .instance(this, None)
+                            .expect("Match is in None, so this id must be in public state.")
+                            .clone();
+                        this.modify_card_internal(
+                            old_parent.into(),
+                            |parent, _| {
+                                S::on_detach(parent, &attach_clone);
+                            },
+                            &mut |event| deferred_logs.push(event),
+                        )
+                        .await;
+                    }
+
+                    if let Some(to_bucket_player) = to_bucket {
+                        let instance = std::mem::replace(
+                        &mut this.instances[id.0],
                         InstanceOrPlayer::Player(to_bucket_player),
                     )
                     .instance()
@@ -1894,338 +1919,342 @@ impl<S: State> CardGame<S> {
                         "Card was identified as public, but it's actually InstanceOrPlayer::Player",
                     );
 
-                    let attachment = instance.attachment.map(|attachment_id| {
-                        std::mem::replace(&mut self.instances[attachment_id.0], InstanceOrPlayer::Player(to_bucket_player)).instance().expect("Since parent Card is public, attachment was identified as public, but it's actually InstanceOrPlayer::Player")
+                        let attachment = instance.attachment.map(|attachment_id| {
+                        std::mem::replace(&mut this.instances[attachment_id.0], InstanceOrPlayer::Player(to_bucket_player)).instance().expect("Since parent Card is public, attachment was identified as public, but it's actually InstanceOrPlayer::Player")
                     });
 
-                    self.context.mutate_secret(owner, |secret, _, _| {
-                        if let Some((Zone::Hand { public: false }, index)) = location {
-                            secret
-                                .hand
-                                .remove(index.expect("no index for secret hand card"));
-                        }
-                    });
+                        this.context.mutate_secret(owner, |secret, _, _| {
+                            if let Some((Zone::Hand { public: false }, index)) = location {
+                                secret
+                                    .hand
+                                    .remove(index.expect("no index for secret hand card"));
+                            }
+                        });
 
-                    (Some(instance), attachment)
-                } else {
-                    // we're moving from public to public
-                    (None, None)
+                        (Some(instance), attachment)
+                    } else {
+                        // we're moving from public to public
+                        (None, None)
+                    }
                 }
-            }
-            Some(player) => {
-                let (instance, attachment_instance) = self
-                    .context
-                    .reveal_unique(
-                        player,
-                        move |secret| {
-                            let id = id
-                                .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                Some(player) => {
+                    let (instance, attachment_instance) = this
+                        .context
+                        .reveal_unique(
+                            player,
+                            move |secret| {
+                                let id = id.unwrap_or_else(|| {
+                                    secret.pointers[card.pointer().unwrap().index]
+                                });
 
-                            let instance = secret
-                                .instance(id)
-                                .expect("Secret has the instance for this ID");
+                                let instance = secret
+                                    .instance(id)
+                                    .expect("Secret has the instance for this ID");
 
-                            (
-                                Some(instance.clone()),
-                                instance.attachment.map(|attachment| {
-                                    secret
-                                        .instance(attachment)
-                                        .expect("Secret has the instance for this ID")
-                                        .clone()
-                                }),
-                            )
-                        },
-                        |_| true,
-                    )
-                    .await;
-
-                self.context.mutate_secret(player, move |secret, _, _| {
-                    let id = id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
-                    // find what collection id is in and remove it
-                    secret.deck.retain(|i| *i != id);
-                    secret.hand.retain(|i| *i != Some(id));
-                    secret.limbo.retain(|i| *i != id);
-                    secret.card_selection.retain(|i| *i != id);
-                    secret.dust.retain(|i| *i != id);
-
-                    let parent_id = secret
-                        .instances
-                        .values()
-                        .find(|c| c.attachment == Some(id))
-                        .map(|c| c.id);
-                    // We're removing the attachment from a card in the secret
-                    if let Some(parent_id) = parent_id {
-                        let attach_clone = secret.instance(id).unwrap().clone();
-                        let mut deferred_logs = vec![];
-                        secret.modify_card_internal(
-                            parent_id,
-                            &mut |event| deferred_logs.push(event),
-                            |parent, _| {
-                                S::on_detach(parent, &attach_clone);
-                                parent.attachment = None;
+                                (
+                                    Some(instance.clone()),
+                                    instance.attachment.map(|attachment| {
+                                        secret
+                                            .instance(attachment)
+                                            .expect("Secret has the instance for this ID")
+                                            .clone()
+                                    }),
+                                )
                             },
-                        );
-                        secret.deferred_logs.append(&mut deferred_logs);
-                    }
-                    // We're removing a card with an attachment from the secret
-                    if let Some(attachment_id) = secret.instance(id).unwrap().attachment {
-                        secret.instances.remove(&attachment_id);
-                    }
+                            |_| true,
+                        )
+                        .await;
 
-                    // Finally, remove the card from the secret's instances.
-                    secret.instances.remove(&id);
+                    this.context.mutate_secret(player, move |secret, _, _| {
+                        let id =
+                            id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                        // find what collection id is in and remove it
+                        secret.deck.retain(|i| *i != id);
+                        secret.hand.retain(|i| *i != Some(id));
+                        secret.limbo.retain(|i| *i != id);
+                        secret.card_selection.retain(|i| *i != id);
+                        secret.dust.retain(|i| *i != id);
+
+                        let parent_id = secret
+                            .instances
+                            .values()
+                            .find(|c| c.attachment == Some(id))
+                            .map(|c| c.id);
+                        // We're removing the attachment from a card in the secret
+                        if let Some(parent_id) = parent_id {
+                            let attach_clone = secret.instance(id).unwrap().clone();
+                            let mut deferred_logs = vec![];
+                            secret.modify_card_internal(
+                                parent_id,
+                                &mut |event| deferred_logs.push(event),
+                                |parent, _| {
+                                    S::on_detach(parent, &attach_clone);
+                                    parent.attachment = None;
+                                },
+                            );
+                            secret.deferred_logs.append(&mut deferred_logs);
+                        }
+                        // We're removing a card with an attachment from the secret
+                        if let Some(attachment_id) = secret.instance(id).unwrap().attachment {
+                            secret.instances.remove(&attachment_id);
+                        }
+
+                        // Finally, remove the card from the secret's instances.
+                        secret.instances.remove(&id);
+                    });
+                    (instance, attachment_instance)
+                }
+            };
+
+            // At this point in time, either we already knew ID, or we've revealed it by revealing the instance.
+            let id = id
+                .or_else(|| instance.as_ref().map(|v| v.id))
+                .expect("Either we know ID or we've revealed the instance.");
+
+            // If this card came from a secret, we know it's leaving that secret. SX -> SX case handled above.
+            if let Some(bucket_owner) = bucket {
+                this.context.mutate_secret(bucket_owner, |secret, _, log| {
+                    // Take its ID out of any zones in that secret.
+                    secret.remove_id(log, id);
                 });
-                (instance, attachment_instance)
+            } else if let Some((Zone::Hand { public: true }, index)) = location {
+                this.context.mutate_secret(owner, |secret, _, _| {
+                    secret
+                        .hand
+                        .remove(index.expect("no index for public hand card"));
+                });
             }
-        };
 
-        // At this point in time, either we already knew ID, or we've revealed it by revealing the instance.
-        let id = id
-            .or_else(|| instance.as_ref().map(|v| v.id))
-            .expect("Either we know ID or we've revealed the instance.");
-
-        // If this card came from a secret, we know it's leaving that secret. SX -> SX case handled above.
-        if let Some(bucket_owner) = bucket {
-            self.context.mutate_secret(bucket_owner, |secret, _, log| {
-                // Take its ID out of any zones in that secret.
-                secret.remove_id(log, id);
-            });
-        } else if let Some((Zone::Hand { public: true }, index)) = location {
-            self.context.mutate_secret(owner, |secret, _, _| {
-                secret
-                    .hand
-                    .remove(index.expect("no index for public hand card"));
-            });
-        }
-
-        match location {
-            Some((
-                Zone::Attachment {
-                    parent: Card::ID(old_parent),
-                },
-                ..,
-            )) => {
-                self.instances[old_parent.0]
-                    .instance_mut()
-                    .expect("Card should have been attached to a public parent")
-                    .attachment = None;
+            match location {
+                Some((
+                    Zone::Attachment {
+                        parent: Card::ID(old_parent),
+                    },
+                    ..,
+                )) => {
+                    this.instances[old_parent.0]
+                        .instance_mut()
+                        .expect("Card should have been attached to a public parent")
+                        .attachment = None;
+                }
+                Some((zone, index)) => {
+                    this.player_cards_mut(owner).remove_from(zone, index);
+                }
+                None => (),
             }
-            Some((zone, index)) => {
-                self.player_cards_mut(owner).remove_from(zone, index);
-            }
-            None => (),
-        }
 
-        let field_index = if let Zone::Field = to_zone {
-            let my_instance = instance.as_ref().unwrap_or_else(|| {
-                id.instance(self, None)
+            let field_index = if let Zone::Field = to_zone {
+                let my_instance = instance.as_ref().unwrap_or_else(|| {
+                id.instance(this, None)
                     .expect("Card going to field isn't being removed from a secret, so should be in public state.")
             });
-            let my_attachment = attachment_instance.as_ref().or_else(|| {
+                let my_attachment = attachment_instance.as_ref().or_else(|| {
                 my_instance
                     .attachment
-                    .map(|attach| attach.instance(self, None)
+                    .map(|attach| attach.instance(this, None)
                     .expect("Attachment of card going to field isn't being removed from a secret, so should be in public state."))
             });
 
-            let field_index = self
-                .player_cards(to_player)
-                .field
-                .iter()
-                .map(|id| {
-                    let instance = id
-                        .instance(self, None)
-                        .expect("Instances on the field are in public state");
-                    CardInfo {
-                        instance,
-                        owner: to_player,
-                        zone: Zone::Field,
-                        attachment: instance.attachment.map(|attach| {
-                            attach
-                                .instance(self, None)
-                                .expect("Attachments on instances on the field are in public state")
-                        }),
-                    }
-                })
-                .position(move |card| {
-                    S::field_order(
-                        card,
+                let field_index = this
+                    .player_cards(to_player)
+                    .field
+                    .iter()
+                    .map(|id| {
+                        let instance = id
+                            .instance(this, None)
+                            .expect("Instances on the field are in public state");
                         CardInfo {
-                            instance: &my_instance,
+                            instance,
                             owner: to_player,
                             zone: Zone::Field,
-                            attachment: my_attachment,
-                        },
-                    ) == Ordering::Greater
-                })
-                .unwrap_or_else(|| self.player_cards(to_player).field.len());
-            Some(field_index)
-        } else {
-            None
-        };
+                            attachment: instance.attachment.map(|attach| {
+                                attach.instance(this, None).expect(
+                                    "Attachments on instances on the field are in public state",
+                                )
+                            }),
+                        }
+                    })
+                    .position(move |card| {
+                        S::field_order(
+                            card,
+                            CardInfo {
+                                instance: &my_instance,
+                                owner: to_player,
+                                zone: Zone::Field,
+                                attachment: my_attachment,
+                            },
+                        ) == Ordering::Greater
+                    })
+                    .unwrap_or_else(|| this.player_cards(to_player).field.len());
+                Some(field_index)
+            } else {
+                None
+            };
 
-        match to_zone {
-            Zone::Deck => {
-                self.context.mutate_secret(to_player, |secret, _, _| {
-                    secret.deck.push(id);
-                });
+            match to_zone {
+                Zone::Deck => {
+                    this.context.mutate_secret(to_player, |secret, _, _| {
+                        secret.deck.push(id);
+                    });
 
-                self.player_cards_mut(to_player).deck += 1;
-            }
-            Zone::Hand { public: false } => {
-                self.context.mutate_secret(to_player, |secret, _, _| {
-                    secret.hand.push(Some(id));
-                });
-
-                self.player_cards_mut(to_player).hand.push(None);
-            }
-            Zone::Hand { public: true } => {
-                let index = match location {
-                    Some((Zone::Hand { public: false }, Some(index))) if to_player == owner => {
-                        index
-                    }
-                    _ => self.player_cards(to_player).hand.len(),
-                };
-
-                self.player_cards_mut(to_player)
-                    .hand
-                    .insert(index, Some(id));
-
-                self.context.mutate_secret(to_player, |secret, _, _| {
-                    secret.hand.insert(index, None);
-                });
-            }
-            Zone::Field => {
-                self.player_cards_mut(to_player).field.insert(
-                    field_index.expect("field_index should be Some when to_zone is Field"),
-                    id,
-                );
-            }
-            Zone::Graveyard => {
-                self.player_cards_mut(to_player).graveyard.push(id);
-            }
-            Zone::Limbo { public: false } => {
-                self.context.mutate_secret(to_player, |secret, _, _| {
-                    secret.limbo.push(id);
-                });
-            }
-            Zone::Limbo { public: true } => {
-                self.player_cards_mut(to_player).limbo.push(id);
-            }
-            Zone::CardSelection => {
-                self.context.mutate_secret(to_player, |secret, _, _| {
-                    secret.card_selection.push(id);
-                });
-
-                self.player_cards_mut(to_player).card_selection += 1;
-            }
-            Zone::Casting => {
-                self.player_cards_mut(to_player).casting.push(id);
-            }
-            Zone::Dust { public: false } => {
-                self.context.mutate_secret(to_player, |secret, _, _| {
-                    secret.dust.push(id);
-                });
-            }
-            Zone::Dust { public: true } => {
-                self.player_cards_mut(to_player).dust.push(id);
-            }
-            Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
-        }
-
-        if let Some(instance) = instance.clone() {
-            // we have a new instance, need to put it somewhere.
-            let id = instance.id;
-
-            match to_bucket {
-                None => {
-                    self.instances[id.0] = instance.into();
+                    this.player_cards_mut(to_player).deck += 1;
                 }
-                Some(to_bucket_player) => {
-                    self.instances[id.0] = to_bucket_player.into();
+                Zone::Hand { public: false } => {
+                    this.context.mutate_secret(to_player, |secret, _, _| {
+                        secret.hand.push(Some(id));
+                    });
 
-                    self.context
-                        .mutate_secret(to_bucket_player, move |secret, _, _| {
-                            secret.instances.insert(instance.id, instance.clone());
-                        });
+                    this.player_cards_mut(to_player).hand.push(None);
                 }
+                Zone::Hand { public: true } => {
+                    let index = match location {
+                        Some((Zone::Hand { public: false }, Some(index))) if to_player == owner => {
+                            index
+                        }
+                        _ => this.player_cards(to_player).hand.len(),
+                    };
+
+                    this.player_cards_mut(to_player)
+                        .hand
+                        .insert(index, Some(id));
+
+                    this.context.mutate_secret(to_player, |secret, _, _| {
+                        secret.hand.insert(index, None);
+                    });
+                }
+                Zone::Field => {
+                    this.player_cards_mut(to_player).field.insert(
+                        field_index.expect("field_index should be Some when to_zone is Field"),
+                        id,
+                    );
+                }
+                Zone::Graveyard => {
+                    this.player_cards_mut(to_player).graveyard.push(id);
+                }
+                Zone::Limbo { public: false } => {
+                    this.context.mutate_secret(to_player, |secret, _, _| {
+                        secret.limbo.push(id);
+                    });
+                }
+                Zone::Limbo { public: true } => {
+                    this.player_cards_mut(to_player).limbo.push(id);
+                }
+                Zone::CardSelection => {
+                    this.context.mutate_secret(to_player, |secret, _, _| {
+                        secret.card_selection.push(id);
+                    });
+
+                    this.player_cards_mut(to_player).card_selection += 1;
+                }
+                Zone::Casting => {
+                    this.player_cards_mut(to_player).casting.push(id);
+                }
+                Zone::Dust { public: false } => {
+                    this.context.mutate_secret(to_player, |secret, _, _| {
+                        secret.dust.push(id);
+                    });
+                }
+                Zone::Dust { public: true } => {
+                    this.player_cards_mut(to_player).dust.push(id);
+                }
+                Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
             }
 
-            // If we have an attachment_instance, we also need to put it somewhere the same way.
-            if let Some(attachment_instance) = attachment_instance.clone() {
-                let attachment_id = attachment_instance.id;
+            if let Some(instance) = instance.clone() {
+                // we have a new instance, need to put it somewhere.
+                let id = instance.id;
 
                 match to_bucket {
                     None => {
-                        self.instances[attachment_id.0] = attachment_instance.into();
+                        this.instances[id.0] = instance.into();
                     }
                     Some(to_bucket_player) => {
-                        let attachment_id = attachment_instance.id;
-                        self.instances[attachment_id.0] = to_bucket_player.into();
+                        this.instances[id.0] = to_bucket_player.into();
 
-                        self.context
+                        this.context
                             .mutate_secret(to_bucket_player, move |secret, _, _| {
-                                secret
-                                    .instances
-                                    .insert(attachment_instance.id, attachment_instance.clone());
+                                secret.instances.insert(instance.id, instance.clone());
                             });
                     }
                 }
+
+                // If we have an attachment_instance, we also need to put it somewhere the same way.
+                if let Some(attachment_instance) = attachment_instance.clone() {
+                    let attachment_id = attachment_instance.id;
+
+                    match to_bucket {
+                        None => {
+                            this.instances[attachment_id.0] = attachment_instance.into();
+                        }
+                        Some(to_bucket_player) => {
+                            let attachment_id = attachment_instance.id;
+                            this.instances[attachment_id.0] = to_bucket_player.into();
+
+                            this.context
+                                .mutate_secret(to_bucket_player, move |secret, _, _| {
+                                    secret.instances.insert(
+                                        attachment_instance.id,
+                                        attachment_instance.clone(),
+                                    );
+                                });
+                        }
+                    }
+                }
             }
-        }
 
-        let move_card_event = (
-            instance.map(|i| (i, attachment_instance)).or_else(|| {
-                id.instance(self, None).map(|instance| {
-                    (
-                        instance.clone(),
-                        instance
-                            .attachment
-                            .map(|a_id| a_id.instance(self, None).unwrap().clone()),
-                    )
-                })
-            }),
-            CardLocation {
-                player: owner,
-                location,
-            },
-            ExactCardLocation {
-                player: to_player,
-                location: (
-                    to_zone,
-                    match to_zone {
-                        Zone::Deck => self.player_cards(to_player).deck() - 1,
-                        Zone::Hand { .. } => match location {
-                            Some((Zone::Hand { public: false }, Some(index)))
-                                if to_player == owner =>
-                            {
-                                index
+            let move_card_event = (
+                instance.map(|i| (i, attachment_instance)).or_else(|| {
+                    id.instance(this, None).map(|instance| {
+                        (
+                            instance.clone(),
+                            instance
+                                .attachment
+                                .map(|a_id| a_id.instance(this, None).unwrap().clone()),
+                        )
+                    })
+                }),
+                CardLocation {
+                    player: owner,
+                    location,
+                },
+                ExactCardLocation {
+                    player: to_player,
+                    location: (
+                        to_zone,
+                        match to_zone {
+                            Zone::Deck => this.player_cards(to_player).deck() - 1,
+                            Zone::Hand { .. } => match location {
+                                Some((Zone::Hand { public: false }, Some(index)))
+                                    if to_player == owner =>
+                                {
+                                    index
+                                }
+                                _ => this.player_cards(to_player).hand.len() - 1,
+                            },
+                            Zone::Field => field_index
+                                .expect("field_index should be Some when to_zone is Field"),
+                            Zone::Graveyard => this.player_cards(to_player).graveyard().len() - 1,
+                            Zone::Limbo { public: false } => 0,
+                            Zone::Limbo { public: true } => 0,
+                            Zone::CardSelection => {
+                                this.player_cards(to_player).card_selection() - 1
                             }
-                            _ => self.player_cards(to_player).hand.len() - 1,
+                            Zone::Casting => this.player_cards(to_player).casting().len() - 1,
+                            Zone::Dust { public: false } => 0,
+                            Zone::Dust { public: true } => {
+                                this.player_cards(to_player).dust().len() - 1
+                            }
+                            Zone::Attachment { .. } => 0,
                         },
-                        Zone::Field => {
-                            field_index.expect("field_index should be Some when to_zone is Field")
-                        }
-                        Zone::Graveyard => self.player_cards(to_player).graveyard().len() - 1,
-                        Zone::Limbo { public: false } => 0,
-                        Zone::Limbo { public: true } => 0,
-                        Zone::CardSelection => self.player_cards(to_player).card_selection() - 1,
-                        Zone::Casting => self.player_cards(to_player).casting().len() - 1,
-                        Zone::Dust { public: false } => 0,
-                        Zone::Dust { public: true } => {
-                            self.player_cards(to_player).dust().len() - 1
-                        }
-                        Zone::Attachment { .. } => 0,
-                    },
-                ),
-            },
-        );
+                    ),
+                },
+            );
 
-        self.context.mutate_secret(1 - owner, |_, _, log| {
-            let (instance, from, to) = move_card_event.clone();
-            log(CardEvent::MoveCard { instance, from, to });
-        });
-        self.context.mutate_secret(owner, |secret, _, log| {
+            this.context.mutate_secret(1 - owner, |_, _, log| {
+                let (instance, from, to) = move_card_event.clone();
+                log(CardEvent::MoveCard { instance, from, to });
+            });
+            this.context.mutate_secret(owner, |secret, _, log| {
             let (instance, mut from, to) = move_card_event.clone();
 
             if from.location.is_none() {
@@ -2235,44 +2264,45 @@ impl<S: State> CardGame<S> {
                 log(CardEvent::MoveCard { instance, from, to });
         });
 
-        for deferred_log in deferred_logs {
-            self.context.log(deferred_log);
-        }
-
-        for log_player in 0..2 {
-            self.context.mutate_secret(log_player, |secret, _, log| {
-                for deferred_log in secret.deferred_logs.drain(..) {
-                    log(deferred_log);
-                }
-            });
-        }
-
-        match to_zone {
-            Zone::Deck => {
-                if self.shuffle_deck_on_insert {
-                    self.context
-                        .mutate_secret(to_player, |secret, random, log| {
-                            secret.shuffle_deck(random, log);
-                        })
-                }
+            for deferred_log in deferred_logs {
+                this.context.log(deferred_log);
             }
-            Zone::Field => {
-                let mut logs = vec![];
-                self.sort_field(to_player, &mut |event| logs.push(event));
-                for event in logs.into_iter() {
-                    self.context.log(event);
-                }
-            }
-            _ => (),
-        }
 
-        Ok((
-            CardLocation {
-                player: owner,
-                location,
-            },
-            Some(id),
-        ))
+            for log_player in 0..2 {
+                this.context.mutate_secret(log_player, |secret, _, log| {
+                    for deferred_log in secret.deferred_logs.drain(..) {
+                        log(deferred_log);
+                    }
+                });
+            }
+
+            match to_zone {
+                Zone::Deck => {
+                    if this.shuffle_deck_on_insert {
+                        this.context
+                            .mutate_secret(to_player, |secret, random, log| {
+                                secret.shuffle_deck(random, log);
+                            })
+                    }
+                }
+                Zone::Field => {
+                    let mut logs = vec![];
+                    this.sort_field(to_player, &mut |event| logs.push(event));
+                    for event in logs.into_iter() {
+                        this.context.log(event);
+                    }
+                }
+                _ => (),
+            }
+
+            Ok((
+                CardLocation {
+                    player: owner,
+                    location,
+                },
+                Some(id),
+            ))
+        }
     }
 
     pub async fn move_cards(
