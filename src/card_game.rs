@@ -1902,6 +1902,7 @@ impl<S: State> CardGame<S> {
                         this.modify_card_internal(
                             old_parent.into(),
                             |parent, _| {
+                                parent.attachment = None;
                                 S::on_detach(parent, &attach_clone);
                             },
                             &mut |event| deferred_logs.push(event),
@@ -1988,8 +1989,8 @@ impl<S: State> CardGame<S> {
                                 parent_id,
                                 &mut |event| deferred_logs.push(event),
                                 |parent, _| {
-                                    S::on_detach(parent, &attach_clone);
                                     parent.attachment = None;
+                                    S::on_detach(parent, &attach_clone);
                                 },
                             );
                             secret.deferred_logs.append(&mut deferred_logs);

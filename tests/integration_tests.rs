@@ -674,10 +674,12 @@ impl card_movement_simulator::State for State {
             }
         })
     }
-    fn on_attach(parent: &mut CardInstance<Self>, _new_attach: &CardInstance<Self>) {
+    fn on_attach(parent: &mut CardInstance<Self>, new_attach: &CardInstance<Self>) {
+        assert_eq!(parent.attachment(), Some(new_attach.id()));
         parent.attachment_was_attached += 1;
     }
     fn on_detach(parent: &mut CardInstance<Self>, _old_attach: &CardInstance<Self>) {
+        assert!(parent.attachment().is_none());
         parent.attachment_was_detached += 1;
     }
 }
@@ -1163,9 +1165,11 @@ fn test_detach(
     let modify_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::ModifyCard), got None.");
-    assert!(matches!(modify_event, CardEvent::ModifyCard {
-        ..
-    }));
+    if let CardEvent::ModifyCard { instance } = modify_event {
+        assert!(instance.attachment().is_none());
+    } else {
+        unreachable!("Expected ModifyCard, got {:#?}", modify_event);
+    }
 }
 
 fn test_attach(

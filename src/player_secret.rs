@@ -453,8 +453,8 @@ impl<S: State> PlayerSecret<S> {
                 if attach_id == id {
                     let attach_clone = self.instance(attach_id).unwrap().clone();
                     self.modify_card_internal(parent_id, log, |parent, _| {
-                        S::on_detach(parent, &attach_clone);
                         parent.attachment = None;
+                        S::on_detach(parent, &attach_clone);
                     });
                 }
             }
