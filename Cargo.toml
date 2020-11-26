@@ -10,9 +10,7 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", tag = "0.14.2", features = [
-  "tester"
-] }
+arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", tag = "0.15.0" }
 indexmap = { version = "^1.4.0", features = ["serde-1"] }
 rand = "^0.7.3"
 serde = "^1.0.111"
@@ -25,10 +23,6 @@ wasm-bindgen = { version = "0.2.64", optional = true }
 inflections = "^1.1.1"
 
 [dev-dependencies]
-arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", tag = "0.14.2", features = [
-  "tester",
-  "version"
-] }
 pretty_assertions = "0.6"
 
 [features]

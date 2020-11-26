@@ -46,4 +46,7 @@ pub trait Secret: serde::Serialize + serde::de::DeserializeOwned + Clone {}
 
 impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone> Secret for T {}
 
-pub type Context<S> = arcadeum::store::Context<GameState<S>>;
+pub type Context<S> = arcadeum::store::Context<
+    <GameState<S> as arcadeum::store::State>::Secret,
+    <GameState<S> as arcadeum::store::State>::Event,
+>;

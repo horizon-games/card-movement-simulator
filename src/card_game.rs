@@ -1,8 +1,8 @@
 use {
     crate::{
         error, BaseCard, Card, CardEvent, CardInstance, CardLocation, CardState, Context,
-        ExactCardLocation, GameState, InstanceID, InstanceOrPlayer, OpaquePointer, Player,
-        PlayerSecret, Secret, State, Zone,
+        ExactCardLocation, GameState, InstanceID, InstanceOrPlayer, OpaquePointer, Player, Secret,
+        State, Zone,
     },
     rand::seq::IteratorRandom,
     std::{
@@ -82,8 +82,9 @@ impl<S: State> CardGame<S> {
     }
 
     pub fn deck_card(&mut self, player: Player, index: usize) -> Card {
-        self.context.mutate_secret(player, |secret, _, _| {
-            secret.pointers.push(secret.deck()[index]);
+        self.context.mutate_secret(player, |mut secret| {
+            let pointer = secret.deck()[index];
+            secret.pointers.push(pointer);
         });
 
         let player_cards = self.player_cards_mut(player);
@@ -110,15 +111,14 @@ impl<S: State> CardGame<S> {
         match self.player_cards(player).hand()[index] {
             Some(id) => id.into(),
             None => {
-                self.context.mutate_secret(player, |secret, _, _| {
-                    secret
-                        .pointers
-                        .push(secret.hand()[index].unwrap_or_else(|| {
-                            panic!(
-                                "player {} hand {} is neither public nor secret",
-                                player, index
-                            )
-                        }));
+                self.context.mutate_secret(player, |mut secret| {
+                    let pointer = secret.hand()[index].unwrap_or_else(|| {
+                        panic!(
+                            "player {} hand {} is neither public nor secret",
+                            player, index
+                        )
+                    });
+                    secret.pointers.push(pointer);
                 });
 
                 let player_cards = self.player_cards_mut(player);
@@ -156,8 +156,9 @@ impl<S: State> CardGame<S> {
     }
 
     pub fn secret_dust_card(&mut self, player: Player, index: usize) -> Card {
-        self.context.mutate_secret(player, |secret, _, _| {
-            secret.pointers.push(secret.dust()[index]);
+        self.context.mutate_secret(player, |mut secret| {
+            let pointer = secret.dust()[index];
+            secret.pointers.push(pointer);
         });
 
         let player_cards = self.player_cards_mut(player);
@@ -185,8 +186,9 @@ impl<S: State> CardGame<S> {
     }
 
     pub fn secret_limbo_card(&mut self, player: Player, index: usize) -> Card {
-        self.context.mutate_secret(player, |secret, _, _| {
-            secret.pointers.push(secret.limbo()[index]);
+        self.context.mutate_secret(player, |mut secret| {
+            let pointer = secret.limbo()[index];
+            secret.pointers.push(pointer);
         });
 
         let player_cards = self.player_cards_mut(player);
@@ -214,8 +216,9 @@ impl<S: State> CardGame<S> {
     }
 
     pub fn card_selection_card(&mut self, player: Player, index: usize) -> Card {
-        self.context.mutate_secret(player, |secret, _, _| {
-            secret.pointers.push(secret.card_selection()[index]);
+        self.context.mutate_secret(player, |mut secret| {
+            let pointer = secret.card_selection()[index];
+            secret.pointers.push(pointer);
         });
 
         let player_cards = self.player_cards_mut(player);
@@ -239,7 +242,7 @@ impl<S: State> CardGame<S> {
     }
 
     pub fn deck_cards(&mut self, player: Player) -> Vec<Card> {
-        self.context.mutate_secret(player, |secret, _, _| {
+        self.context.mutate_secret(player, |mut secret| {
             secret.append_deck_to_pointers();
         });
 
@@ -266,7 +269,7 @@ impl<S: State> CardGame<S> {
     }
 
     pub fn hand_cards(&mut self, player: Player) -> Vec<Card> {
-        self.context.mutate_secret(player, |secret, _, _| {
+        self.context.mutate_secret(player, |mut secret| {
             secret.append_secret_hand_to_pointers();
         });
 
@@ -364,7 +367,7 @@ impl<S: State> CardGame<S> {
     }
 
     pub fn card_selection_cards(&mut self, player: Player) -> Vec<Card> {
-        self.context.mutate_secret(player, |secret, _, _| {
+        self.context.mutate_secret(player, |mut secret| {
             secret.append_card_selection_to_pointers();
         });
 
@@ -1461,9 +1464,10 @@ impl<S: State> CardGame<S> {
                         }
                     }
                     InstanceOrPlayer::Player(owner) => {
-                        self.context.mutate_secret(*owner, |secret, _, log| {
+                        self.context.mutate_secret(*owner, |secret| {
                             secret
-                                .modify_card(card, log, |instance| f(instance))
+                                .secret
+                                .modify_card(card, secret.log, |instance| f(instance))
                                 .unwrap_or_else(|_| {
                                     panic!("player {} secret {:?} not in secret", owner, card)
                                 });
@@ -1472,9 +1476,10 @@ impl<S: State> CardGame<S> {
                 }
             }
             Card::Pointer(OpaquePointer { player, .. }) => {
-                self.context.mutate_secret(player, |secret, _, log| {
+                self.context.mutate_secret(player, |secret| {
                     secret
-                        .modify_card(card, log, |instance| f(instance))
+                        .secret
+                        .modify_card(card, secret.log, |instance| f(instance))
                         .unwrap_or_else(|_| {
                             panic!("player {} secret {:?} not in secret", player, card)
                         });
@@ -1555,16 +1560,21 @@ impl<S: State> CardGame<S> {
                         }
                     }
                     InstanceOrPlayer::Player(owner) => {
-                        self.context.mutate_secret(*owner, |secret, _, log| {
-                            secret
-                                .modify_card_internal(card, log, |instance, log| f(instance, log));
+                        self.context.mutate_secret(*owner, |secret| {
+                            secret.secret.modify_card_internal(
+                                card,
+                                secret.log,
+                                |instance, log| f(instance, log),
+                            );
                         });
                     }
                 }
             }
             Card::Pointer(OpaquePointer { player, .. }) => {
-                self.context.mutate_secret(player, |secret, _, log| {
-                    secret.modify_card_internal(card, log, |instance, log| f(instance, log));
+                self.context.mutate_secret(player, |secret| {
+                    secret
+                        .secret
+                        .modify_card_internal(card, secret.log, |instance, log| f(instance, log));
                 });
             }
         }
@@ -1665,7 +1675,7 @@ impl<S: State> CardGame<S> {
                     )
                 }
                 Some(player) => {
-                    this.context.mutate_secret(player, move |secret, _, _| {
+                    this.context.mutate_secret(player, move |mut secret| {
                         let location =
                             secret
                                 .location(id.unwrap_or_else(|| {
@@ -1711,7 +1721,7 @@ impl<S: State> CardGame<S> {
             // Special case, secret -> secret for a single player
             if let Some(bucket_owner) = bucket {
                 if to_bucket == bucket {
-                    this.context.mutate_secret(bucket_owner, |secret, _, log| {
+                    this.context.mutate_secret(bucket_owner, |mut secret| {
                         let id =
                             id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                         let old_location = secret.location(id);
@@ -1720,7 +1730,7 @@ impl<S: State> CardGame<S> {
                         let attachment = instance
                             .attachment
                             .map(|a_id| secret.instance(a_id).unwrap().clone());
-                        log(CardEvent::MoveCard {
+                        secret.log(CardEvent::MoveCard {
                             instance: Some((instance, attachment)),
                             from: old_location,
                             to: ExactCardLocation {
@@ -1757,7 +1767,7 @@ impl<S: State> CardGame<S> {
                             },
                         });
                         // Remove this card from its old zone in the secret.
-                        secret.remove_id(log, id);
+                        secret.secret.remove_id(secret.log, id);
 
                         // Put the card in its new zone in the secret.
                         match to_zone {
@@ -1859,8 +1869,8 @@ impl<S: State> CardGame<S> {
                         },
                     );
                     // Bucket owner has already seen the log, so do it for only the other player
-                    this.context.mutate_secret(1 - bucket_owner, |_, _, log| {
-                        log(CardEvent::MoveCard {
+                    this.context.mutate_secret(1 - bucket_owner, |mut secret| {
+                        secret.log(CardEvent::MoveCard {
                             instance: None,
                             from: CardLocation {
                                 player: bucket_owner,
@@ -1924,7 +1934,7 @@ impl<S: State> CardGame<S> {
                         std::mem::replace(&mut this.instances[attachment_id.0], InstanceOrPlayer::Player(to_bucket_player)).instance().expect("Since parent Card is public, attachment was identified as public, but it's actually InstanceOrPlayer::Player")
                     });
 
-                        this.context.mutate_secret(owner, |secret, _, _| {
+                        this.context.mutate_secret(owner, |mut secret| {
                             if let Some((Zone::Hand { public: false }, index)) = location {
                                 secret
                                     .hand
@@ -1966,7 +1976,7 @@ impl<S: State> CardGame<S> {
                         )
                         .await;
 
-                    this.context.mutate_secret(player, move |secret, _, _| {
+                    this.context.mutate_secret(player, move |mut secret| {
                         let id =
                             id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                         // find what collection id is in and remove it
@@ -2014,12 +2024,12 @@ impl<S: State> CardGame<S> {
 
             // If this card came from a secret, we know it's leaving that secret. SX -> SX case handled above.
             if let Some(bucket_owner) = bucket {
-                this.context.mutate_secret(bucket_owner, |secret, _, log| {
+                this.context.mutate_secret(bucket_owner, |secret| {
                     // Take its ID out of any zones in that secret.
-                    secret.remove_id(log, id);
+                    secret.secret.remove_id(secret.log, id);
                 });
             } else if let Some((Zone::Hand { public: true }, index)) = location {
-                this.context.mutate_secret(owner, |secret, _, _| {
+                this.context.mutate_secret(owner, |mut secret| {
                     secret
                         .hand
                         .remove(index.expect("no index for public hand card"));
@@ -2094,14 +2104,14 @@ impl<S: State> CardGame<S> {
 
             match to_zone {
                 Zone::Deck => {
-                    this.context.mutate_secret(to_player, |secret, _, _| {
+                    this.context.mutate_secret(to_player, |mut secret| {
                         secret.deck.push(id);
                     });
 
                     this.player_cards_mut(to_player).deck += 1;
                 }
                 Zone::Hand { public: false } => {
-                    this.context.mutate_secret(to_player, |secret, _, _| {
+                    this.context.mutate_secret(to_player, |mut secret| {
                         secret.hand.push(Some(id));
                     });
 
@@ -2119,7 +2129,7 @@ impl<S: State> CardGame<S> {
                         .hand
                         .insert(index, Some(id));
 
-                    this.context.mutate_secret(to_player, |secret, _, _| {
+                    this.context.mutate_secret(to_player, |mut secret| {
                         secret.hand.insert(index, None);
                     });
                 }
@@ -2133,7 +2143,7 @@ impl<S: State> CardGame<S> {
                     this.player_cards_mut(to_player).graveyard.push(id);
                 }
                 Zone::Limbo { public: false } => {
-                    this.context.mutate_secret(to_player, |secret, _, _| {
+                    this.context.mutate_secret(to_player, |mut secret| {
                         secret.limbo.push(id);
                     });
                 }
@@ -2141,7 +2151,7 @@ impl<S: State> CardGame<S> {
                     this.player_cards_mut(to_player).limbo.push(id);
                 }
                 Zone::CardSelection => {
-                    this.context.mutate_secret(to_player, |secret, _, _| {
+                    this.context.mutate_secret(to_player, |mut secret| {
                         secret.card_selection.push(id);
                     });
 
@@ -2151,7 +2161,7 @@ impl<S: State> CardGame<S> {
                     this.player_cards_mut(to_player).casting.push(id);
                 }
                 Zone::Dust { public: false } => {
-                    this.context.mutate_secret(to_player, |secret, _, _| {
+                    this.context.mutate_secret(to_player, |mut secret| {
                         secret.dust.push(id);
                     });
                 }
@@ -2173,7 +2183,7 @@ impl<S: State> CardGame<S> {
                         this.instances[id.0] = to_bucket_player.into();
 
                         this.context
-                            .mutate_secret(to_bucket_player, move |secret, _, _| {
+                            .mutate_secret(to_bucket_player, move |mut secret| {
                                 secret.instances.insert(instance.id, instance.clone());
                             });
                     }
@@ -2192,7 +2202,7 @@ impl<S: State> CardGame<S> {
                             this.instances[attachment_id.0] = to_bucket_player.into();
 
                             this.context
-                                .mutate_secret(to_bucket_player, move |secret, _, _| {
+                                .mutate_secret(to_bucket_player, move |mut secret| {
                                     secret.instances.insert(
                                         attachment_instance.id,
                                         attachment_instance.clone(),
@@ -2251,28 +2261,31 @@ impl<S: State> CardGame<S> {
                 },
             );
 
-            this.context.mutate_secret(1 - owner, |_, _, log| {
+            this.context.mutate_secret(1 - owner, |mut secret| {
                 let (instance, from, to) = move_card_event.clone();
-                log(CardEvent::MoveCard { instance, from, to });
-            });
-            this.context.mutate_secret(owner, |secret, _, log| {
-            let (instance, mut from, to) = move_card_event.clone();
 
-            if from.location.is_none() {
-                let missing_location = secret.deferred_locations.pop().expect("If from location is none, publically, and we're the player, we should have the deferred location.");
-                from.location = Some(missing_location);
-            }
-                log(CardEvent::MoveCard { instance, from, to });
-        });
+                secret.log(CardEvent::MoveCard { instance, from, to });
+            });
+
+            this.context.mutate_secret(owner, |mut secret| {
+                let (instance, mut from, to) = move_card_event.clone();
+
+                if from.location.is_none() {
+                    let missing_location = secret.deferred_locations.pop().expect("If from location is none, publically, and we're the player, we should have the deferred location.");
+                    from.location = Some(missing_location);
+                }
+
+                secret.log(CardEvent::MoveCard { instance, from, to });
+            });
 
             for deferred_log in deferred_logs {
                 this.context.log(deferred_log);
             }
 
             for log_player in 0..2 {
-                this.context.mutate_secret(log_player, |secret, _, log| {
-                    for deferred_log in secret.deferred_logs.drain(..) {
-                        log(deferred_log);
+                this.context.mutate_secret(log_player, |secret| {
+                    for deferred_log in secret.secret.deferred_logs.drain(..) {
+                        (secret.log)(deferred_log);
                     }
                 });
             }
@@ -2280,10 +2293,9 @@ impl<S: State> CardGame<S> {
             match to_zone {
                 Zone::Deck => {
                     if this.shuffle_deck_on_insert {
-                        this.context
-                            .mutate_secret(to_player, |secret, random, log| {
-                                secret.shuffle_deck(random, log);
-                            })
+                        this.context.mutate_secret(to_player, |secret| {
+                            secret.secret.shuffle_deck(secret.random, secret.log);
+                        })
                     }
                 }
                 Zone::Field => {
@@ -2350,14 +2362,10 @@ impl<S: State> CardGame<S> {
     ) -> Vec<Card> {
         let start = self.instances.len();
 
-        self.context.mutate_secret(player, |secret, random, log| {
+        self.context.mutate_secret(player, |mut secret| {
             secret.next_instance = Some(InstanceID(start));
 
-            f(SecretCardsInfo {
-                secret,
-                random,
-                log,
-            })
+            f(secret.into())
         });
 
         let (pointers, end) = self
@@ -2374,7 +2382,7 @@ impl<S: State> CardGame<S> {
         assert!(pointers >= self.player_cards(player).pointers);
         assert!(end >= start);
 
-        self.context.mutate_secret(player, |secret, _, _| {
+        self.context.mutate_secret(player, |mut secret| {
             secret.next_instance = None;
         });
 
@@ -2399,14 +2407,10 @@ impl<S: State> CardGame<S> {
     ) {
         let start = self.instances.len();
 
-        self.context.mutate_secret(player, |secret, random, log| {
+        self.context.mutate_secret(player, |mut secret| {
             secret.next_instance = Some(InstanceID(start));
 
-            f(SecretCardsWithFakesInfo(SecretCardsInfo {
-                secret,
-                random,
-                log,
-            }))
+            f(secret.into())
         });
 
         let (pointers, end) = self
@@ -2423,7 +2427,7 @@ impl<S: State> CardGame<S> {
         assert!(pointers >= self.player_cards(player).pointers);
         assert!(end >= start);
 
-        self.context.mutate_secret(player, |secret, _, _| {
+        self.context.mutate_secret(player, |mut secret| {
             secret.next_instance = None;
         });
 
@@ -2440,13 +2444,8 @@ impl<S: State> CardGame<S> {
         player: Player,
         f: impl Fn(SecretPointersInfo<S>),
     ) -> Vec<Card> {
-        self.context.mutate_secret(player, |secret, random, log| {
-            f(SecretPointersInfo {
-                secret,
-                random,
-                log,
-            })
-        });
+        self.context
+            .mutate_secret(player, |secret| f(secret.into()));
 
         let pointers = self
             .context
@@ -2700,7 +2699,7 @@ impl<S: State> CardGame<S> {
                     )
                 }
                 Some(player) => {
-                    self.context.mutate_secret(player, move |secret, _, _| {
+                    self.context.mutate_secret(player, move |mut secret| {
                         let location =
                             secret
                                 .location(card_id.unwrap_or_else(|| {
@@ -2763,7 +2762,7 @@ impl<S: State> CardGame<S> {
                             }
                             InstanceOrPlayer::Player(player) => {
                                 let player = *player;
-                                self.context.mutate_secret(player, |secret, _, _| {
+                                self.context.mutate_secret(player, |mut secret| {
                                     secret
                                         .instance_mut(parent)
                                         .unwrap_or_else(|| {
@@ -2781,7 +2780,7 @@ impl<S: State> CardGame<S> {
                 }
             }
 
-            self.context.mutate_secret(owner, |secret, _, _| {
+            self.context.mutate_secret(owner, |mut secret| {
                 // Either we know the ID, or it's in this secret!
                 let id = card_id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                 let mut deferred_logs = vec![];
@@ -2838,7 +2837,7 @@ impl<S: State> CardGame<S> {
                             .await;
 
                         self.context
-                            .mutate_secret(card_bucket_player, |secret, _, _| {
+                            .mutate_secret(card_bucket_player, |mut secret| {
                                 secret.instances.remove(&card_id);
                             });
 
@@ -2856,7 +2855,7 @@ impl<S: State> CardGame<S> {
                         self.instances[card_id.0] = InstanceOrPlayer::Player(parent_bucket_player);
 
                         self.context
-                            .mutate_secret(parent_bucket_player, |secret, _, _| {
+                            .mutate_secret(parent_bucket_player, |mut secret| {
                                 secret.instances.insert(card_id, instance.clone());
                             });
                     }
@@ -2901,33 +2900,33 @@ impl<S: State> CardGame<S> {
                         .expect("Parent pointer and card are both in some player's secret");
 
                     self.context
-                        .mutate_secret(parent_bucket_player, |secret, _, log| {
+                        .mutate_secret(parent_bucket_player, |mut secret| {
                             let card_id = card_id
                                 .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                             let parent_id = secret.pointers[parent.pointer().unwrap().index];
-                            let location = location.or_else(||
-                            {   if card_bucket == Some(parent_bucket_player) {
+                            let location = location.or_else(|| {
+                                if card_bucket == Some(parent_bucket_player) {
                                     Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
                                 } else {
                                     None
                                 }
                             });
-                            secret
-                                .attach_card(parent_id, card_id, location, log)
+                            secret.secret
+                                .attach_card(parent_id, card_id, location, secret.log)
                                 .unwrap();
                         });
 
                     // secret.attach_card only logs for *that* player, so we need to log for the other player.
                     self.context
-                        .mutate_secret(1 - parent_bucket_player, |secret, _, log| {
-                            let location = location.or_else(||
-                                {   if card_bucket == Some(1 - parent_bucket_player) {
-                                        Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
-                                    } else {
-                                        None
-                                    }
-                                });
-                            log(CardEvent::MoveCard {
+                        .mutate_secret(1 - parent_bucket_player, |mut secret| {
+                            let location = location.or_else(|| {
+                                if card_bucket == Some(1 - parent_bucket_player) {
+                                    Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
+                                } else {
+                                    None
+                                }
+                            });
+                            secret.log(CardEvent::MoveCard {
                                 instance: None, // todo is this None correct?
                                 from: CardLocation {
                                     player: owner,
@@ -2997,12 +2996,12 @@ impl<S: State> CardGame<S> {
                             if let CardEvent::MoveCard { instance, from, to } = msg {
                                 let from_player = from.player;
                                 self.context
-                                .mutate_secret(from_player, |secret, _, log| {
+                                .mutate_secret(from_player, |mut secret| {
                                     let location = from.location.or_else(||
                                         {
                                                 Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
                                         });
-                                    log(CardEvent::MoveCard {
+                                    secret.log(CardEvent::MoveCard {
                                         instance: instance.clone(),
                                         from: CardLocation {
                                             player: from_player,
@@ -3011,8 +3010,8 @@ impl<S: State> CardGame<S> {
                                         to: to.clone()
                                     })
                                 });
-                                self.context.mutate_secret(1 - from_player, |_, _, log| {
-                                    log(CardEvent::MoveCard {
+                                self.context.mutate_secret(1 - from_player, |mut secret| {
+                                    secret.log(CardEvent::MoveCard {
                                         instance: instance.clone(),
                                         from: from.clone(),
                                         to: to.clone(),
@@ -3025,7 +3024,7 @@ impl<S: State> CardGame<S> {
                     }
                     Some(parent_bucket_player) => {
                         self.context
-                            .mutate_secret(parent_bucket_player, |secret, _, log| {
+                            .mutate_secret(parent_bucket_player, |mut secret| {
                                 let card_id = card_id.unwrap_or_else(|| {
                                     secret.pointers[card.pointer().unwrap().index]
                                 });
@@ -3036,22 +3035,22 @@ impl<S: State> CardGame<S> {
                                             None
                                         }
                                     });
-                                secret
-                                    .attach_card(parent_id, card_id, location, log)
+                                secret.secret
+                                    .attach_card(parent_id, card_id, location, secret.log)
                                     .unwrap();
                             });
 
                         // secret.attach_card only logs for *that* player, so we need to log for the other player.
                         self.context
-                            .mutate_secret(1 - parent_bucket_player, |secret, _, log| {
-                                let location = location.or_else(||
-                                    {   if card_bucket == Some(1 - parent_bucket_player) {
-                                            Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
-                                        } else {
-                                            None
-                                        }
-                                    });
-                                log(CardEvent::MoveCard {
+                            .mutate_secret(1 - parent_bucket_player, |mut secret| {
+                                let location = location.or_else(|| {
+                                    if card_bucket == Some(1 - parent_bucket_player) {
+                                        Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
+                                    } else {
+                                        None
+                                    }
+                                });
+                                secret.log(CardEvent::MoveCard {
                                     instance: None, // todo is this None correct?
                                     from: CardLocation {
                                         player: owner,
@@ -3073,9 +3072,9 @@ impl<S: State> CardGame<S> {
             }
 
             for log_player in 0..2 {
-                self.context.mutate_secret(log_player, |secret, _, log| {
-                    for deferred_log in secret.deferred_logs.drain(..) {
-                        log(deferred_log);
+                self.context.mutate_secret(log_player, |secret| {
+                    for deferred_log in secret.secret.deferred_logs.drain(..) {
+                        (secret.log)(deferred_log);
                     }
                 });
             }
@@ -3180,23 +3179,25 @@ impl<S: State> DerefMut for CardInfoMut<'_, S> {
     }
 }
 
-pub struct SecretCardsInfo<'a, S: State> {
-    pub secret: &'a mut PlayerSecret<S>,
-    pub random: &'a mut dyn rand::RngCore,
-    pub log: &'a mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
-}
+pub struct SecretCardsInfo<'a, S: State>(MutateSecretInfo<'a, S>);
 
-impl<S: State> Deref for SecretCardsInfo<'_, S> {
-    type Target = PlayerSecret<S>;
+impl<'a, S: State> Deref for SecretCardsInfo<'a, S> {
+    type Target = MutateSecretInfo<'a, S>;
 
     fn deref(&self) -> &Self::Target {
-        self.secret
+        &self.0
     }
 }
 
 impl<S: State> DerefMut for SecretCardsInfo<'_, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.secret
+        &mut self.0
+    }
+}
+
+impl<'a, S: State> From<MutateSecretInfo<'a, S>> for SecretCardsInfo<'a, S> {
+    fn from(secret: MutateSecretInfo<'a, S>) -> Self {
+        Self(secret)
     }
 }
 
@@ -3243,8 +3244,9 @@ impl<S: State> SecretCardsInfo<'_, S> {
 
         if let Some(attach_id) = attachment {
             let attachment = self.instance(attach_id).unwrap().clone();
-            self.secret
-                .modify_card_internal(card, self.log, |parent, _| {
+            self.0
+                .secret
+                .modify_card_internal(card, self.0.log, |parent, _| {
                     S::on_attach(parent, &attachment);
                 });
         }
@@ -3256,21 +3258,25 @@ impl<S: State> SecretCardsInfo<'_, S> {
         &mut self,
         card: impl Into<Card>,
     ) -> Result<(), error::SecretMoveCardError> {
-        self.secret.dust_card(card, self.log)
+        self.0.secret.dust_card(card, self.0.log)
     }
+
     pub fn attach_card(
         &mut self,
         card: impl Into<Card>,
         attachment: impl Into<Card>,
     ) -> Result<(), error::SecretMoveCardError> {
-        self.secret.attach_card(card, attachment, None, self.log)
+        self.0
+            .secret
+            .attach_card(card, attachment, None, self.0.log)
     }
+
     pub fn modify_card(
         &mut self,
         card: impl Into<Card>,
         f: impl FnOnce(CardInfoMut<S>),
     ) -> Result<(), error::SecretModifyCardError> {
-        self.secret.modify_card(card, self.log, f)
+        self.0.secret.modify_card(card, self.0.log, f)
     }
 }
 
@@ -3290,29 +3296,43 @@ impl<S: State> DerefMut for SecretCardsWithFakesInfo<'_, S> {
     }
 }
 
+impl<'a, S: State> From<SecretCardsInfo<'a, S>> for SecretCardsWithFakesInfo<'a, S> {
+    fn from(secret: SecretCardsInfo<'a, S>) -> Self {
+        Self(secret)
+    }
+}
+
+impl<'a, S: State> From<MutateSecretInfo<'a, S>> for SecretCardsWithFakesInfo<'a, S> {
+    fn from(secret: MutateSecretInfo<'a, S>) -> Self {
+        Self(secret.into())
+    }
+}
+
 impl<S: State> SecretCardsWithFakesInfo<'_, S> {
     pub fn new_fake_card(&mut self) {
         self.next_instance.as_mut().expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards_with_fakes` call").0 += 1;
     }
 }
 
-pub struct SecretPointersInfo<'a, S: State> {
-    pub secret: &'a mut PlayerSecret<S>,
-    pub random: &'a mut dyn rand::RngCore,
-    pub log: &'a mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
-}
+pub struct SecretPointersInfo<'a, S: State>(MutateSecretInfo<'a, S>);
 
-impl<S: State> Deref for SecretPointersInfo<'_, S> {
-    type Target = PlayerSecret<S>;
+impl<'a, S: State> Deref for SecretPointersInfo<'a, S> {
+    type Target = MutateSecretInfo<'a, S>;
 
     fn deref(&self) -> &Self::Target {
-        self.secret
+        &self.0
     }
 }
 
 impl<S: State> DerefMut for SecretPointersInfo<'_, S> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.secret
+        &mut self.0
+    }
+}
+
+impl<'a, S: State> From<MutateSecretInfo<'a, S>> for SecretPointersInfo<'a, S> {
+    fn from(secret: MutateSecretInfo<'a, S>) -> Self {
+        Self(secret)
     }
 }
 
@@ -3321,6 +3341,12 @@ impl<S: State> SecretPointersInfo<'_, S> {
         self.pointers.push(id);
     }
 }
+
+type MutateSecretInfo<'a, S> = arcadeum::store::MutateSecretInfo<
+    'a,
+    <GameState<S> as arcadeum::store::State>::Secret,
+    <GameState<S> as arcadeum::store::State>::Event,
+>;
 
 #[derive(serde::Serialize, serde::Deserialize, Clone)]
 enum Either<A, B> {
