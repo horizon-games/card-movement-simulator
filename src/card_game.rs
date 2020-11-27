@@ -3290,7 +3290,7 @@ impl<S: State> DerefMut for SecretCardsWithFakesInfo<'_, S> {
     }
 }
 
-impl<S: State> SecretCardsInfo<'_, S> {
+impl<S: State> SecretCardsWithFakesInfo<'_, S> {
     pub fn new_fake_card(&mut self) {
         self.next_instance.as_mut().expect("`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards_with_fakes` call").0 += 1;
     }
