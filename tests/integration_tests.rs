@@ -331,6 +331,15 @@ impl card_movement_simulator::State for State {
                         card_id.into()
                     };
 
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(starting_parent_id, |info| {
+                                info.attachment_was_detached
+                            })
+                            .await,
+                        0
+                    );
+
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
                     live_game
                         .move_card(card, 0, Zone::Attachment { parent })
@@ -342,6 +351,16 @@ impl card_movement_simulator::State for State {
                             .reveal_from_card(parent_id, |info| { info.attachment_was_attached })
                             .await,
                         if started_with_attach { 2 } else { 1 }
+                    );
+
+                    assert_eq!(
+                        live_game
+                            .reveal_from_card(starting_parent_id, |info| {
+                                info.attachment_was_detached
+                            })
+                            .await,
+                        1,
+                        "Original parent never got a callback from its attachment leaving!"
                     );
 
                     assert_eq!(
@@ -612,7 +631,7 @@ impl card_movement_simulator::State for State {
                             // Ok! Didn't start with an attach, didn't get one, have none at the end.
                         }
                         (Some(_), None, None) => {
-                            // Ok! Didn't start with an attach, got one, reset, have none at the end.                        
+                            // Ok! Didn't start with an attach, got one, reset, have none at the end.
                         },
                         (None, Some(..), None) => panic!("Card started with an attach, didn't get one, reset, and lost its attach.")
                     }
@@ -1348,6 +1367,17 @@ fn test_attach_from_attached(
         )
         .unwrap();
 
+    println!(
+        "Action: {:#?}",
+        Action::AttachFromAttached {
+            parent_base_card,
+            parent_ptr_bucket,
+            parent_zone,
+            card_ptr_bucket,
+            card_owner,
+            card_zone,
+        }
+    );
     println!("\n\nAll Logs:");
     for card in player_logs.try_borrow_mut().unwrap()[0].clone() {
         println!("{:#?}\n", card);
@@ -1355,6 +1385,8 @@ fn test_attach_from_attached(
     println!("\n");
 
     let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
+
+    let is_mine = card_owner == 0;
 
     if parent_base_card == BaseCard::WithAttachment {
         // Our BaseCard has an attachment, so we'll see a MoveCard to attach it upon creation.
@@ -1415,7 +1447,7 @@ fn test_attach_from_attached(
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
     assert!(matches!(move_attach_to_start_zone_event, CardEvent::MoveCard{..}));
-
+    
     if parent_base_card == BaseCard::WithAttachment {
         // Dust current attach
         let dust_current_attach = actual_player_logs
@@ -1429,8 +1461,8 @@ fn test_attach_from_attached(
             "Expected MoveCard from Zone::Attach to Zone::Dust, got {:#?}.",
             dust_current_attach
         );
-
-        // ModifyCard for parent being modified because of detach.
+    
+        // ModifyCard for new parent being modified because of detach of existing attachment.
         let modify_event = actual_player_logs
             .next()
             .expect("Expected Some(CardEvent::ModifyCard), got None.");
@@ -1442,12 +1474,12 @@ fn test_attach_from_attached(
             modify_event
         );
     }
+
     let attach_attachment_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
 
-    let zone = { card_zone };
-    let is_mine = { card_owner } == 0;
+    let zone = card_zone;
     let has_public_location = match zone {
         Zone::Deck => is_mine,
         Zone::Hand { public } => is_mine || public, // attachment secrecy depends on parent secrecy
