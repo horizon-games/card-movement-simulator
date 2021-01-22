@@ -2740,41 +2740,29 @@ impl<S: State> CardGame<S> {
                 }
             };
 
+            let mut deferred_logs = vec![];
+
             if let Some((zone, index)) = location {
                 match zone {
                     Zone::Attachment { parent } => {
-                        let parent = match parent {
-                            Card::ID(parent) => parent,
-                            Card::Pointer(OpaquePointer { player, index }) => {
-                                self.context
-                                    .reveal_unique(
-                                        player,
-                                        move |secret| secret.pointers[index],
-                                        |_| true,
-                                    )
-                                    .await
-                            }
+                        match parent {
+                            Card::ID(parent) => {
+                                let attach_clone = card_id.expect("Parent is public, so this attach's id must be in public state.")
+                                .instance(self, None)
+                                .unwrap()
+                                .clone();
+                                self.modify_card_internal(
+                                    parent.into(),
+                                    |parent, _| {
+                                        parent.attachment = None;
+                                        S::on_detach(parent, &attach_clone);
+                                    },
+                                    &mut |event| deferred_logs.push(event),
+                                )
+                                .await;
+                            },
+                            _ => unreachable!("If the location is public, the parent in question will never be secret.")
                         };
-
-                        match &mut self.instances[parent.0] {
-                            InstanceOrPlayer::Instance(parent) => {
-                                parent.attachment = None;
-                            }
-                            InstanceOrPlayer::Player(player) => {
-                                let player = *player;
-                                self.context.mutate_secret(player, |mut secret| {
-                                    secret
-                                        .instance_mut(parent)
-                                        .unwrap_or_else(|| {
-                                            unreachable!(
-                                                "{:?} not in player {:?} secret",
-                                                parent, player
-                                            )
-                                        })
-                                        .attachment = None;
-                                });
-                            }
-                        }
                     }
                     _ => self.player_cards_mut(owner).remove_from(zone, index),
                 }
@@ -3018,7 +3006,7 @@ impl<S: State> CardGame<S> {
                                     })
                                 });
                             } else {
-                                self.context.log(msg);
+                                deferred_logs.push(msg);
                             }
                         }
                     }
@@ -3069,6 +3057,10 @@ impl<S: State> CardGame<S> {
                             });
                     }
                 },
+            }
+
+            for deferred_log in deferred_logs {
+                self.context.log(deferred_log);
             }
 
             for log_player in 0..2 {
