@@ -686,7 +686,6 @@ impl<S: State> CardGame<S> {
             if cards.is_empty() {
                 continue;
             }
-            let acc = accumulated.clone();
             let map = map.clone();
             let fold = fold.clone();
             let every_single_public_card = every_single_public_card.clone();
@@ -699,28 +698,33 @@ impl<S: State> CardGame<S> {
                         let fold = fold.clone();
                         let cards = cards.clone();
                         let every_single_public_card = every_single_public_card.clone();
-                        cards.into_iter().fold(acc.clone(), move |prev, card| {
-                            let id = secret.id(card).unwrap();
-                            if secret.instances.get(&id).is_some() {
-                                let map = map.clone();
-                                fold(
-                                    prev,
-                                    &secret
-                                        .reveal_from_card(card, move |c| map(c))
-                                        .unwrap_or_else(|| {
-                                            panic!("{:?} not in player {:?} secret", card, player)
-                                        }),
-                                )
-                            } else {
-                                // card is in public state
-                                fold(
-                                    prev,
-                                    every_single_public_card.get(&id).expect(
-                                        "Card must be in public, since it's not in secret.",
-                                    ),
-                                )
-                            }
-                        })
+                        cards
+                            .into_iter()
+                            .fold(accumulated.clone(), move |prev, card| {
+                                let id = secret.id(card).unwrap();
+                                if secret.instances.get(&id).is_some() {
+                                    let map = map.clone();
+                                    fold(
+                                        prev,
+                                        &secret
+                                            .reveal_from_card(card, move |c| map(c))
+                                            .unwrap_or_else(|| {
+                                                panic!(
+                                                    "{:?} not in player {:?} secret",
+                                                    card, player
+                                                )
+                                            }),
+                                    )
+                                } else {
+                                    // card is in public state
+                                    fold(
+                                        prev,
+                                        every_single_public_card.get(&id).expect(
+                                            "Card must be in public, since it's not in secret.",
+                                        ),
+                                    )
+                                }
+                            })
                     },
                     |_| true,
                 )
