@@ -987,7 +987,16 @@ All Logs:"
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
     assert!(
-        matches!(reveal_hand_event, CardEvent::MoveCard { to: ExactCardLocation { player: 0, location: (Zone::Hand { public: true }, 2) }, .. }),
+        matches!(
+            reveal_hand_event,
+            CardEvent::MoveCard {
+                to: ExactCardLocation {
+                    player: 0,
+                    location: (Zone::Hand { public: true }, 2)
+                },
+                ..
+            }
+        ),
         "Expected MoveCard to public hand position 2, got {:#?}",
         reveal_hand_event
     );
@@ -1061,14 +1070,22 @@ fn test_move(
             .next()
             .expect("Expected attach event, got None.");
         assert!(
-            matches!(attach_event, CardEvent::MoveCard {
-                to: ExactCardLocation {
-                    location: (Zone::Attachment{parent: Card::ID(_)}, _),
+            matches!(
+                attach_event,
+                CardEvent::MoveCard {
+                    to: ExactCardLocation {
+                        location: (
+                            Zone::Attachment {
+                                parent: Card::ID(_)
+                            },
+                            _
+                        ),
+                        ..
+                    },
+                    instance: Some(_),
                     ..
-                },
-                instance: Some(_),
-                ..
-            }),
+                }
+            ),
             "Base card has attachment, so expected attach event.\nGot {:#?}.",
             attach_event
         );
@@ -1077,15 +1094,16 @@ fn test_move(
         let modify_event = actual_player_logs
             .next()
             .expect("Expected Some(CardEvent::ModifyCard), got None.");
-        assert!(matches!(modify_event, CardEvent::ModifyCard {
-            ..
-        }));
+        assert!(matches!(modify_event, CardEvent::ModifyCard { .. }));
     };
 
     let move_to_start_zone_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
-    assert!(matches!(move_to_start_zone_event, CardEvent::MoveCard{..}));
+    assert!(matches!(
+        move_to_start_zone_event,
+        CardEvent::MoveCard { .. }
+    ));
 
     // Event should fire if we moved to a different zone.
     // Player 0 should see the card instance in every event involving it.
@@ -1097,15 +1115,18 @@ fn test_move(
         || to_zone.is_public().unwrap()
         || from_zone.is_public().unwrap()
     {
-        assert!(matches!(move_to_end_zone_event, CardEvent::MoveCard{
-            instance: Some(_),
-            ..
-        }));
+        assert!(matches!(
+            move_to_end_zone_event,
+            CardEvent::MoveCard {
+                instance: Some(_),
+                ..
+            }
+        ));
     } else {
-        assert!(matches!(move_to_end_zone_event, CardEvent::MoveCard{
-            instance: None,
-            ..
-        }));
+        assert!(matches!(
+            move_to_end_zone_event,
+            CardEvent::MoveCard { instance: None, .. }
+        ));
     }
 }
 
@@ -1142,14 +1163,22 @@ fn test_detach(
         .next()
         .expect("Expected attach event, got None.");
     assert!(
-        matches!(attach_event, CardEvent::MoveCard {
-            to: ExactCardLocation {
-                location: (Zone::Attachment{parent: Card::ID(_)}, _),
+        matches!(
+            attach_event,
+            CardEvent::MoveCard {
+                to: ExactCardLocation {
+                    location: (
+                        Zone::Attachment {
+                            parent: Card::ID(_)
+                        },
+                        _
+                    ),
+                    ..
+                },
+                instance: Some(_),
                 ..
-            },
-            instance: Some(_),
-            ..
-        }),
+            }
+        ),
         "Base card has attachment, so expected attach event.\nGot {:#?}.",
         attach_event
     );
@@ -1158,23 +1187,27 @@ fn test_detach(
     let modify_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::ModifyCard), got None.");
-    assert!(matches!(modify_event, CardEvent::ModifyCard {
-        ..
-    }));
+    assert!(matches!(modify_event, CardEvent::ModifyCard { .. }));
 
     let move_to_start_zone_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
-    assert!(matches!(move_to_start_zone_event, CardEvent::MoveCard{..}));
+    assert!(matches!(
+        move_to_start_zone_event,
+        CardEvent::MoveCard { .. }
+    ));
 
     let move_to_end_zone_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
     assert!(
-        matches!(move_to_end_zone_event, CardEvent::MoveCard {
-            instance: Some(_),
-            ..
-        }),
+        matches!(
+            move_to_end_zone_event,
+            CardEvent::MoveCard {
+                instance: Some(_),
+                ..
+            }
+        ),
         "Expected MoveCard to End Zone, got {:#?}",
         move_to_end_zone_event
     );
@@ -1229,14 +1262,22 @@ fn test_attach(
             .next()
             .expect("Expected attach event, got None.");
         assert!(
-            matches!(attach_event, CardEvent::MoveCard {
-                to: ExactCardLocation {
-                    location: (Zone::Attachment{parent: Card::ID(_)}, _),
+            matches!(
+                attach_event,
+                CardEvent::MoveCard {
+                    to: ExactCardLocation {
+                        location: (
+                            Zone::Attachment {
+                                parent: Card::ID(_)
+                            },
+                            _
+                        ),
+                        ..
+                    },
+                    instance: Some(_),
                     ..
-                },
-                instance: Some(_),
-                ..
-            }),
+                }
+            ),
             "Base card has attachment, so expected attach event.\nGot {:#?}.",
             attach_event
         );
@@ -1245,19 +1286,23 @@ fn test_attach(
         let modify_event = actual_player_logs
             .next()
             .expect("Expected Some(CardEvent::ModifyCard), got None.");
-        assert!(matches!(modify_event, CardEvent::ModifyCard {
-            ..
-        }));
+        assert!(matches!(modify_event, CardEvent::ModifyCard { .. }));
     }
     let move_parent_to_start_zone_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
-    assert!(matches!(move_parent_to_start_zone_event, CardEvent::MoveCard{..}));
+    assert!(matches!(
+        move_parent_to_start_zone_event,
+        CardEvent::MoveCard { .. }
+    ));
 
     let move_attach_to_start_zone_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
-    assert!(matches!(move_attach_to_start_zone_event, CardEvent::MoveCard{..}));
+    assert!(matches!(
+        move_attach_to_start_zone_event,
+        CardEvent::MoveCard { .. }
+    ));
 
     if parent_base_card == BaseCard::WithAttachment {
         // Dust current attach
@@ -1265,10 +1310,13 @@ fn test_attach(
             .next()
             .expect("Expected Some(CardEvent::MoveCard), got None.");
         assert!(
-            matches!(dust_current_attach, CardEvent::MoveCard {
-                instance: Some(_),
-                ..
-            }),
+            matches!(
+                dust_current_attach,
+                CardEvent::MoveCard {
+                    instance: Some(_),
+                    ..
+                }
+            ),
             "Expected MoveCard from Zone::Attach to Zone::Dust, got {:#?}.",
             dust_current_attach
         );
@@ -1278,9 +1326,7 @@ fn test_attach(
             .next()
             .expect("Expected Some(CardEvent::ModifyCard), got None.");
         assert!(
-            matches!(modify_event, CardEvent::ModifyCard {
-                ..
-            }),
+            matches!(modify_event, CardEvent::ModifyCard { .. }),
             "Expected CardEvent::ModifyCard for parent because of child being detached, got {:#?}",
             modify_event
         );
@@ -1304,27 +1350,30 @@ fn test_attach(
     };
     if has_public_location {
         assert!(
-            matches!(attach_attachment_event, CardEvent::MoveCard {
-                instance: Some(_),
-                from: CardLocation {
-                    location: Some(_),
+            matches!(
+                attach_attachment_event,
+                CardEvent::MoveCard {
+                    instance: Some(_),
+                    from: CardLocation {
+                        location: Some(_),
+                        ..
+                    },
                     ..
-                },
-                ..
-            }),
+                }
+            ),
             "Expected MoveCard to Zone::Attachment with Some(location), got {:#?}.",
             attach_attachment_event
         );
     } else {
         assert!(
-            matches!(attach_attachment_event, CardEvent::MoveCard {
-                instance: Some(_),
-                from: CardLocation {
-                    location: None,
+            matches!(
+                attach_attachment_event,
+                CardEvent::MoveCard {
+                    instance: Some(_),
+                    from: CardLocation { location: None, .. },
                     ..
-                },
-                ..
-            }),
+                }
+            ),
             "Expected MoveCard to Zone::Attachment with location: None, got {:#?}.",
             attach_attachment_event
         );
@@ -1335,9 +1384,7 @@ fn test_attach(
         .next()
         .expect("Expected Some(CardEvent::ModifyCard), got None.");
     assert!(
-        matches!(modify_event, CardEvent::ModifyCard {
-            ..
-        }),
+        matches!(modify_event, CardEvent::ModifyCard { .. }),
         "Expected CardEvent::ModifyCard for parent because of new attach, got {:#?}",
         modify_event
     );
@@ -1394,14 +1441,22 @@ fn test_attach_from_attached(
             .next()
             .expect("Expected attach event, got None.");
         assert!(
-            matches!(attach_event, CardEvent::MoveCard {
-                to: ExactCardLocation {
-                    location: (Zone::Attachment{parent: Card::ID(_)}, _),
+            matches!(
+                attach_event,
+                CardEvent::MoveCard {
+                    to: ExactCardLocation {
+                        location: (
+                            Zone::Attachment {
+                                parent: Card::ID(_)
+                            },
+                            _
+                        ),
+                        ..
+                    },
+                    instance: Some(_),
                     ..
-                },
-                instance: Some(_),
-                ..
-            }),
+                }
+            ),
             "Base card has attachment, so expected attach event.\nGot {:#?}.",
             attach_event
         );
@@ -1410,26 +1465,30 @@ fn test_attach_from_attached(
         let modify_event = actual_player_logs
             .next()
             .expect("Expected Some(CardEvent::ModifyCard), got None.");
-        assert!(matches!(modify_event, CardEvent::ModifyCard {
-            ..
-        }));
+        assert!(matches!(modify_event, CardEvent::ModifyCard { .. }));
     }
     let move_parent_to_start_zone_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
-    assert!(matches!(move_parent_to_start_zone_event, CardEvent::MoveCard{..}));
+    assert!(matches!(
+        move_parent_to_start_zone_event,
+        CardEvent::MoveCard { .. }
+    ));
 
     let start_parent_gains_attach = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
     assert!(
-        matches!(start_parent_gains_attach, CardEvent::MoveCard{
-            to: ExactCardLocation {
-                location: (Zone::Attachment {..}, _),
+        matches!(
+            start_parent_gains_attach,
+            CardEvent::MoveCard {
+                to: ExactCardLocation {
+                    location: (Zone::Attachment { .. }, _),
+                    ..
+                },
                 ..
-            },
-            ..
-        }),
+            }
+        ),
         "Expected Some(CardEvent::MoveCard) for attach coming to starting parent, got {:#?}",
         start_parent_gains_attach
     );
@@ -1438,7 +1497,10 @@ fn test_attach_from_attached(
         .next()
         .expect("Expected Some(CardEvent::ModifyCard), got None.");
     assert!(
-        matches!(start_parent_gains_attach_modify, CardEvent::ModifyCard{..}),
+        matches!(
+            start_parent_gains_attach_modify,
+            CardEvent::ModifyCard { .. }
+        ),
         "Expected Some(CardEvent::ModifyCard) for attach callback on starting parent, got {:#?}",
         start_parent_gains_attach_modify
     );
@@ -1446,30 +1508,34 @@ fn test_attach_from_attached(
     let move_attach_to_start_zone_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
-    assert!(matches!(move_attach_to_start_zone_event, CardEvent::MoveCard{..}));
-    
+    assert!(matches!(
+        move_attach_to_start_zone_event,
+        CardEvent::MoveCard { .. }
+    ));
+
     if parent_base_card == BaseCard::WithAttachment {
         // Dust current attach
         let dust_current_attach = actual_player_logs
             .next()
             .expect("Expected Some(CardEvent::MoveCard), got None.");
         assert!(
-            matches!(dust_current_attach, CardEvent::MoveCard {
-                instance: Some(_),
-                ..
-            }),
+            matches!(
+                dust_current_attach,
+                CardEvent::MoveCard {
+                    instance: Some(_),
+                    ..
+                }
+            ),
             "Expected MoveCard from Zone::Attach to Zone::Dust, got {:#?}.",
             dust_current_attach
         );
-    
+
         // ModifyCard for new parent being modified because of detach of existing attachment.
         let modify_event = actual_player_logs
             .next()
             .expect("Expected Some(CardEvent::ModifyCard), got None.");
         assert!(
-            matches!(modify_event, CardEvent::ModifyCard {
-                ..
-            }),
+            matches!(modify_event, CardEvent::ModifyCard { .. }),
             "Expected CardEvent::ModifyCard for parent because of child being detached, got {:#?}",
             modify_event
         );
@@ -1493,27 +1559,30 @@ fn test_attach_from_attached(
     };
     if has_public_location {
         assert!(
-            matches!(attach_attachment_event, CardEvent::MoveCard {
-                instance: Some(_),
-                from: CardLocation {
-                    location: Some(_),
+            matches!(
+                attach_attachment_event,
+                CardEvent::MoveCard {
+                    instance: Some(_),
+                    from: CardLocation {
+                        location: Some(_),
+                        ..
+                    },
                     ..
-                },
-                ..
-            }),
+                }
+            ),
             "Expected MoveCard to Zone::Attachment with Some(location), got {:#?}.",
             attach_attachment_event
         );
     } else {
         assert!(
-            matches!(attach_attachment_event, CardEvent::MoveCard {
-                instance: Some(_),
-                from: CardLocation {
-                    location: None,
+            matches!(
+                attach_attachment_event,
+                CardEvent::MoveCard {
+                    instance: Some(_),
+                    from: CardLocation { location: None, .. },
                     ..
-                },
-                ..
-            }),
+                }
+            ),
             "Expected MoveCard to Zone::Attachment with location: None, got {:#?}.",
             attach_attachment_event
         );
@@ -1524,9 +1593,7 @@ fn test_attach_from_attached(
         .next()
         .expect("Expected Some(CardEvent::ModifyCard), got None.");
     assert!(
-        matches!(modify_event, CardEvent::ModifyCard {
-            ..
-        }),
+        matches!(modify_event, CardEvent::ModifyCard { .. }),
         "Expected CardEvent::ModifyCard for parent because of new attach, got {:#?}",
         modify_event
     );
