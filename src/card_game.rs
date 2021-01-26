@@ -459,7 +459,8 @@ impl<S: State> CardGame<S> {
     ) -> bool {
         // todo!(): betterize this implementation
 
-        self.reveal_from_cards(cards, f).await.iter().any(|f| *f)
+        self.reveal_from_cards_fold(cards, f, false, move |acc, c| acc || *c)
+            .await
     }
 
     pub async fn reveal_if_every(
@@ -602,6 +603,131 @@ impl<S: State> CardGame<S> {
         }
 
         revealed
+    }
+
+    fn card_info(&self, pub_id: InstanceID) -> CardInfo<S> {
+        let CardLocation {
+            player: owner,
+            location,
+        } = self.location(pub_id);
+        let location = location.unwrap_or_else(|| panic!("public {:?} has no zone", pub_id));
+
+        let instance = &self.instances[pub_id.0].instance_ref().unwrap();
+        let attachment = instance.attachment().map(|attachment| {
+            self.instances[attachment.0]
+                .instance_ref()
+                .unwrap_or_else(|| {
+                    panic!("public {:?} attachment {:?} not public", pub_id, attachment)
+                })
+        });
+
+        CardInfo {
+            instance,
+            owner,
+            zone: location.0,
+            attachment,
+        }
+    }
+
+    pub async fn reveal_from_cards_fold<T, B, F, G>(
+        &mut self,
+        cards: Vec<Card>,
+        map: G,
+        init: B,
+        fold: F,
+    ) -> B
+    where
+        T: Clone + 'static,
+        B: Secret + 'static,
+        F: Fn(B, &T) -> B + Clone + 'static,
+        G: Fn(CardInfo<S>) -> T + Clone + 'static,
+    {
+        let (public_cards, secret_cards) = {
+            let mut public_cards = vec![];
+            let mut secret_cards: [Vec<Card>; 2] = [vec![], vec![]];
+            for card in cards {
+                match card {
+                    Card::ID(id) => match &self.instances[id.0] {
+                        InstanceOrPlayer::Instance(_) => public_cards.push(id),
+                        InstanceOrPlayer::Player(owner) => secret_cards[*owner as usize].push(card),
+                    },
+                    Card::Pointer(OpaquePointer { player, .. }) => {
+                        secret_cards[player as usize].push(card)
+                    }
+                }
+            }
+            (public_cards, secret_cards)
+        };
+
+        let [p0_cards, p1_cards] = secret_cards;
+
+        let every_single_public_card: indexmap::IndexMap<InstanceID, T> = self
+            .instances
+            .iter()
+            .filter_map(|instance| {
+                instance.instance_ref().map(|i| {
+                    let id = i.id();
+                    let info = self.card_info(id);
+                    (id, map(info))
+                })
+            })
+            .collect();
+
+        let mut accumulated = public_cards.into_iter().fold(init, |prev, pub_id| {
+            fold(
+                prev,
+                every_single_public_card
+                    .get(&pub_id)
+                    .expect("public cards are public"),
+            )
+        });
+
+        for (player, cards) in vec![p0_cards, p1_cards].into_iter().enumerate() {
+            if cards.is_empty() {
+                continue;
+            }
+            let acc = accumulated.clone();
+            let map = map.clone();
+            let fold = fold.clone();
+            let every_single_public_card = every_single_public_card.clone();
+            accumulated = self
+                .context
+                .reveal_unique(
+                    player as u8,
+                    move |secret| {
+                        let map = map.clone();
+                        let fold = fold.clone();
+                        let cards = cards.clone();
+                        let every_single_public_card = every_single_public_card.clone();
+                        cards.into_iter().fold(acc.clone(), move |prev, card| {
+                            let id = secret.id(card).unwrap();
+                            if secret.instances.get(&id).is_some() {
+                                let map = map.clone();
+                                fold(
+                                    prev,
+                                    &secret
+                                        .reveal_from_card(card, move |c| map(c))
+                                        .unwrap_or_else(|| {
+                                            panic!("{:?} not in player {:?} secret", card, player)
+                                        }),
+                                )
+                            } else {
+                                // card is in public state
+                                fold(
+                                    prev,
+                                    every_single_public_card.get(&id).expect(
+                                        "Card must be in public, since it's not in secret.",
+                                    ),
+                                )
+                            }
+                        })
+                    },
+                    |_| true,
+                )
+                .await;
+        }
+
+        accumulated
     }
 
     pub async fn reveal_parent(&mut self, card: impl Into<Card>) -> Option<Card> {
@@ -776,7 +902,12 @@ impl<S: State> CardGame<S> {
         cards: Vec<Card>,
         f: impl Fn(CardInfo<S>) -> bool + Clone + 'static,
     ) -> Vec<Card> {
-        let f = self.reveal_from_cards(cards.clone(), f).await;
+        let f = self
+            .reveal_from_cards_fold(cards.clone(), f, vec![], move |mut vec, c| {
+                vec.push(*c);
+                vec
+            })
+            .await;
 
         assert_eq!(f.len(), cards.len());
 

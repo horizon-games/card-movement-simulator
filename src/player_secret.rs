@@ -461,7 +461,7 @@ impl<S: State> PlayerSecret<S> {
         }
     }
 
-    fn id(&self, card: impl Into<Card>) -> Option<InstanceID> {
+    pub(crate) fn id(&self, card: impl Into<Card>) -> Option<InstanceID> {
         let card = card.into();
 
         match card {
