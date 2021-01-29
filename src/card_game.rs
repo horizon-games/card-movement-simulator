@@ -906,12 +906,7 @@ impl<S: State> CardGame<S> {
         cards: Vec<Card>,
         f: impl Fn(CardInfo<S>) -> bool + Clone + 'static,
     ) -> Vec<Card> {
-        let f = self
-            .reveal_from_cards_fold(cards.clone(), f, vec![], move |mut vec, c| {
-                vec.push(*c);
-                vec
-            })
-            .await;
+        let f = self.reveal_from_cards(cards.clone(), f).await;
 
         assert_eq!(f.len(), cards.len());
 
