@@ -23,7 +23,7 @@ pub use {
     base_card::BaseCard,
     card::Card,
     card_event::CardEvent,
-    card_game::{CardGame, CardInfo, CardInfoMut},
+    card_game::{CardGame, CardInfo, CardInfoMut, SecretCardsInfo},
     card_instance::CardInstance,
     card_location::{CardLocation, ExactCardLocation},
     card_state::CardState,
