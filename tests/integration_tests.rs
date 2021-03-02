@@ -640,7 +640,7 @@ impl card_movement_simulator::State for State {
                         .reveal_from_card(card_id, |c| c.instance.clone())
                         .await;
                     let base_state =
-                        card_movement_simulator::BaseCard::new_card_state(&base_card_type);
+                        card_movement_simulator::BaseCard::new_card_state(&base_card_type, None);
 
                     assert!(
                         card_movement_simulator::CardState::eq(&*card_state, &base_state,),
@@ -654,7 +654,7 @@ impl card_movement_simulator::State for State {
                             .reveal_from_card(attach_id, |c| c.instance.clone())
                             .await;
                         let attach_base_state =
-                            card_movement_simulator::BaseCard::new_card_state(&attach_base);
+                            card_movement_simulator::BaseCard::new_card_state(&attach_base, None);
 
                         assert!(
                             card_movement_simulator::CardState::eq(
@@ -724,12 +724,16 @@ impl card_movement_simulator::BaseCard for BaseCard {
         }
     }
 
-    fn new_card_state(&self) -> Self::CardState {
+    fn new_card_state(&self, _parent: Option<&Self::CardState>) -> Self::CardState {
         CardState {
             attachment_was_detached: 0,
             attachment_was_attached: 0,
             was_cloned: false,
         }
+    }
+
+    fn reset_card(&self, _card: &Self::CardState) -> Self::CardState {
+        self.new_card_state(None)
     }
 }
 
