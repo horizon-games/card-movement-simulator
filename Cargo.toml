@@ -1,6 +1,6 @@
 [package]
 name = "card-movement-simulator"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
   "Horizon Blockchain Games Inc.",
   "William Hua <william@attente.ca>",
@@ -10,14 +10,14 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", tag = "0.15.0" }
+arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", tag = "0.16.1" }
 indexmap = { version = "^1.4.0", features = ["serde-1"] }
 rand = "^0.7.3"
 serde = "^1.0.111"
 serde_cbor = "^0.11.1"
 thiserror = "1.0.20"
 typescript-definitions = { git = "https://github.com/arilotter/typescript-definitions.git", optional = true }
-wasm-bindgen = { version = "0.2.64", optional = true }
+wasm-bindgen = { version = "0.2.73", optional = true }
 
 [build-dependencies]
 inflections = "^1.1.1"
