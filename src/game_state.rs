@@ -478,6 +478,12 @@ impl<S: State> arcadeum::store::State for GameState<S> {
 
             S::apply(&mut game, player, action).await;
 
+            // workaround bug https://github.com/horizon-games/issue-tracker/issues/4888
+            // TODO figure out the actual cause of this issue
+            for player in 0..2 {
+                game.context
+                    .mutate_secret(player, |mut s| s.deferred_locations.clear());
+            }
             let CardGame { state, context } = game;
 
             (state, context)
