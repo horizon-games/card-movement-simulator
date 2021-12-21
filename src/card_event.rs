@@ -43,6 +43,7 @@ pub enum CardEvent<S: State> {
     SortField {
         player: Player,
         field: Vec<InstanceID>,
+        real: bool,
     },
 
     /// Game-specific event.
@@ -74,8 +75,18 @@ impl<S: State> std::fmt::Display for CardEvent<S> {
             CardEvent::ShuffleDeck { player, deck } => {
                 write!(f, "Player {}'s deck shuffled: {:?}", player, deck)
             }
-            CardEvent::SortField { player, field } => {
-                write!(f, "Player {}'s field sorted: {:?}", player, field)
+            CardEvent::SortField {
+                player,
+                field,
+                real,
+            } => {
+                write!(
+                    f,
+                    "Player {}'s field sorted {}: {:?}",
+                    player,
+                    if *real { "really" } else { "fakely" },
+                    field
+                )
             }
             CardEvent::GameEvent { .. } => write!(f, "Game Event"),
         }
@@ -108,12 +119,17 @@ impl<S: State> PartialEq for CardEvent<S> {
                 },
             ) => instance == other_instance && from == other_from && to == other_to,
             (
-                Self::SortField { player, field },
+                Self::SortField {
+                    player,
+                    field,
+                    real,
+                },
                 Self::SortField {
                     player: other_player,
                     field: other_field,
+                    real: other_real,
                 },
-            ) => player == other_player && field == other_field,
+            ) => player == other_player && field == other_field && real == other_real,
             _ => false,
         }
     }

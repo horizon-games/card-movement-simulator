@@ -1583,6 +1583,7 @@ impl<S: State> CardGame<S> {
                             Zone::Field => self.sort_field(
                                 owner,
                                 self.player_cards(owner).field.clone(),
+                                true,
                                 &mut |event| logs.push(event),
                             ),
                             Zone::Attachment {
@@ -1592,6 +1593,7 @@ impl<S: State> CardGame<S> {
                                     self.sort_field(
                                         owner,
                                         self.player_cards(owner).field.clone(),
+                                        true,
                                         &mut |event| logs.push(event),
                                     );
                                 }
@@ -1691,6 +1693,7 @@ impl<S: State> CardGame<S> {
                             Zone::Field => self.sort_field(
                                 owner,
                                 self.player_cards(owner).field.clone(),
+                                true,
                                 logger,
                             ),
                             Zone::Attachment {
@@ -1700,6 +1703,7 @@ impl<S: State> CardGame<S> {
                                     self.sort_field(
                                         owner,
                                         self.player_cards(owner).field.clone(),
+                                        true,
                                         logger,
                                     );
                                 }
@@ -2365,6 +2369,21 @@ impl<S: State> CardGame<S> {
                     }
                 }
             }
+            // we have to emit a sort field before we emit the card move event, otherwise things with same ID will sort wrong.
+            if to_zone.is_field() {
+                let mut logs = vec![];
+                this.sort_field(
+                    to_player,
+                    old_field
+                        .clone()
+                        .expect("If moving to field, we should have cached the old field."),
+                    false,
+                    &mut |event| logs.push(event),
+                );
+                for event in logs.into_iter() {
+                    this.context.log(event);
+                }
+            }
 
             let move_card_event = (
                 instance.map(|i| (i, attachment_instance)).or_else(|| {
@@ -2457,6 +2476,7 @@ impl<S: State> CardGame<S> {
                         to_player,
                         old_field
                             .expect("If moving to field, we should have cached the old field."),
+                        true,
                         &mut |event| logs.push(event),
                     );
                     for event in logs.into_iter() {
@@ -3243,6 +3263,7 @@ impl<S: State> CardGame<S> {
         &mut self,
         player: Player,
         old_field: Vec<InstanceID>,
+        actually_update: bool,
         logger: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
     ) {
         let mut field = self.player_cards(player).field.clone();
@@ -3285,11 +3306,14 @@ impl<S: State> CardGame<S> {
             logger(CardEvent::SortField {
                 player,
                 field: field.clone(),
+                real: actually_update,
             });
         }
 
-        // Finally, actually update the field order in state.
-        self.player_cards_mut(player).field = field;
+        if actually_update {
+            // Finally, actually update the field order in state.
+            self.player_cards_mut(player).field = field;
+        }
     }
 }
 
