@@ -1066,7 +1066,10 @@ fn test_move(
     }
     println!("\n");
 
-    let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
+    let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0]
+        .clone()
+        .into_iter()
+        .peekable();
 
     // If our BaseCard has an attachment, we'll see a MoveCard to attach it upon creation.
     if base_card_type == BaseCard::WithAttachment {
@@ -1108,6 +1111,10 @@ fn test_move(
         move_to_start_zone_event,
         CardEvent::MoveCard { .. }
     ));
+
+    if matches!(actual_player_logs.peek(), Some(CardEvent::SortField { .. })) {
+        actual_player_logs.next(); // allow sort fields
+    }
 
     // Event should fire if we moved to a different zone.
     // Player 0 should see the card instance in every event involving it.
@@ -1160,7 +1167,10 @@ fn test_detach(
     }
     println!("\n");
 
-    let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
+    let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0]
+        .clone()
+        .into_iter()
+        .peekable();
 
     // Our BaseCard has an attachment, so we'll see a MoveCard to attach it upon creation.
     let attach_event = actual_player_logs
@@ -1200,6 +1210,10 @@ fn test_detach(
         move_to_start_zone_event,
         CardEvent::MoveCard { .. }
     ));
+
+    if matches!(actual_player_logs.peek(), Some(CardEvent::SortField { .. })) {
+        actual_player_logs.next(); // allow sort fields
+    }
 
     let move_to_end_zone_event = actual_player_logs
         .next()
@@ -1258,7 +1272,10 @@ fn test_attach(
     }
     println!("\n");
 
-    let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0].clone().into_iter();
+    let mut actual_player_logs = player_logs.try_borrow_mut().unwrap()[0]
+        .clone()
+        .into_iter()
+        .peekable();
 
     if parent_base_card == BaseCard::WithAttachment {
         // Our BaseCard has an attachment, so we'll see a MoveCard to attach it upon creation.
@@ -1300,6 +1317,10 @@ fn test_attach(
         CardEvent::MoveCard { .. }
     ));
 
+    if matches!(actual_player_logs.peek(), Some(CardEvent::SortField { .. })) {
+        actual_player_logs.next(); // allow sort fields
+    }
+
     let move_attach_to_start_zone_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
@@ -1307,6 +1328,10 @@ fn test_attach(
         move_attach_to_start_zone_event,
         CardEvent::MoveCard { .. }
     ));
+
+    if matches!(actual_player_logs.peek(), Some(CardEvent::SortField { .. })) {
+        actual_player_logs.next(); // allow sort fields
+    }
 
     if parent_base_card == BaseCard::WithAttachment {
         // Dust current attach
@@ -1335,6 +1360,10 @@ fn test_attach(
             modify_event
         );
     }
+    if matches!(actual_player_logs.peek(), Some(CardEvent::SortField { .. })) {
+        actual_player_logs.next(); // allow sort fields
+    }
+
     let attach_attachment_event = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
@@ -1479,6 +1508,13 @@ fn test_attach_from_attached(
         CardEvent::MoveCard { .. }
     ));
 
+    if parent_zone.is_field() {
+        let sort_field_event = actual_player_logs
+            .next()
+            .expect("Expected Some(CardEvent::SortField), got None.");
+        assert!(matches!(sort_field_event, CardEvent::SortField { .. }));
+    }
+
     let start_parent_gains_attach = actual_player_logs
         .next()
         .expect("Expected Some(CardEvent::MoveCard), got None.");
@@ -1516,6 +1552,12 @@ fn test_attach_from_attached(
         move_attach_to_start_zone_event,
         CardEvent::MoveCard { .. }
     ));
+    if card_zone.is_field() {
+        let sort_field_event = actual_player_logs
+            .next()
+            .expect("Expected Some(CardEvent::SortField), got None.");
+        assert!(matches!(sort_field_event, CardEvent::SortField { .. }));
+    }
 
     if parent_base_card == BaseCard::WithAttachment {
         // Dust current attach
