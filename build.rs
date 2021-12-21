@@ -299,7 +299,7 @@ fn main() -> std::io::Result<()> {
 
     let test_file_path = PathBuf::from(env::var("OUT_DIR").unwrap()).join("generated_tests.rs");
     let mut file = File::create(test_file_path)?;
-    file.write_all(&generated_tests.as_bytes())?;
+    file.write_all(generated_tests.as_bytes())?;
 
     Ok(())
 }
