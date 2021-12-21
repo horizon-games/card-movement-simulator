@@ -1580,12 +1580,20 @@ impl<S: State> CardGame<S> {
                         let mut logs = vec![];
 
                         match location.0 {
-                            Zone::Field => self.sort_field(owner, &mut |event| logs.push(event)),
+                            Zone::Field => self.sort_field(
+                                owner,
+                                self.player_cards(owner).field.clone(),
+                                &mut |event| logs.push(event),
+                            ),
                             Zone::Attachment {
                                 parent: Card::ID(parent_id),
                             } => {
                                 if let Some((Zone::Field, ..)) = self.location(parent_id).location {
-                                    self.sort_field(owner, &mut |event| logs.push(event));
+                                    self.sort_field(
+                                        owner,
+                                        self.player_cards(owner).field.clone(),
+                                        &mut |event| logs.push(event),
+                                    );
                                 }
                             }
                             _ => (),
@@ -1680,12 +1688,20 @@ impl<S: State> CardGame<S> {
                             })
                         }
                         match location.0 {
-                            Zone::Field => self.sort_field(owner, logger),
+                            Zone::Field => self.sort_field(
+                                owner,
+                                self.player_cards(owner).field.clone(),
+                                logger,
+                            ),
                             Zone::Attachment {
                                 parent: Card::ID(parent_id),
                             } => {
                                 if let Some((Zone::Field, ..)) = self.location(parent_id).location {
-                                    self.sort_field(owner, logger);
+                                    self.sort_field(
+                                        owner,
+                                        self.player_cards(owner).field.clone(),
+                                        logger,
+                                    );
                                 }
                             }
                             _ => (),
@@ -1734,6 +1750,11 @@ impl<S: State> CardGame<S> {
             to_player: Player,
             to_zone: Zone,
         ) -> Result<(CardLocation, Option<InstanceID>), error::MoveCardError> {
+            let old_field = if to_zone.is_field() {
+                Some(this.player_cards(to_player).field.clone())
+            } else {
+                None
+            };
             let to_bucket = match to_zone {
                 Zone::Deck => Some(to_player),
                 Zone::Hand { public: false } => Some(to_player),
@@ -2432,7 +2453,12 @@ impl<S: State> CardGame<S> {
                 }
                 Zone::Field => {
                     let mut logs = vec![];
-                    this.sort_field(to_player, &mut |event| logs.push(event));
+                    this.sort_field(
+                        to_player,
+                        old_field
+                            .expect("If moving to field, we should have cached the old field."),
+                        &mut |event| logs.push(event),
+                    );
                     for event in logs.into_iter() {
                         this.context.log(event);
                     }
@@ -3216,6 +3242,7 @@ impl<S: State> CardGame<S> {
     fn sort_field(
         &mut self,
         player: Player,
+        old_field: Vec<InstanceID>,
         logger: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
     ) {
         let mut field = self.player_cards(player).field.clone();
@@ -3254,7 +3281,7 @@ impl<S: State> CardGame<S> {
             S::field_order(a, b)
         });
 
-        if field != self.player_cards(player).field {
+        if field != old_field {
             logger(CardEvent::SortField {
                 player,
                 field: field.clone(),
