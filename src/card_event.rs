@@ -108,12 +108,12 @@ impl<S: State> PartialEq for CardEvent<S> {
                 },
             ) => instance == other_instance && from == other_from && to == other_to,
             (
-                Self::SortField { player, ids },
+                Self::SortField { player, field },
                 Self::SortField {
                     player: other_player,
-                    ids: other_ids,
+                    field: other_field,
                 },
-            ) => player == other_player && ids == other_ids,
+            ) => player == other_player && field == other_field,
             _ => false,
         }
     }
