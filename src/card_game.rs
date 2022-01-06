@@ -2418,7 +2418,9 @@ impl<S: State> CardGame<S> {
                                 .expect("field_index should be Some when to_zone is Field"),
                             Zone::Graveyard => this.player_cards(to_player).graveyard().len() - 1,
                             Zone::Limbo { public: false } => 0,
-                            Zone::Limbo { public: true } => 0,
+                            Zone::Limbo { public: true } => {
+                                this.player_cards(to_player).limbo().len() - 1
+                            }
                             Zone::CardSelection => {
                                 this.player_cards(to_player).card_selection() - 1
                             }
