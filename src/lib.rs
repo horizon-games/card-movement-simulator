@@ -38,6 +38,8 @@ pub use {
 
 pub(crate) use game_state::InstanceOrPlayer;
 
+pub use arcadeum;
+
 pub trait Action: arcadeum::Action + Debug {}
 
 impl<T: arcadeum::Action + Debug> Action for T {}
