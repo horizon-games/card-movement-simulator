@@ -981,7 +981,14 @@ impl<S: State> CardGame<S> {
                         (None, Some(default)) => {
                             // attach base attachment
 
+                            // create attach state using new_card_state from implementor
+                            let new_state = default.new_card_state(Some(&instance.state));
                             let attachment = self.new_card(owner, default).await;
+
+                            self.modify_card(attachment, move |mut c| {
+                                c.state = new_state.clone();
+                            })
+                            .await;
 
                             self.move_card(
                                 attachment,
@@ -1009,8 +1016,15 @@ impl<S: State> CardGame<S> {
                         }
                         (Some(..), Some(default)) => {
                             // attach base attachment, will implicitly dust current attachment.
+                            let new_state = default.new_card_state(Some(&instance.state));
 
                             let attachment = self.new_card(owner, default).await;
+                            // create attach state using new_card_state from implementor
+
+                            self.modify_card(attachment, move |mut c| {
+                                c.state = new_state.clone();
+                            })
+                            .await;
 
                             self.move_card(
                                 attachment,
