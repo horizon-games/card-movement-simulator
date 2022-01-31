@@ -10,7 +10,7 @@ edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", tag = "0.17.2" }
+arcadeum = { git = "ssh://git@github.com/horizon-games/arcadeum-state.git", tag = "0.17.3" }
 indexmap = { version = "^1.4", features = ["serde-1"] }
 rand = "0.8"
 serde = "1.0"
