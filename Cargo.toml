@@ -26,7 +26,9 @@ inflections = "1"
 pretty_assertions = "0.7"
 
 [features]
-default = []
+default = ["std"]
 bindings = ["typescript-definitions", "wasm-bindgen"]
 reveal-backtrace = []
 event-eq = []
+std = ["arcadeum/std"]
+no-crypto = ["arcadem/no-crypto"]
