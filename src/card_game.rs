@@ -3333,6 +3333,7 @@ impl<S: State> CardGame<S> {
     }
 }
 
+#[derive(Debug)]
 pub struct CardInfo<'a, S: State> {
     pub instance: &'a CardInstance<S>,
     pub owner: Player,
