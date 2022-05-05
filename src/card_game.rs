@@ -1039,6 +1039,9 @@ impl<S: State> CardGame<S> {
                     }
                     self.modify_card(id, |mut c| {
                         c.state = c.base.reset_card(&c.state);
+                        if let Some(attach) = c.attachment {
+                            S::on_attach(&mut *c, &attach);
+                        }
                     })
                     .await;
                 }
@@ -1093,6 +1096,9 @@ impl<S: State> CardGame<S> {
 
                         secret.modify_card(id, |mut c| {
                             c.state = c.base.reset_card(&c.state);
+                            if let Some(attach) = c.attachment {
+                                S::on_attach(&mut *c, &attach);
+                            }
                         }).expect("Failed to reset card in this secret.");
                     }).await;
                 }
@@ -1185,11 +1191,19 @@ impl<S: State> CardGame<S> {
                         )
                         .0 += 1;
 
+                    let attachment = secret
+                        .instance(id).unwrap().attachment().map(|attachment| {
+                            secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", player, id, attachment)).clone()
+                        });
+
                     let instance = secret
                         .instance_mut(id)
                         .expect("immutable instance exists, but no mutable instance");
 
                     instance.state = instance.base.reset_card(&instance.state);
+                    if let Some(attach) = attachment {
+                        S::on_attach(instance, &attach);
+                    }
                 })
                 .await;
             }
