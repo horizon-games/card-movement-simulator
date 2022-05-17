@@ -1536,7 +1536,8 @@ impl<S: State> CardGame<S> {
         copies
     }
 
-    pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) {
+    /// Always returns a Card::ID if the card is in public state.
+    pub async fn modify_card(&mut self, card: impl Into<Card>, f: impl Fn(CardInfoMut<S>)) -> Card {
         let card = card.into();
 
         let card = if let Card::Pointer(OpaquePointer { player, index }) = card {
@@ -1656,6 +1657,8 @@ impl<S: State> CardGame<S> {
                 });
             }
         }
+
+        card
     }
 
     /// Internal API only.
