@@ -283,6 +283,7 @@ impl<S: State> CardGame<S> {
             .collect();
 
         let num_secret_cards = secret_hand_indices.len();
+        let pointer_offset = self.player_cards(player).pointers;
 
         self.player_cards_mut(player).pointers += num_secret_cards;
 
@@ -290,7 +291,7 @@ impl<S: State> CardGame<S> {
             self.context.log(CardEvent::NewPointer {
                 pointer: OpaquePointer {
                     player,
-                    index: pointer_index,
+                    index: pointer_offset + pointer_index,
                 },
                 location: ExactCardLocation {
                     player,
