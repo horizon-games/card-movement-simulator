@@ -1910,81 +1910,6 @@ impl<S: State> CardGame<S> {
             // Special case, secret -> secret for a single player
             if let Some(bucket_owner) = bucket {
                 if to_bucket == bucket {
-                    this.context.mutate_secret(bucket_owner, |mut secret| {
-                        let id =
-                            id.unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
-                        let old_location = secret.location(id);
-
-                        let instance = secret.instance(id).unwrap().clone();
-                        let attachment = instance
-                            .attachment
-                            .map(|a_id| secret.instance(a_id).unwrap().clone());
-                        secret.log(CardEvent::MoveCard {
-                            instance: Some((instance, attachment)),
-                            from: old_location,
-                            to: ExactCardLocation {
-                                player: bucket_owner,
-                                location: (
-                                    to_zone,
-                                    match to_zone {
-                                        Zone::Deck => secret.deck.len(),
-                                        Zone::Hand { public: false } => secret.hand.len(),
-                                        Zone::Hand { public: true } => {
-                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                        }
-                                        Zone::Field => {
-                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                        }
-                                        Zone::Graveyard => {
-                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                        }
-                                        Zone::Limbo { public: false } => secret.limbo.len(),
-                                        Zone::Limbo { public: true } => {
-                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                        }
-                                        Zone::CardSelection => secret.card_selection.len(),
-                                        Zone::Casting => {
-                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                        }
-                                        Zone::Dust { public: false } => secret.dust.len(),
-                                        Zone::Dust { public: true } => {
-                                            unreachable!("{}:{}:{}", file!(), line!(), column!())
-                                        }
-                                        Zone::Attachment { .. } => 0,
-                                    },
-                                ),
-                            },
-                        });
-                        // Remove this card from its old zone in the secret.
-                        secret.secret.remove_id(secret.log, id);
-
-                        // Put the card in its new zone in the secret.
-                        match to_zone {
-                            Zone::Deck => secret.deck.push(id),
-                            Zone::Hand { public: false } => secret.hand.push(Some(id)),
-                            Zone::Hand { public: true } => {
-                                unreachable!("{}:{}:{}", file!(), line!(), column!())
-                            }
-                            Zone::Field => unreachable!("{}:{}:{}", file!(), line!(), column!()),
-                            Zone::Graveyard => {
-                                unreachable!("{}:{}:{}", file!(), line!(), column!())
-                            }
-                            Zone::Limbo { public: false } => secret.limbo.push(id),
-                            Zone::Limbo { public: true } => {
-                                unreachable!("{}:{}:{}", file!(), line!(), column!())
-                            }
-                            Zone::CardSelection => secret.card_selection.push(id),
-                            Zone::Casting => unreachable!("{}:{}:{}", file!(), line!(), column!()),
-                            Zone::Dust { public: false } => secret.dust.push(id),
-                            Zone::Dust { public: true } => {
-                                unreachable!("{}:{}:{}", file!(), line!(), column!())
-                            }
-                            Zone::Attachment { .. } => {
-                                unreachable!("Can't attach a spell with move_card.")
-                            }
-                        }
-                    });
-
                     if let Some((zone, index)) = location {
                         this.player_cards_mut(bucket_owner).remove_from(zone, index);
                     }
@@ -2057,9 +1982,117 @@ impl<S: State> CardGame<S> {
                             Zone::Attachment { .. } => 0,
                         },
                     );
-                    // Bucket owner has already seen the log, so do it for only the other player
-                    this.context.mutate_secret(1 - bucket_owner, |mut secret| {
-                        secret.log(CardEvent::MoveCard {
+                    this.context.mutate_secret_or_log(
+                        bucket_owner,
+                        |mut secret| {
+                            let id = id
+                                .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
+                            let old_location = secret.location(id);
+
+                            let instance = secret.instance(id).unwrap().clone();
+                            let attachment = instance
+                                .attachment
+                                .map(|a_id| secret.instance(a_id).unwrap().clone());
+                            secret.log(CardEvent::MoveCard {
+                                instance: Some((instance, attachment)),
+                                from: old_location,
+                                to: ExactCardLocation {
+                                    player: bucket_owner,
+                                    location: (
+                                        to_zone,
+                                        match to_zone {
+                                            Zone::Deck => secret.deck.len(),
+                                            Zone::Hand { public: false } => secret.hand.len(),
+                                            Zone::Hand { public: true } => {
+                                                unreachable!(
+                                                    "{}:{}:{}",
+                                                    file!(),
+                                                    line!(),
+                                                    column!()
+                                                )
+                                            }
+                                            Zone::Field => {
+                                                unreachable!(
+                                                    "{}:{}:{}",
+                                                    file!(),
+                                                    line!(),
+                                                    column!()
+                                                )
+                                            }
+                                            Zone::Graveyard => {
+                                                unreachable!(
+                                                    "{}:{}:{}",
+                                                    file!(),
+                                                    line!(),
+                                                    column!()
+                                                )
+                                            }
+                                            Zone::Limbo { public: false } => secret.limbo.len(),
+                                            Zone::Limbo { public: true } => {
+                                                unreachable!(
+                                                    "{}:{}:{}",
+                                                    file!(),
+                                                    line!(),
+                                                    column!()
+                                                )
+                                            }
+                                            Zone::CardSelection => secret.card_selection.len(),
+                                            Zone::Casting => {
+                                                unreachable!(
+                                                    "{}:{}:{}",
+                                                    file!(),
+                                                    line!(),
+                                                    column!()
+                                                )
+                                            }
+                                            Zone::Dust { public: false } => secret.dust.len(),
+                                            Zone::Dust { public: true } => {
+                                                unreachable!(
+                                                    "{}:{}:{}",
+                                                    file!(),
+                                                    line!(),
+                                                    column!()
+                                                )
+                                            }
+                                            Zone::Attachment { .. } => 0,
+                                        },
+                                    ),
+                                },
+                            });
+                            // Remove this card from its old zone in the secret.
+                            secret.secret.remove_id(secret.log, id);
+
+                            // Put the card in its new zone in the secret.
+                            match to_zone {
+                                Zone::Deck => secret.deck.push(id),
+                                Zone::Hand { public: false } => secret.hand.push(Some(id)),
+                                Zone::Hand { public: true } => {
+                                    unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                }
+                                Zone::Field => {
+                                    unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                }
+                                Zone::Graveyard => {
+                                    unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                }
+                                Zone::Limbo { public: false } => secret.limbo.push(id),
+                                Zone::Limbo { public: true } => {
+                                    unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                }
+                                Zone::CardSelection => secret.card_selection.push(id),
+                                Zone::Casting => {
+                                    unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                }
+                                Zone::Dust { public: false } => secret.dust.push(id),
+                                Zone::Dust { public: true } => {
+                                    unreachable!("{}:{}:{}", file!(), line!(), column!())
+                                }
+                                Zone::Attachment { .. } => {
+                                    unreachable!("Can't attach a spell with move_card.")
+                                }
+                            }
+                        },
+                        CardEvent::MoveCard {
                             instance: None,
                             from: CardLocation {
                                 player: bucket_owner,
@@ -2069,8 +2102,8 @@ impl<S: State> CardGame<S> {
                                 player: to_player,
                                 location: to_location,
                             },
-                        })
-                    });
+                        },
+                    );
 
                     return Ok((
                         CardLocation {
@@ -2467,13 +2500,7 @@ impl<S: State> CardGame<S> {
                 },
             );
 
-            this.context.mutate_secret(1 - owner, |mut secret| {
-                let (instance, from, to) = move_card_event.clone();
-
-                secret.log(CardEvent::MoveCard { instance, from, to });
-            });
-
-            this.context.mutate_secret(owner, |mut secret| {
+            this.context.mutate_secret_or_log(owner, |mut secret| {
                 let (instance, mut from, to) = move_card_event.clone();
 
                 if from.location.is_none() {
@@ -2482,7 +2509,7 @@ impl<S: State> CardGame<S> {
                 }
 
                 secret.log(CardEvent::MoveCard { instance, from, to });
-            });
+            },CardEvent::MoveCard { instance: move_card_event.0.clone(), from: move_card_event.1.clone(), to: move_card_event.2.clone() });
 
             for deferred_log in deferred_logs {
                 this.context.log(deferred_log);
@@ -2501,7 +2528,7 @@ impl<S: State> CardGame<S> {
                     if this.shuffle_deck_on_insert {
                         this.context.mutate_secret(to_player, |secret| {
                             secret.secret.shuffle_deck(secret.random, secret.log);
-                        })
+                        });
                     }
                 }
                 Zone::Field => {
@@ -3100,7 +3127,7 @@ impl<S: State> CardGame<S> {
                         .expect("Parent pointer and card are both in some player's secret");
 
                     self.context
-                        .mutate_secret(parent_bucket_player, |mut secret| {
+                        .mutate_secret_or_log(parent_bucket_player, |mut secret| {
                             let card_id = card_id
                                 .unwrap_or_else(|| secret.pointers[card.pointer().unwrap().index]);
                             let parent_id = secret.pointers[parent.pointer().unwrap().index];
@@ -3114,29 +3141,16 @@ impl<S: State> CardGame<S> {
                             secret.secret
                                 .attach_card(parent_id, card_id, location, secret.log)
                                 .unwrap();
-                        });
-
-                    // secret.attach_card only logs for *that* player, so we need to log for the other player.
-                    self.context
-                        .mutate_secret(1 - parent_bucket_player, |mut secret| {
-                            let location = location.or_else(|| {
-                                if card_bucket == Some(1 - parent_bucket_player) {
-                                    Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
-                                } else {
-                                    None
-                                }
-                            });
-                            secret.log(CardEvent::MoveCard {
-                                instance: None, // todo is this None correct?
-                                from: CardLocation {
-                                    player: owner,
-                                    location,
-                                },
-                                to: ExactCardLocation {
-                                    player: parent_bucket_player,
-                                    location: (Zone::Attachment { parent }, 0),
-                                },
-                            })
+                        },CardEvent::MoveCard {
+                            instance: None,
+                            from: CardLocation {
+                                player: owner,
+                                location,
+                            },
+                            to: ExactCardLocation {
+                                player: parent_bucket_player,
+                                location: (Zone::Attachment { parent }, 0),
+                            },
                         });
                 }
                 Some(parent_id) => match parent_bucket {
@@ -3196,7 +3210,7 @@ impl<S: State> CardGame<S> {
                             if let CardEvent::MoveCard { instance, from, to } = msg {
                                 let from_player = from.player;
                                 self.context
-                                .mutate_secret(from_player, |mut secret| {
+                                .mutate_secret_or_log(from_player, |mut secret| {
                                     let location = from.location.or_else(||
                                         {
                                                 Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
@@ -3209,14 +3223,7 @@ impl<S: State> CardGame<S> {
                                         },
                                         to: to.clone()
                                     })
-                                });
-                                self.context.mutate_secret(1 - from_player, |mut secret| {
-                                    secret.log(CardEvent::MoveCard {
-                                        instance: instance.clone(),
-                                        from: from.clone(),
-                                        to: to.clone(),
-                                    })
-                                });
+                                },CardEvent::MoveCard { instance: instance.clone(), from: from.clone(), to: to.clone() });
                             } else {
                                 deferred_logs.push(msg);
                             }
@@ -3224,7 +3231,7 @@ impl<S: State> CardGame<S> {
                     }
                     Some(parent_bucket_player) => {
                         self.context
-                            .mutate_secret(parent_bucket_player, |mut secret| {
+                            .mutate_secret_or_log(parent_bucket_player, |mut secret| {
                                 let card_id = card_id.unwrap_or_else(|| {
                                     secret.pointers[card.pointer().unwrap().index]
                                 });
@@ -3238,34 +3245,21 @@ impl<S: State> CardGame<S> {
                                 secret.secret
                                     .attach_card(parent_id, card_id, location, secret.log)
                                     .unwrap();
-                            });
-
-                        // secret.attach_card only logs for *that* player, so we need to log for the other player.
-                        self.context
-                            .mutate_secret(1 - parent_bucket_player, |mut secret| {
-                                let location = location.or_else(|| {
-                                    if card_bucket == Some(1 - parent_bucket_player) {
-                                        Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
-                                    } else {
-                                        None
-                                    }
-                                });
-                                secret.log(CardEvent::MoveCard {
-                                    instance: None, // todo is this None correct?
-                                    from: CardLocation {
-                                        player: owner,
-                                        location,
-                                    },
-                                    to: ExactCardLocation {
-                                        player: parent_bucket_player,
-                                        location: (
-                                            Zone::Attachment {
-                                                parent: parent_id.into(),
-                                            },
-                                            0,
-                                        ),
-                                    },
-                                })
+                            },CardEvent::MoveCard {
+                                instance: None,
+                                from: CardLocation {
+                                    player: owner,
+                                    location,
+                                },
+                                to: ExactCardLocation {
+                                    player: parent_bucket_player,
+                                    location: (
+                                        Zone::Attachment {
+                                            parent: parent_id.into(),
+                                        },
+                                        0,
+                                    ),
+                                },
                             });
                     }
                 },
