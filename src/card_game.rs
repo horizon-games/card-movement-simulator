@@ -1919,6 +1919,8 @@ impl<S: State> CardGame<S> {
                         let attachment = instance
                             .attachment
                             .map(|a_id| secret.instance(a_id).unwrap().clone());
+                        // Remove this card from its old zone in the secret.
+                        secret.secret.remove_id(secret.log, id);
                         secret.log(CardEvent::MoveCard {
                             instance: Some((instance, attachment)),
                             from: old_location,
@@ -1955,8 +1957,6 @@ impl<S: State> CardGame<S> {
                                 ),
                             },
                         });
-                        // Remove this card from its old zone in the secret.
-                        secret.secret.remove_id(secret.log, id);
 
                         // Put the card in its new zone in the secret.
                         match to_zone {
