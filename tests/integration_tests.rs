@@ -837,6 +837,7 @@ fn replacing_attach_on_secret_card_does_not_leak_existence_of_current_attachment
         Default::default(),
         |_, _, _| {},
         |_, _, _| {},
+        false,
     )
     .unwrap()
     .apply(Some(0), &Action::ReplacingAttachOnSecretCardDoesNotLeakInfo)
@@ -858,6 +859,7 @@ fn opaque_pointer_association_does_not_hold_through_draw() {
         Default::default(),
         |_, _, _| {},
         |_, _, _| {},
+        false,
     )
     .unwrap()
     .apply(
@@ -878,6 +880,7 @@ fn public_instance_from_id() {
         Default::default(),
         |_, _, _| {},
         |_, _, _| {},
+        false,
     )
     .unwrap();
 
@@ -902,6 +905,7 @@ fn secret_instance_from_id() {
         Default::default(),
         |_, _, _| {},
         |_, _, _| {},
+        false,
     )
     .unwrap();
 
@@ -928,6 +932,7 @@ fn opponent_instance_from_id() {
         Default::default(),
         |_, _, _| {},
         |_, _, _| {},
+        false,
     )
     .unwrap();
 
@@ -1029,6 +1034,7 @@ fn make_tester() -> (
             None => owner_logs_clone.try_borrow_mut().unwrap().push(message),
             Some(p) => player_logs_clone.try_borrow_mut().unwrap()[p as usize].push(message),
         },
+        false,
     )
     .unwrap();
 
