@@ -1771,7 +1771,12 @@ impl<S: State> CardGame<S> {
             self.modify_card(card, &f).await;
         }
     }
-
+    pub async fn change_base_card(&mut self, id: InstanceID, new_base: S::BaseCard) {
+        self.modify_card(id, |mut c| {
+            c.base = new_base.clone();
+        })
+        .await;
+    }
     pub async fn move_card(
         &mut self,
         card: impl Into<Card>,
