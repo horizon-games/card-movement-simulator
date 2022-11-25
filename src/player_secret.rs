@@ -258,6 +258,15 @@ impl<S: State> PlayerSecret<S> {
 
         Ok(())
     }
+    pub fn change_base_card(
+        &mut self,
+        card: impl Into<Card>,
+        log: &mut dyn FnMut(<GameState<S> as arcadeum::store::State>::Event),
+        new_base: S::BaseCard,
+    ) -> Result<(), error::SecretModifyCardError> {
+        let card = card.into();
+        self.modify_card(card, log, |mut c| c.base = new_base.clone())
+    }
 
     pub fn attach_card(
         &mut self,
