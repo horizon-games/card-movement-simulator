@@ -11,8 +11,11 @@ use {
     },
 };
 
+use indexmap::IndexMap;
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
+
+use crate::BaseCard;
 
 #[cfg_attr(
     feature = "bindings",
@@ -25,6 +28,9 @@ pub struct GameState<S: State> {
     pub(crate) instances: Vec<InstanceOrPlayer<S>>,
 
     player_cards: [PlayerCards; 2],
+
+    #[serde(bound = "S: State")]
+    base_states: IndexMap<S::BaseCard, <<S as State>::BaseCard as BaseCard>::CardState>,
 
     pub(crate) shuffle_deck_on_insert: bool,
 
@@ -51,6 +57,7 @@ impl<S: State> GameState<S> {
         Self {
             instances: Default::default(),
             player_cards: Default::default(),
+            base_states: Default::default(),
             shuffle_deck_on_insert,
             state,
         }
@@ -142,6 +149,21 @@ impl<S: State> GameState<S> {
                 location: None,
             },
         }
+    }
+
+    pub fn add_base_state(
+        &mut self,
+        base: <S as State>::BaseCard,
+        state: <<S as State>::BaseCard as BaseCard>::CardState,
+    ) {
+        self.base_states.insert(base, state);
+    }
+
+    pub fn get_base_state(
+        &self,
+        base: <S as State>::BaseCard,
+    ) -> &<<S as State>::BaseCard as BaseCard>::CardState {
+        self.base_states.get(&base).unwrap()
     }
 
     #[cfg(debug_assertions)]

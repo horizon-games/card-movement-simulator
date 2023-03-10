@@ -1,7 +1,9 @@
-use {crate::CardState, std::fmt::Debug};
+use crate::CardState;
+use std::fmt::Debug;
+use std::hash::Hash;
 
 pub trait BaseCard:
-    serde::Serialize + serde::de::DeserializeOwned + Clone + PartialEq + Debug
+    serde::Serialize + serde::de::DeserializeOwned + Clone + PartialEq + Eq + Hash + Debug
 {
     type CardState: CardState;
 
