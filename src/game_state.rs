@@ -119,7 +119,6 @@ impl<S: State> GameState<S> {
                             }
                         })
                     });
-
                     let parent = parents
                         .next()
                         .unwrap_or_else(|| panic!("{:?} has no owner or public parent", id));
