@@ -1811,6 +1811,7 @@ impl<S: State> CardGame<S> {
                 Zone::Attachment { parent } => {
                     return this.attach_card(card, parent).await;
                 }
+                Zone::HeroAbility => None,
             };
             // We always need to know who owns the card instance itself.
 
@@ -1958,6 +1959,9 @@ impl<S: State> CardGame<S> {
                         Zone::Attachment { .. } => {
                             unreachable!("Cannot move card to attachment zone")
                         }
+                        Zone::HeroAbility => {
+                            unreachable!("{}:{}:{}", file!(), line!(), column!());
+                        }
                     }
 
                     let to_location = (
@@ -1985,6 +1989,9 @@ impl<S: State> CardGame<S> {
                                 unreachable!("{}:{}:{}", file!(), line!(), column!())
                             }
                             Zone::Attachment { .. } => 0,
+                            Zone::HeroAbility => {
+                                unreachable!("{}:{}:{}", file!(), line!(), column!())
+                            }
                         },
                     );
                     this.context.mutate_secret_or_log(
@@ -2064,6 +2071,14 @@ impl<S: State> CardGame<S> {
                                                 )
                                             }
                                             Zone::Attachment { .. } => 0,
+                                            Zone::HeroAbility => {
+                                                unreachable!(
+                                                    "{}:{}:{}",
+                                                    file!(),
+                                                    line!(),
+                                                    column!()
+                                                )
+                                            }
                                         },
                                     ),
                                 },
@@ -2096,6 +2111,9 @@ impl<S: State> CardGame<S> {
                                 }
                                 Zone::Attachment { .. } => {
                                     unreachable!("Can't attach a spell with move_card.")
+                                }
+                                Zone::HeroAbility => {
+                                    unreachable!("{}:{}:{}", file!(), line!(), column!())
                                 }
                             }
                         },
@@ -2398,6 +2416,7 @@ impl<S: State> CardGame<S> {
                     this.player_cards_mut(to_player).dust.push(id);
                 }
                 Zone::Attachment { .. } => unreachable!("Cannot move card to attachment zone"),
+                Zone::HeroAbility => this.player_cards_mut(to_player).hero_ability.push(id),
             }
 
             if let Some(instance) = instance.clone() {
@@ -2502,6 +2521,9 @@ impl<S: State> CardGame<S> {
                                 this.player_cards(to_player).dust().len() - 1
                             }
                             Zone::Attachment { .. } => 0,
+                            Zone::HeroAbility { .. } => {
+                                this.player_cards(to_player).hero_ability().len() - 1
+                            }
                         },
                     ),
                 },

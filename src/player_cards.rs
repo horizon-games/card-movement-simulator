@@ -18,6 +18,8 @@ pub struct PlayerCards {
     pub(crate) casting: Vec<InstanceID>,
     #[serde(rename = "cardSelection")]
     pub(crate) card_selection: usize,
+    #[serde(rename = "heroAbility")]
+    pub(crate) hero_ability: Vec<InstanceID>,
 
     pub(crate) pointers: usize,
 }
@@ -53,6 +55,9 @@ impl PlayerCards {
 
     pub fn card_selection(&self) -> usize {
         self.card_selection
+    }
+    pub fn hero_ability(&self) -> &Vec<InstanceID> {
+        &self.hero_ability
     }
 
     pub fn zone(&self, id: InstanceID) -> Option<Zone> {
@@ -95,6 +100,12 @@ impl PlayerCards {
                     .position(|casting_id| *casting_id == id)
                     .map(|i| (Zone::Casting, i))
             })
+            .or_else(|| {
+                self.hero_ability
+                    .iter()
+                    .position(|hero_ability_id| *hero_ability_id == id)
+                    .map(|i| (Zone::HeroAbility, i))
+            })
     }
 
     pub(crate) fn remove_from(&mut self, zone: Zone, index: Option<usize>) {
@@ -126,7 +137,13 @@ impl PlayerCards {
                     .remove(index.expect("no index for casting zone"));
             }
             Zone::CardSelection => self.card_selection -= 1,
-            _ => (),
+            Zone::HeroAbility => {
+                self.hero_ability
+                    .remove(index.expect("no index for hero ability zone"));
+            }
+            Zone::Dust { public: false } | Zone::Limbo { public: false } => {
+                // these zones have no public counters, so don't do anything.
+            }
         }
     }
 }

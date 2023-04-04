@@ -1386,6 +1386,7 @@ fn test_attach(
         Zone::Limbo { public } => is_mine || public,
         Zone::Casting => true,
         Zone::CardSelection => true,
+        Zone::HeroAbility => true,
     };
     if has_public_location {
         assert!(
@@ -1608,6 +1609,7 @@ fn test_attach_from_attached(
         Zone::Limbo { public } => is_mine || public,
         Zone::Casting => true,
         Zone::CardSelection => is_mine,
+        Zone::HeroAbility => true,
     };
     if has_public_location {
         assert!(

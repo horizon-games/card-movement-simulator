@@ -19,6 +19,7 @@ pub enum Zone {
     Limbo { public: bool },
     Casting,
     CardSelection,
+    HeroAbility,
 }
 
 impl Zone {
@@ -81,6 +82,9 @@ impl Zone {
     pub fn is_card_selection(&self) -> bool {
         matches!(self, Self::CardSelection)
     }
+    pub fn is_hero_ability(&self) -> bool {
+        matches!(self, Self::HeroAbility)
+    }
 
     pub fn is_public(&self) -> Result<bool, error::ZoneAttachmentError> {
         match self {
@@ -96,6 +100,7 @@ impl Zone {
             Self::Limbo { public } => Ok(*public),
             Self::Casting => Ok(true),
             Self::CardSelection => Ok(false),
+            Self::HeroAbility => Ok(true),
         }
     }
 
@@ -122,6 +127,7 @@ impl Zone {
             Self::Limbo { public: false } => Ok(other.is_secret_limbo()),
             Self::Casting => Ok(other.is_casting()),
             Self::CardSelection => Ok(other.is_card_selection()),
+            Self::HeroAbility => Ok(other.is_hero_ability()),
         }
     }
 
@@ -148,6 +154,7 @@ impl std::fmt::Display for Zone {
             }
             Zone::Casting => write!(f, "casting"),
             Zone::CardSelection => write!(f, "card selection"),
+            Zone::HeroAbility => write!(f, "hero ability"),
         }
     }
 }
