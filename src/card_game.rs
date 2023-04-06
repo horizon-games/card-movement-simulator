@@ -2507,16 +2507,22 @@ impl<S: State> CardGame<S> {
                 },
             );
 
-            this.context.mutate_secret_or_log(owner, |mut secret| {
+            if move_card_event.1.location.is_none() {
+                this.context.mutate_secret_or_log(owner, |mut secret| {
                 let (instance, mut from, to) = move_card_event.clone();
 
-                if from.location.is_none() {
                     let missing_location = secret.deferred_locations.pop().expect("If from location is none, publically, and we're the player, we should have the deferred location.");
                     from.location = Some(missing_location);
-                }
 
                 secret.log(CardEvent::MoveCard { instance, from, to });
             },CardEvent::MoveCard { instance: move_card_event.0.clone(), from: move_card_event.1.clone(), to: move_card_event.2.clone() });
+            } else {
+                this.context.log(CardEvent::MoveCard {
+                    instance: move_card_event.0.clone(),
+                    from: move_card_event.1.clone(),
+                    to: move_card_event.2.clone(),
+                })
+            }
 
             for deferred_log in deferred_logs {
                 this.context.log(deferred_log);
