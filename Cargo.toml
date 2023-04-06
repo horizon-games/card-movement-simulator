@@ -1,6 +1,6 @@
 [package]
 name = "card-movement-simulator"
-version = "0.8.4"
+version = "0.8.5"
 authors = [
   "Horizon Blockchain Games Inc.",
   "William Hua <william@attente.ca>",
