@@ -3216,12 +3216,19 @@ impl<S: State> CardGame<S> {
                         for msg in logs.into_iter() {
                             if let CardEvent::MoveCard { instance, from, to } = msg {
                                 let from_player = from.player;
-                                self.context
-                                .mutate_secret_or_log(from_player, |mut secret| {
-                                    let location = from.location.or_else(||
-                                        {
-                                                Some(secret.deferred_locations.pop().expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from."))
-                                        });
+                                if from.location.is_some() {
+                                    self.context.log(CardEvent::MoveCard {
+                                        instance: instance.clone(),
+                                        from: from.clone(),
+                                        to: to.clone(),
+                                    })
+                                }
+                                self.context.mutate_secret_or_log(from_player, |mut secret| {
+                                    let location = Some(secret
+                                                    .deferred_locations
+                                                    .pop()
+                                                    .expect("Has deferred location, because we're attaching from -> to the same secret, so this secret has the from.")
+                                                );
                                     secret.log(CardEvent::MoveCard {
                                         instance: instance.clone(),
                                         from: CardLocation {
@@ -3230,7 +3237,7 @@ impl<S: State> CardGame<S> {
                                         },
                                         to: to.clone()
                                     })
-                                },CardEvent::MoveCard { instance: instance.clone(), from: from.clone(), to: to.clone() });
+                                }, CardEvent::MoveCard { instance: instance.clone(), from: from.clone(), to: to.clone() });
                             } else {
                                 deferred_logs.push(msg);
                             }
