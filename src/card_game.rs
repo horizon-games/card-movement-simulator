@@ -3222,8 +3222,8 @@ impl<S: State> CardGame<S> {
                                         from: from.clone(),
                                         to: to.clone(),
                                     })
-                                }
-                                self.context.mutate_secret_or_log(from_player, |mut secret| {
+                                } else {
+                                    self.context.mutate_secret_or_log(from_player, |mut secret| {
                                     let location = Some(secret
                                                     .deferred_locations
                                                     .pop()
@@ -3238,6 +3238,7 @@ impl<S: State> CardGame<S> {
                                         to: to.clone()
                                     })
                                 }, CardEvent::MoveCard { instance: instance.clone(), from: from.clone(), to: to.clone() });
+                                }
                             } else {
                                 deferred_logs.push(msg);
                             }
