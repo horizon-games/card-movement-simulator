@@ -13,7 +13,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 #[serde(tag = "type", content = "payload")]
 pub enum CardEvent<S: State> {
     /// Emitted when an OpaquePointer to an exact location is created.
-    /// *not* emitted when new cards (and their associated pointers) are created in secret state.
+    /// When new cards (and their associated pointers) are created in secret state, this event is only emitted if you have the secret.
     NewPointer {
         pointer: OpaquePointer,
         location: ExactCardLocation,
