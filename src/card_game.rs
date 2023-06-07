@@ -3467,6 +3467,18 @@ impl<S: State> SecretCardsInfo<'_, S> {
 
         self.pointers.push(card);
 
+        let new_pointer_evt = CardEvent::NewPointer {
+            pointer: OpaquePointer {
+                player: self.player(),
+                index: self.pointers.len() - 1,
+            },
+            location: ExactCardLocation {
+                player: self.player(),
+                location: (Zone::Limbo { public: false }, self.limbo.len() - 1),
+            },
+        };
+        self.log(new_pointer_evt);
+
         if let Some(attach_id) = attachment {
             let attachment = self.instance(attach_id).unwrap().clone();
             self.0
