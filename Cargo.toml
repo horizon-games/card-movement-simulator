@@ -17,7 +17,7 @@ serde = "1.0"
 serde_cbor = "0.11"
 thiserror = "1.0"
 typescript-definitions = { git = "https://github.com/arilotter/typescript-definitions.git", optional = true }
-wasm-bindgen = { version = "0.2.73", optional = true }
+wasm-bindgen = { version = "0.2.87", optional = true }
 
 [build-dependencies]
 inflections = "1"
