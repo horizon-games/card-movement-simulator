@@ -1387,6 +1387,7 @@ fn test_attach(
         Zone::Casting => true,
         Zone::CardSelection => true,
         Zone::HeroAbility => true,
+        Zone::Boon => true,
     };
     if has_public_location {
         assert!(
@@ -1610,6 +1611,7 @@ fn test_attach_from_attached(
         Zone::Casting => true,
         Zone::CardSelection => is_mine,
         Zone::HeroAbility => true,
+        Zone::Boon => true,
     };
     if has_public_location {
         assert!(
