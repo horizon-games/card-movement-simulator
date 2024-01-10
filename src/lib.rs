@@ -43,10 +43,13 @@ pub use arcadeum;
 pub trait Action: arcadeum::Action + Debug {}
 
 impl<T: arcadeum::Action + Debug> Action for T {}
+pub trait AnySecretData: serde::Serialize + serde::de::DeserializeOwned + Clone {}
 
-pub trait Secret: serde::Serialize + serde::de::DeserializeOwned + Clone {}
+impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone> AnySecretData for T {}
 
-impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone> Secret for T {}
+pub trait Secret<T: BaseCard>: serde::Serialize + serde::de::DeserializeOwned + Clone {
+    fn reset_card(&self, id: &InstanceID) -> T::CardState;
+} //TODO: add a fn that takes the secret self, and old card info, returns default card info
 
 pub type Context<S> = arcadeum::store::Context<
     <GameState<S> as arcadeum::store::State>::Secret,

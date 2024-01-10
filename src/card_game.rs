@@ -18,6 +18,8 @@ use {
 #[cfg(feature = "bindings")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
+use crate::AnySecretData;
+
 type AttachCardResult = Result<(CardLocation, Option<InstanceID>), error::MoveCardError>;
 
 pub struct CardGame<S: State> {
@@ -472,7 +474,7 @@ impl<S: State> CardGame<S> {
         !self.reveal_if_any(cards, move |card| !f(card)).await
     }
 
-    pub async fn reveal_from_card<T: Secret>(
+    pub async fn reveal_from_card<T: AnySecretData>(
         &mut self,
         card: impl Into<Card>,
         f: impl Fn(CardInfo<S>) -> T + Clone + 'static,
@@ -590,7 +592,7 @@ impl<S: State> CardGame<S> {
         }
     }
 
-    pub async fn reveal_from_cards<T: Secret>(
+    pub async fn reveal_from_cards<T: AnySecretData>(
         &mut self,
         cards: Vec<Card>,
         f: impl Fn(CardInfo<S>) -> T + Clone + 'static,
@@ -639,7 +641,7 @@ impl<S: State> CardGame<S> {
     ) -> B
     where
         T: Clone + 'static,
-        B: Secret + 'static,
+        B: AnySecretData + 'static,
         F: Fn(B, &T) -> B + Clone + 'static,
         G: Fn(CardInfo<S>) -> T + Clone + 'static,
     {
@@ -944,8 +946,8 @@ impl<S: State> CardGame<S> {
         match card {
             Card::ID(id) => match &self.instances[id.0] {
                 InstanceOrPlayer::Instance(instance) => {
+                    let old_instance = instance.state.clone();
                     // public ID to public instance
-
                     let owner = self.location(id).player;
 
                     let attachment = instance.attachment().map(|attachment| {
@@ -1038,8 +1040,13 @@ impl<S: State> CardGame<S> {
                             });
                         }
                     }
+                    let new_state = self.context.reveal(owner, move |secret| {
+                        secret.secret.reset_card(&id)
+                    }, |_| true).await;
+                        
                     self.modify_card(id, |mut c| {
-                        c.state = c.base.reset_card(&c.state);
+                        c.state = new_state.clone();
+
                         if let Some(attach) = c.attachment {
                             S::on_attach(&mut *c, &attach);
                         }
@@ -1055,7 +1062,7 @@ impl<S: State> CardGame<S> {
                         let instance = secret
                             .instance(id)
                             .unwrap_or_else(|| panic!("player {} secret {:?} not in secret", owner, id));
-
+                        let old_state = instance.state.clone();
                         let attachment = instance.attachment().map(|attachment| {
                             secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", owner, id, attachment))
                         });
@@ -1094,9 +1101,9 @@ impl<S: State> CardGame<S> {
                             }
 
 
-
+                        let new_state = secret.secret.reset_card(&id);
                         secret.modify_card(id, |mut c| {
-                            c.state = c.base.reset_card(&c.state);
+                                c.state = new_state.clone();
                             if let Some(attach) = c.attachment {
                                 S::on_attach(&mut *c, &attach);
                             }
@@ -1111,6 +1118,8 @@ impl<S: State> CardGame<S> {
                     let instance = secret
                         .instance(id)
                         .unwrap_or_else(|| panic!("player {} secret {:?} not in secret", player, id));
+                    
+                    let new_state = secret.secret.reset_card(&id);
 
                     let attachment = instance.attachment().map(|attachment| {
                         secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", player, id, attachment))
@@ -1200,8 +1209,9 @@ impl<S: State> CardGame<S> {
                     let instance = secret
                         .instance_mut(id)
                         .expect("immutable instance exists, but no mutable instance");
-
-                    instance.state = instance.base.reset_card(&instance.state);
+                    
+                    instance.state = new_state.clone();
+                    
                     if let Some(attach) = attachment {
                         S::on_attach(instance, &attach);
                     }

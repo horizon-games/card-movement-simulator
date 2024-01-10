@@ -20,7 +20,7 @@ pub trait State: serde::Serialize + serde::de::DeserializeOwned + Clone + Debug 
     type Event: serde::Serialize + Clone + Debug;
 
     /// Secret type
-    type Secret: Secret + Debug;
+    type Secret: Secret<Self::BaseCard> + Debug;
 
     /// Base card type
     type BaseCard: BaseCard;

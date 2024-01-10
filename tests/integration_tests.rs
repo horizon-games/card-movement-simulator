@@ -706,6 +706,12 @@ impl card_movement_simulator::State for State {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Default, Debug)]
 struct Secret;
 
+impl card_movement_simulator::Secret<BaseCard> for Secret {
+    fn reset_card(&self, _id: &InstanceID) -> CardState {
+        <BaseCard as card_movement_simulator::BaseCard>::new_card_state(&BaseCard::Basic, None)
+    }
+}
+
 #[derive(Clone, Copy, Debug, serde::Serialize, serde::Deserialize, PartialEq)]
 enum BaseCard {
     Basic,
@@ -732,9 +738,9 @@ impl card_movement_simulator::BaseCard for BaseCard {
         }
     }
 
-    fn reset_card(&self, _card: &Self::CardState) -> Self::CardState {
-        self.new_card_state(None)
-    }
+    // fn reset_card(&self, _card: &Self::CardState) -> Self::CardState {
+    //     self.new_card_state(None)
+    // }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
