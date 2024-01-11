@@ -48,6 +48,8 @@ pub trait AnySecretData: serde::Serialize + serde::de::DeserializeOwned + Clone 
 impl<T: serde::Serialize + serde::de::DeserializeOwned + Clone> AnySecretData for T {}
 
 pub trait Secret<T: BaseCard>: serde::Serialize + serde::de::DeserializeOwned + Clone {
+    fn attachment(&self, id: &InstanceID) -> Option<T>;
+
     fn reset_card(&self, id: &InstanceID) -> T::CardState;
 } //TODO: add a fn that takes the secret self, and old card info, returns default card info
 

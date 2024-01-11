@@ -5,7 +5,5 @@ pub trait BaseCard:
 {
     type CardState: CardState;
 
-    fn attachment(&self) -> Option<Self>;
-
-    fn new_card_state(&self, parent: Option<&Self::CardState>) -> Self::CardState;
+    fn new_card_state(&self) -> Self::CardState;
 }

@@ -61,7 +61,7 @@ impl card_movement_simulator::State for State {
 
                     eprintln!("and then...");
 
-                    let card_id = live_game.new_card(from_player, base_card_type).await;
+                    let card_id = live_game.new_card(from_player, base_card_type, None).await;
 
                     assert_eq!(live_game.reveal_ok().await, Ok(()));
 
@@ -105,7 +105,11 @@ impl card_movement_simulator::State for State {
                 } => {
                     let parent_owner = 0;
                     let parent_id = live_game
-                        .new_card(parent_owner, BaseCard::WithAttachment)
+                        .new_card(
+                            parent_owner,
+                            BaseCard::WithAttachment,
+                            BaseCard::WithAttachment.attachment(),
+                        )
                         .await;
 
                     live_game
@@ -175,7 +179,13 @@ impl card_movement_simulator::State for State {
                     card_zone,
                 } => {
                     let parent_owner = 0;
-                    let parent_id = live_game.new_card(parent_owner, parent_base_card).await;
+                    let parent_id = live_game
+                        .new_card(
+                            parent_owner,
+                            parent_base_card,
+                            parent_base_card.attachment(),
+                        )
+                        .await;
                     live_game
                         .move_card(parent_id, parent_owner, parent_zone)
                         .await
@@ -205,7 +215,13 @@ impl card_movement_simulator::State for State {
                         if started_with_attach { 1 } else { 0 }
                     );
 
-                    let card_id = live_game.new_card(card_owner, BaseCard::Attachment).await;
+                    let card_id = live_game
+                        .new_card(
+                            card_owner,
+                            BaseCard::Attachment,
+                            BaseCard::Attachment.attachment(),
+                        )
+                        .await;
                     live_game
                         .move_card(card_id, card_owner, card_zone)
                         .await
@@ -278,7 +294,13 @@ impl card_movement_simulator::State for State {
                     card_zone,
                 } => {
                     let parent_owner = 0;
-                    let parent_id = live_game.new_card(parent_owner, parent_base_card).await;
+                    let parent_id = live_game
+                        .new_card(
+                            parent_owner,
+                            parent_base_card,
+                            parent_base_card.attachment(),
+                        )
+                        .await;
 
                     live_game
                         .move_card(parent_id, parent_owner, parent_zone)
@@ -310,7 +332,11 @@ impl card_movement_simulator::State for State {
                     );
 
                     let starting_parent_id = live_game
-                        .new_card(card_owner, BaseCard::WithAttachment)
+                        .new_card(
+                            card_owner,
+                            BaseCard::WithAttachment,
+                            BaseCard::WithAttachment.attachment(),
+                        )
                         .await;
                     live_game
                         .move_card(starting_parent_id, card_owner, card_zone)
@@ -402,13 +428,21 @@ impl card_movement_simulator::State for State {
                 Action::ReplacingAttachOnSecretCardDoesNotLeakInfo => {
                     // All assertions that these methods work correctly are made in the auto-generated Attach tests.
 
-                    let parent = live_game.new_card(0, BaseCard::WithAttachment).await;
+                    let parent = live_game
+                        .new_card(
+                            0,
+                            BaseCard::WithAttachment,
+                            BaseCard::WithAttachment.attachment(),
+                        )
+                        .await;
                     live_game
                         .move_card(parent, 0, Zone::Hand { public: false })
                         .await
                         .unwrap();
 
-                    let card = live_game.new_card(0, BaseCard::Attachment).await;
+                    let card = live_game
+                        .new_card(0, BaseCard::Attachment, BaseCard::Attachment.attachment())
+                        .await;
                     live_game
                         .move_card(
                             card,
@@ -422,7 +456,9 @@ impl card_movement_simulator::State for State {
                 }
 
                 Action::OpaquePointerAssociationDoesntHoldThroughDraw => {
-                    let card_id = live_game.new_card(0, BaseCard::Basic).await;
+                    let card_id = live_game
+                        .new_card(0, BaseCard::Basic, BaseCard::Basic.attachment())
+                        .await;
                     assert_eq!(live_game.player_cards(0).deck(), 0);
                     live_game.move_card(card_id, 0, Zone::Deck).await.unwrap();
 
@@ -448,7 +484,13 @@ impl card_movement_simulator::State for State {
                     assert_eq!(card_id, drawn_id);
                 }
                 Action::InstanceFromIDSetup => {
-                    let card = live_game.new_card(0, BaseCard::WithAttachment).await;
+                    let card = live_game
+                        .new_card(
+                            0,
+                            BaseCard::WithAttachment,
+                            BaseCard::WithAttachment.attachment(),
+                        )
+                        .await;
                     live_game.move_card(card, 0, Zone::Field).await.unwrap();
 
                     // Public Attachment
@@ -458,7 +500,7 @@ impl card_movement_simulator::State for State {
 
                     let secret = live_game
                         .new_secret_cards(0, |mut info| {
-                            info.new_card(BaseCard::Basic);
+                            info.new_card(BaseCard::Basic, BaseCard::Basic.attachment());
                         })
                         .await[0];
                     assert_eq!(live_game.instances(), 4); // attachment or not info shouldn't be leaked
@@ -474,7 +516,7 @@ impl card_movement_simulator::State for State {
 
                     let secret = live_game
                         .new_secret_cards(1, |mut info| {
-                            info.new_card(BaseCard::Basic);
+                            info.new_card(BaseCard::Basic, BaseCard::Basic.attachment());
                         })
                         .await[0];
 
@@ -496,7 +538,9 @@ impl card_movement_simulator::State for State {
                     deep,
                 } => {
                     let owner = 0;
-                    let card_id = live_game.new_card(owner, base_card_type).await;
+                    let card_id = live_game
+                        .new_card(owner, base_card_type, base_card_type.attachment())
+                        .await;
 
                     live_game
                         .move_card(card_id, owner, card_zone)
@@ -552,7 +596,9 @@ impl card_movement_simulator::State for State {
                     card_zone,
                 } => {
                     let owner = 0;
-                    let card_id = live_game.new_card(owner, base_card_type).await;
+                    let card_id = live_game
+                        .new_card(owner, base_card_type, base_card_type.attachment())
+                        .await;
 
                     let starting_attach = live_game
                         .reveal_from_card(card_id, |c| {
@@ -562,7 +608,7 @@ impl card_movement_simulator::State for State {
                         .await;
 
                     if let Some(new_attach) = attachment_type {
-                        let attach = live_game.new_card(owner, new_attach).await;
+                        let attach = live_game.new_card(owner, new_attach, None).await;
                         live_game
                             .move_card(
                                 attach,
@@ -640,7 +686,7 @@ impl card_movement_simulator::State for State {
                         .reveal_from_card(card_id, |c| c.instance.clone())
                         .await;
                     let base_state =
-                        card_movement_simulator::BaseCard::new_card_state(&base_card_type, None);
+                        card_movement_simulator::BaseCard::new_card_state(&base_card_type);
 
                     assert!(
                         card_movement_simulator::CardState::eq(&*card_state, &base_state,),
@@ -654,7 +700,7 @@ impl card_movement_simulator::State for State {
                             .reveal_from_card(attach_id, |c| c.instance.clone())
                             .await;
                         let attach_base_state =
-                            card_movement_simulator::BaseCard::new_card_state(&attach_base, None);
+                            card_movement_simulator::BaseCard::new_card_state(&attach_base);
 
                         assert!(
                             card_movement_simulator::CardState::eq(
@@ -671,7 +717,7 @@ impl card_movement_simulator::State for State {
                     let hand = live_game
                         .new_secret_cards(0, |mut secret| {
                             for _ in 0..5 {
-                                secret.new_card(BaseCard::Basic);
+                                secret.new_card(BaseCard::Basic, BaseCard::Basic.attachment());
                             }
                         })
                         .await;
@@ -708,7 +754,10 @@ struct Secret;
 
 impl card_movement_simulator::Secret<BaseCard> for Secret {
     fn reset_card(&self, _id: &InstanceID) -> CardState {
-        <BaseCard as card_movement_simulator::BaseCard>::new_card_state(&BaseCard::Basic, None)
+        <BaseCard as card_movement_simulator::BaseCard>::new_card_state(&BaseCard::Basic)
+    }
+    fn attachment(&self, _id: &InstanceID) -> Option<BaseCard> {
+        None
     }
 }
 
@@ -718,19 +767,19 @@ enum BaseCard {
     WithAttachment,
     Attachment,
 }
-
-impl card_movement_simulator::BaseCard for BaseCard {
-    type CardState = CardState;
-
-    fn attachment(&self) -> Option<Self> {
+impl BaseCard {
+    pub fn attachment(&self) -> Option<Self> {
         match self {
             Self::Basic => None,
             Self::WithAttachment => Some(Self::Attachment),
             Self::Attachment => None,
         }
     }
+}
+impl card_movement_simulator::BaseCard for BaseCard {
+    type CardState = CardState;
 
-    fn new_card_state(&self, _parent: Option<&Self::CardState>) -> Self::CardState {
+    fn new_card_state(&self) -> Self::CardState {
         CardState {
             attachment_was_detached: 0,
             attachment_was_attached: 0,
