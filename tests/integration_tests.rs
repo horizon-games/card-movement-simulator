@@ -753,7 +753,7 @@ impl card_movement_simulator::State for State {
 struct Secret;
 
 impl card_movement_simulator::Secret<BaseCard> for Secret {
-    fn reset_card(&self, _id: &InstanceID) -> CardState {
+    fn reset_card(&self, _id: &InstanceID, _base: BaseCard) -> CardState {
         <BaseCard as card_movement_simulator::BaseCard>::new_card_state(&BaseCard::Basic)
     }
     fn attachment(&self, _id: &InstanceID) -> Option<BaseCard> {

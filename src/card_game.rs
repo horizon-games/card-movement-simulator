@@ -950,6 +950,7 @@ impl<S: State> CardGame<S> {
                     let owner = self.location(id).player;
 
                     let attachment_id = instance.attachment();
+                    let base = instance.base.clone();
 
                     let new_attachment =  self.context.reveal(owner, move |secret| secret.secret.attachment(&id), |_| true).await.clone();
                     let attachment = attachment_id.map(|attachment| {
@@ -1042,7 +1043,7 @@ impl<S: State> CardGame<S> {
                         }
                     }
                     let new_state = self.context.reveal(owner, move |secret| {
-                        secret.secret.reset_card(&id)
+                        secret.secret.reset_card(&id, base.clone())
                     }, |_| true).await;
                         
                     self.modify_card(id, |mut c| {
@@ -1063,6 +1064,7 @@ impl<S: State> CardGame<S> {
                         let instance = secret
                             .instance(id)
                             .unwrap_or_else(|| panic!("player {} secret {:?} not in secret", owner, id));
+                        let base = instance.base.clone();
 
                         let attachment = instance.attachment().map(|attachment| {
                             secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", owner, id, attachment))
@@ -1102,7 +1104,7 @@ impl<S: State> CardGame<S> {
                             }
 
 
-                        let new_state = secret.secret.reset_card(&id);
+                        let new_state = secret.secret.reset_card(&id, base);
                         secret.modify_card(id, |mut c| {
                                 c.state = new_state.clone();
                             if let Some(attach) = c.attachment {
@@ -1119,8 +1121,9 @@ impl<S: State> CardGame<S> {
                     let instance = secret
                         .instance(id)
                         .unwrap_or_else(|| panic!("player {} secret {:?} not in secret", player, id));
+                    let base = instance.base.clone();
                     
-                    let new_state = secret.secret.reset_card(&id);
+                    let new_state = secret.secret.reset_card(&id,base);
 
                     let attachment = instance.attachment().map(|attachment| {
                         secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", player, id, attachment))
