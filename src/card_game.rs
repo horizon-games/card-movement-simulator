@@ -49,7 +49,7 @@ impl<S: State> CardGame<S> {
 
     pub async fn new_card(&mut self, player: Player, base: S::BaseCard, attachment: Option<S::BaseCard>) -> InstanceID {
         let id = InstanceID(self.instances.len());
-        let state = base.new_card_state();
+        let state = base.new_card_state(None);
         let instance: CardInstance<S> = CardInstance {
             id,
             base: base.clone(),
@@ -64,10 +64,10 @@ impl<S: State> CardGame<S> {
 
         if let Some(attach_base) = attachment {
             let attach_id = InstanceID(self.instances.len());
-            let state = attach_base.new_card_state();
+            let state = attach_base.new_card_state(Some(&instance.state));
             let instance: CardInstance<S> = CardInstance {
                 id: attach_id,
-                base: attach_base,
+                base: attach_base.clone(),
                 attachment: None,
                 state,
             };
@@ -951,8 +951,12 @@ impl<S: State> CardGame<S> {
 
                     let attachment_id = instance.attachment();
                     let base = instance.base.clone();
+                    let base_clone = base.clone();
 
-                    let new_attachment =  self.context.reveal(owner, move |secret| secret.secret.attachment(&id), |_| true).await.clone();
+                    let new_state = self.context.reveal(owner, move |secret| {
+                        secret.secret.reset_card(&id, base.clone())
+                    }, |_| true).await;
+                    let new_attachment =  self.context.reveal(owner, move |secret| secret.secret.attachment(&id, base_clone.clone()), |_| true).await.clone();
                     let attachment = attachment_id.map(|attachment| {
                         self.instances[attachment.0]
                             .instance_ref()
@@ -987,7 +991,7 @@ impl<S: State> CardGame<S> {
                             // attach base attachment
 
                             // create attach state using new_card_state from implementor
-                            let new_state = default.new_card_state();
+                            let new_state = default.new_card_state(Some(&new_state));
                             let attachment = self.new_card(owner, default, None).await;
 
                             self.modify_card(attachment, move |mut c| {
@@ -1011,8 +1015,7 @@ impl<S: State> CardGame<S> {
                             let attachment = attachment
                                 .expect("attachment base exists, but no attachment")
                                 .id();
-
-                            let new_state = default.new_card_state();
+                            let new_state = default.new_card_state(Some(&new_state));
 
                             self.modify_card(attachment, move |mut c| {
                                 c.state = new_state.clone();
@@ -1021,7 +1024,7 @@ impl<S: State> CardGame<S> {
                         }
                         (Some(..), Some(default)) => {
                             // attach base attachment, will implicitly dust current attachment.
-                            let new_state = default.new_card_state();
+                            let new_state = default.new_card_state(Some(&new_state));
 
                             let attachment = self.new_card(owner, default, None).await;
                             // create attach state using new_card_state from implementor
@@ -1042,9 +1045,7 @@ impl<S: State> CardGame<S> {
                             });
                         }
                     }
-                    let new_state = self.context.reveal(owner, move |secret| {
-                        secret.secret.reset_card(&id, base.clone())
-                    }, |_| true).await;
+                    
                         
                     self.modify_card(id, |mut c| {
                         c.state = new_state.clone();
@@ -1073,7 +1074,7 @@ impl<S: State> CardGame<S> {
 
                             match (
                                 attachment,
-                                secret.secret.attachment(&id),
+                                secret.secret.attachment(&id, base.clone()),
                             ) {
                                 (None, None) => {
                                     // do nothing
@@ -1092,7 +1093,7 @@ impl<S: State> CardGame<S> {
                                 }
                                 (Some(current), Some(default)) if current.base == default => {
                                     // reset current attachment
-                                    let attachment_base_state = current.base.new_card_state();
+                                    let attachment_base_state = current.base.new_card_state(Some(&instance.state));
                                     let current_id = current.id();
                                     secret.instance_mut(current_id).unwrap().state = attachment_base_state;
                             }
@@ -1104,7 +1105,7 @@ impl<S: State> CardGame<S> {
                             }
 
 
-                        let new_state = secret.secret.reset_card(&id, base);
+                        let new_state = secret.secret.reset_card(&id, base.clone());
                         secret.modify_card(id, |mut c| {
                                 c.state = new_state.clone();
                             if let Some(attach) = c.attachment {
@@ -1123,7 +1124,7 @@ impl<S: State> CardGame<S> {
                         .unwrap_or_else(|| panic!("player {} secret {:?} not in secret", player, id));
                     let base = instance.base.clone();
                     
-                    let new_state = secret.secret.reset_card(&id,base);
+                    let new_state = secret.secret.reset_card(&id, base.clone());
 
                     let attachment = instance.attachment().map(|attachment| {
                         secret.instance(attachment).unwrap_or_else(|| panic!("player {} secret {:?} attachment {:?} not secret", player, id, attachment))
@@ -1133,7 +1134,7 @@ impl<S: State> CardGame<S> {
                         "`PlayerSecret::next_instance` missing during `CardGame::new_secret_cards` call",
                     );
 
-                    match (attachment, secret.secret.attachment(&id)) {
+                    match (attachment, secret.secret.attachment(&id, base.clone())) {
                         (None, None) => {
                             // do nothing
                         }
@@ -1149,7 +1150,7 @@ impl<S: State> CardGame<S> {
                         (None, Some(default)) => {
                             // attach base attachment
 
-                            let state = default.new_card_state();
+                            let state = default.new_card_state(Some(&instance.state));
 
                             let attachment = CardInstance {
                                 id: next_instance,
@@ -1166,13 +1167,13 @@ impl<S: State> CardGame<S> {
                         }
                         (Some(current), Some(default)) if current.base == default => {
                             // reset current attachment
-                            let attachment_base_state = current.base.new_card_state();
+                            let attachment_base_state = current.base.new_card_state(Some(&instance.state));
                             let current_id = current.id();
                             secret.instance_mut(current_id).unwrap().state = attachment_base_state;
                         }
                         (Some(current), Some(default)) => {
                             // dust current attachment
-                            let state = default.new_card_state();
+                            let state = default.new_card_state(Some(&instance.state));
                             let current_id = current.id();
                             secret
                                 .dust_card(current_id)
@@ -1258,6 +1259,7 @@ impl<S: State> CardGame<S> {
                         InstanceOrPlayer::Instance(instance) => {
                             let owner = this.owner(id);
                             let base = instance.base.clone();
+                            let base_clone = base.clone();
                             let state = instance.state.copy_card();
                             let attachment = if deep {
                                 if let Some(attachment) = instance.attachment {
@@ -1270,7 +1272,7 @@ impl<S: State> CardGame<S> {
                                 } else {
                                     None
                                 }
-                            } else if let Some(attachment) = this.context.reveal(owner, move |secret| secret.secret.attachment(&id), |_| true).await {
+                            } else if let Some(attachment) = this.context.reveal(owner, move |secret| secret.secret.attachment(&id, base_clone.clone()), |_| true).await {
                                 Some(this.new_card(owner, attachment, None).await)
                             } else {
                                 None
@@ -1336,12 +1338,12 @@ impl<S: State> CardGame<S> {
                                 } else {
                                     None
                                 }
-                            } else if let Some(attach_base) = secret.secret.attachment(&id) {
+                            } else if let Some(attach_base) = secret.secret.attachment(&id, base.clone()) {
                                 let attachment = CardInstance {
                                     id: attach_id,
                                     base: attach_base.clone(),
                                     attachment: None,
-                                    state: attach_base.new_card_state(),
+                                    state: attach_base.new_card_state(Some(&state)),
                                 };
 
                                 secret.instances.insert(attach_id, attachment);
@@ -1434,12 +1436,12 @@ impl<S: State> CardGame<S> {
                                     } else {
                                         None
                                     }
-                                } else if let Some(attach_base) = secret.secret.attachment(&id) {
+                                } else if let Some(attach_base) = secret.secret.attachment(&id, base.clone()) {
                                     let attachment = CardInstance {
                                         id: attach_id,
                                         base: attach_base.clone(),
                                         attachment: None,
-                                        state: attach_base.new_card_state(),
+                                        state: attach_base.new_card_state(Some(&state)),
                                     };
 
                                     secret.instances.insert(attach_id, attachment);
@@ -1502,12 +1504,12 @@ impl<S: State> CardGame<S> {
                                         } else {
                                             None
                                         }
-                                    } else if let Some(attach_base) = secret.secret.attachment(&id) {
+                                    } else if let Some(attach_base) = secret.secret.attachment(&id, base.clone()) {
                                         let attachment = CardInstance {
                                             id: attach_id,
                                             base: attach_base.clone(),
                                             attachment: None,
-                                            state: attach_base.new_card_state(),
+                                            state: attach_base.new_card_state(Some(&state)),
                                         };
 
                                         secret.instances.insert(attach_id, attachment);
@@ -3489,7 +3491,7 @@ impl<S: State> SecretCardsInfo<'_, S> {
         );
         
         let attachment = attachment.map(|attachment| {
-            let state = attachment.new_card_state();
+            let state = attachment.new_card_state(None);
             let instance = CardInstance {
                 id: next_instance,
                 base: attachment,
@@ -3505,7 +3507,7 @@ impl<S: State> SecretCardsInfo<'_, S> {
         next_instance.0 += 1;
 
         let card = next_instance;
-        let state = base.new_card_state();
+        let state = base.new_card_state(None);
         let instance = CardInstance {
             id: next_instance,
             base,
