@@ -10,7 +10,7 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-arcadeum = { git = "https://github.com/horizon-games/arcadeum-state.git", tag = "0.22.0" }
+arcadeum = { git = "https://github.com/horizon-games/arcadeum-state.git", branch = "console-log-state-hashes" }
 indexmap = { version = "^1.4", features = ["serde-1"] }
 rand = "0.8"
 serde = "1.0"
